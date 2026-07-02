@@ -1,9 +1,10 @@
 import { convert, money } from "../domain/currency";
+import type { RateMatrix } from "../domain/currency";
 import { variantDuration } from "../domain/schedule";
 import { fmtDur } from "../domain/time";
 import type { CurrencyView, TripCurrencies, VariantNode } from "../domain/types";
-import { Chip } from "./Chip";
-import { C, STEP_ICON, mono } from "./theme";
+import { StepChip } from "./StepChip";
+import { C, mono } from "./theme";
 
 export function VariantCard({
   variant,
@@ -11,15 +12,17 @@ export function VariantCard({
   onSelect,
   ccyView,
   tripCcy,
+  rates,
 }: {
   variant: VariantNode;
   active: boolean;
   onSelect: () => void;
   ccyView: CurrencyView;
   tripCcy: TripCurrencies;
+  rates: RateMatrix;
 }) {
   const dur = variantDuration(variant);
-  const cost = convert(variant.cost.amount, variant.cost.currency, tripCcy[ccyView]);
+  const cost = convert(variant.cost.amount, variant.cost.currency, tripCcy[ccyView], rates);
   return (
     <button
       onClick={onSelect}
@@ -45,9 +48,7 @@ export function VariantCard({
       </div>
       <div className="flex flex-wrap gap-1 mb-2">
         {variant.microSteps.map((ms) => (
-          <Chip key={ms.id}>
-            {STEP_ICON[ms.type]} {ms.label} · <span style={mono}>{ms.durationMin}m</span>
-          </Chip>
+          <StepChip key={ms.id} ms={ms} />
         ))}
       </div>
       <div className="flex justify-between text-sm" style={{ color: C.ink }}>

@@ -1,4 +1,5 @@
-import { convert } from "./currency";
+import { convert, RATES_EUR } from "./currency";
+import type { RateMatrix } from "./currency";
 import type { ExpenseItem, Participant, Trip } from "./types";
 
 // Per-participant shares of one expense, in the expense's native currency.
@@ -20,13 +21,13 @@ export function expenseShares(
 }
 
 // Net balances in EUR (positive = is owed money), from paid expenses only.
-export function computeBalances(trip: Trip): Record<string, number> {
+export function computeBalances(trip: Trip, rates: RateMatrix = RATES_EUR): Record<string, number> {
   const bal = Object.fromEntries(trip.participants.map((p) => [p.id, 0]));
   for (const exp of trip.expenses) {
-    bal[exp.payerId] += convert(exp.amount, exp.currency, "EUR");
+    bal[exp.payerId] += convert(exp.amount, exp.currency, "EUR", rates);
     const shares = expenseShares(exp, trip.participants);
     for (const [pid, share] of Object.entries(shares))
-      bal[pid] -= convert(share, exp.currency, "EUR");
+      bal[pid] -= convert(share, exp.currency, "EUR", rates);
   }
   return bal;
 }

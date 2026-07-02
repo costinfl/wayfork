@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.4
+## Current state — v0.5
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -48,7 +48,8 @@
 - **Variant cost → balances**: variant costs appear in the *projection* only.
   Design decision: unpaid projected costs are NOT netted into settlement
   (they have no payer yet). Spec was ambiguous here — revisit.
-- **Micro-step model**: has `distanceKm` but distance is not rendered.
+- ~~Micro-step model: has `distanceKm` but distance is not rendered~~ —
+  **done in v0.5** (shown on step chips).
 - **Weather state on VariantNode**: field exists in spec, omitted from the
   domain types to stay lean. Add `weather` to `VariantNode` next.
 - ~~Multi-day: model supports `trip.days[]` but UI renders `days[0]` only~~ —
@@ -60,7 +61,6 @@
 - CRUD: adding/editing trips, slots, variants, steps, expenses (all data is mock).
 - Persistence for edits (localStorage adapter behind a repository interface,
   then API) — uploaded trips already persist to localStorage as of v0.4.
-- Live ECB rate fetch (rates are a hardcoded EUR-pivot constant).
 - Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
 - Auth / multi-user sync / sharing.
 - Checkpoint types other than time (e.g., opening hours).
@@ -72,8 +72,10 @@
 2. **Ripple**: fold over slots; slot duration = Σ active variant micro-step
    durations; checkpoint `margin = checkpoint.time − slot.start`;
    status: `ok` if margin ≥ buffer, `amber` if 0 ≤ margin < buffer, `red` if late.
-3. **Currency**: EUR-pivot matrix `{EUR:1, RON:4.97, USD:1.08}`;
-   `convert(a,from,to) = a / rate[from] * rate[to]`. Fetch once at init in prod.
+3. **Currency**: EUR-pivot matrix; `convert(a,from,to) = a / rate[from] *
+   rate[to]`. Live ECB rates fetched once at app load (Frankfurter API,
+   `src/domain/rates.ts`); the hardcoded `{EUR:1, RON:4.97, USD:1.08}`
+   snapshot is the offline fallback. The ledger footnote shows which is active.
 4. **Balances**: all expenses converted to EUR; payer credited full amount,
    every participant debited their share; greedy debtor↔creditor matching
    yields the minimal transaction list.
@@ -88,7 +90,8 @@
 3. CRUD forms + state management (Context or Zustand): start with expenses
    (add/edit/delete), then variants/steps.
 4. Persistence: localStorage adapter behind a repository interface, then API.
-5. ECB rate fetch with cached fallback; then weather per variant; then timezones.
+5. ~~ECB rate fetch with cached fallback~~ (**done in v0.5**); then weather
+   per variant; then timezones.
 
 ## Session history
 
@@ -109,4 +112,11 @@
   runtime parser in front of `validateTrip`; `+ Add trip` UI (file upload +
   paste) with error reporting, localStorage persistence, and ✕ removal;
   50 tests. E2E-verified with a template-generated Vienna trip (valid upload,
-  invalid rejection, reload persistence, removal).
+  invalid rejection, reload persistence, removal). The contributed Neptun
+  trip was integrated as the third built-in trip; its offset-style checkpoint
+  times prompted a new validator rule (checkpoint before day start rejected).
+- **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
+  at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
+  unit-tested with a stubbed fetch); rates threaded through all conversions
+  and `computeBalances`; ledger footnote shows the active source ("ECB <date>"
+  vs "built-in snapshot"). Micro-step distances now render on step chips.

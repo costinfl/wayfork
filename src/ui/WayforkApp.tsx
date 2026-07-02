@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TRIPS } from "../data";
-import { convert, money } from "../domain/currency";
+import { convert, money, RATES_EUR } from "../domain/currency";
+import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
 import { parseTrip } from "../domain/parse";
+import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
 import type { CurrencyView, Trip } from "../domain/types";
 import { CheckpointBanner } from "./CheckpointBanner";
-import { Chip } from "./Chip";
-import { C, STEP_ICON, mono } from "./theme";
+import { StepChip } from "./StepChip";
+import { C, mono } from "./theme";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 
@@ -35,6 +37,26 @@ export default function WayforkApp() {
   const [uploadedTrips, setUploadedTrips] = useState<Trip[]>(loadStoredTrips);
   const [tripId, setTripId] = useState(TRIPS[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  // Live ECB rates, fetched once at load; the built-in snapshot is the fallback.
+  const [rates, setRates] = useState<RateMatrix>(RATES_EUR);
+  const [ratesLabel, setRatesLabel] = useState("built-in snapshot");
+  useEffect(() => {
+    let cancelled = false;
+    fetchRatesEUR(Object.keys(RATES_EUR))
+      .then(({ rates: live, date }) => {
+        if (!cancelled) {
+          setRates(live);
+          setRatesLabel(`ECB ${date}`);
+        }
+      })
+      .catch(() => {
+        /* offline or blocked — stay on the built-in snapshot */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const allTrips = [...TRIPS, ...uploadedTrips];
   const trip = allTrips.find((t) => t.id === tripId) ?? TRIPS[0];
@@ -106,13 +128,13 @@ export default function WayforkApp() {
           </button>
         </div>
         {uploadOpen && <UploadTrip onLoaded={addTrip} />}
-        <TripView key={trip.id} trip={trip} />
+        <TripView key={trip.id} trip={trip} rates={rates} ratesLabel={ratesLabel} />
       </div>
     </div>
   );
 }
 
-function TripView({ trip }: { trip: Trip }) {
+function TripView({ trip, rates, ratesLabel }: { trip: Trip; rates: RateMatrix; ratesLabel: string }) {
   const [dayIdx, setDayIdx] = useState(0);
   const day = trip.days[dayIdx];
 
@@ -139,20 +161,20 @@ function TripView({ trip }: { trip: Trip }) {
         (total, d) =>
           total +
           computeSchedule({ ...d, startTimeMin: dayStarts[d.id] }, activeVariants).reduce(
-            (s, r) => s + convert(r.variant.cost.amount, r.variant.cost.currency, "EUR"),
+            (s, r) => s + convert(r.variant.cost.amount, r.variant.cost.currency, "EUR", rates),
             0
           ),
         0
       ),
-    [trip.days, dayStarts, activeVariants]
+    [trip.days, dayStarts, activeVariants, rates]
   );
 
   const expensesEUR = useMemo(
-    () => trip.expenses.reduce((s, e) => s + convert(e.amount, e.currency, "EUR"), 0),
-    [trip.expenses]
+    () => trip.expenses.reduce((s, e) => s + convert(e.amount, e.currency, "EUR", rates), 0),
+    [trip.expenses, rates]
   );
 
-  const balances = useMemo(() => computeBalances(trip), [trip]);
+  const balances = useMemo(() => computeBalances(trip, rates), [trip, rates]);
   const txns = useMemo(() => settle(balances), [balances]);
   const pName = (id: string) => trip.participants.find((p) => p.id === id)?.name || id;
 
@@ -268,6 +290,7 @@ function TripView({ trip }: { trip: Trip }) {
                       active={v.id === row.variant.id}
                       ccyView={ccyView}
                       tripCcy={trip.currencies}
+                      rates={rates}
                       onSelect={() => setActiveVariants((s) => ({ ...s, [row.slot.id]: v.id }))}
                     />
                   ))}
@@ -275,9 +298,7 @@ function TripView({ trip }: { trip: Trip }) {
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {row.variant.microSteps.map((ms) => (
-                    <Chip key={ms.id}>
-                      {STEP_ICON[ms.type]} {ms.label} · <span style={mono}>{ms.durationMin}m</span>
-                    </Chip>
+                    <StepChip key={ms.id} ms={ms} />
                   ))}
                 </div>
               )}
@@ -306,7 +327,7 @@ function TripView({ trip }: { trip: Trip }) {
                 {label}
               </div>
               <div className="font-bold" style={mono}>
-                {money(convert(eur, "EUR", viewCcy), viewCcy)}
+                {money(convert(eur, "EUR", viewCcy, rates), viewCcy)}
               </div>
             </div>
           ))}
@@ -327,7 +348,7 @@ function TripView({ trip }: { trip: Trip }) {
                       {pName(e.payerId)} paid · {e.split.type}
                     </span>
                   </div>
-                  <div style={mono}>{money(convert(e.amount, e.currency, viewCcy), viewCcy)}</div>
+                  <div style={mono}>{money(convert(e.amount, e.currency, viewCcy, rates), viewCcy)}</div>
                 </div>
               ))}
           </div>
@@ -345,7 +366,7 @@ function TripView({ trip }: { trip: Trip }) {
                   <span>{p.name}</span>
                   <span style={{ ...mono, color: v >= 0 ? C.ok : C.red }}>
                     {v >= 0 ? "+" : ""}
-                    {money(convert(v, "EUR", viewCcy), viewCcy)}
+                    {money(convert(v, "EUR", viewCcy, rates), viewCcy)}
                   </span>
                 </div>
               );
@@ -363,14 +384,14 @@ function TripView({ trip }: { trip: Trip }) {
               txns.map((t, i) => (
                 <div key={i} className="text-sm py-0.5">
                   <b>{pName(t.from)}</b> owes <b>{pName(t.to)}</b>{" "}
-                  <span style={mono}>{money(convert(t.amountEUR, "EUR", viewCcy), viewCcy)}</span>
+                  <span style={mono}>{money(convert(t.amountEUR, "EUR", viewCcy, rates), viewCcy)}</span>
                 </div>
               ))
             )}
           </div>
         </div>
         <p className="text-xs mt-3" style={{ color: C.sub }}>
-          Balances cover paid expenses only; active variant costs are projected and split equally once spent. Rates cached at load (EUR pivot).
+          Balances cover paid expenses only; active variant costs are projected and split equally once spent. Rates: {ratesLabel} (EUR pivot).
         </p>
       </section>
     </>
