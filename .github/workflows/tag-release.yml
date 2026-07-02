@@ -1,0 +1,31 @@
+name: Tag release
+
+# Manually dispatched: creates an annotated tag, since local tag pushes
+# are not permitted with the tokens available in remote sessions.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (e.g. v0.1.0)"
+        required: true
+      sha:
+        description: "Commit SHA to tag (defaults to the dispatched ref's HEAD)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TARGET="${{ github.event.inputs.sha }}"
+          git tag -a "${{ github.event.inputs.tag }}" -m "Wayfork ${{ github.event.inputs.tag }}" ${TARGET:-HEAD}
+          git push origin "${{ github.event.inputs.tag }}"
