@@ -116,6 +116,9 @@ Every field shown is required. Use `null` (not omission) for absent
 3. Every variant has >= 1 micro-step; every `durationMin` is a positive integer.
 4. `startTimeMin` is an integer in [0, 1440); day dates are strictly increasing,
    one Day per calendar date from start to end inclusive.
+4b. ALL times are absolute minutes since midnight — `checkpoint.timeMin` for
+   10:00 AM is 600, NEVER an offset from the day start. A checkpoint must be
+   at or after its day's `startTimeMin`.
 5. ONLY these currency codes anywhere: "RON", "EUR", "USD" (the app's cached
    rate matrix). Set currencies to { "home": "RON", "local": <the destination's
    currency if it is EUR or USD, otherwise "EUR">, "intl": "USD" }.

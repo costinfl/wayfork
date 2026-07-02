@@ -1,6 +1,7 @@
 import { parseTrip } from "../domain/parse";
 import type { Trip } from "../domain/types";
 import lisbonJson from "./trips/lisbon.json";
+import neptunJson from "./trips/neptun.json";
 import romeJson from "./trips/rome.json";
 
 // Built-in trips ship as JSON — the same format the in-app "Add trip" upload
@@ -12,4 +13,8 @@ const load = (raw: unknown, name: string): Trip => {
   return trip;
 };
 
-export const TRIPS: Trip[] = [load(romeJson, "rome"), load(lisbonJson, "lisbon")];
+export const TRIPS: Trip[] = [
+  load(romeJson, "rome"),
+  load(lisbonJson, "lisbon"),
+  load(neptunJson, "neptun"),
+];

@@ -62,6 +62,12 @@ describe("validateTrip", () => {
     expect(validateTrip(trip).join("\n")).toContain("is not after the previous day");
   });
 
+  it("rejects a checkpoint set before the day starts (offset instead of absolute time)", () => {
+    const trip = base();
+    trip.days[0].slots[2].checkpoint = { label: "Boarding", timeMin: 240, bufferMin: 20 };
+    expect(validateTrip(trip).join("\n")).toContain("before the day starts");
+  });
+
   it("rejects non-positive micro-step durations", () => {
     const trip = base();
     trip.days[0].slots[0].variants[0].microSteps[0].durationMin = 0;

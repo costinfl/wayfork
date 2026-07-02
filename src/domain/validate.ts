@@ -63,6 +63,11 @@ export function validateTrip(trip: Trip): string[] {
       if (slot.checkpoint) {
         if (slot.checkpoint.timeMin < 0 || !Number.isInteger(slot.checkpoint.timeMin)) {
           err(`slot ${slot.id}: checkpoint timeMin must be a non-negative integer`);
+        } else if (slot.checkpoint.timeMin < day.startTimeMin) {
+          err(
+            `slot ${slot.id}: checkpoint timeMin ${slot.checkpoint.timeMin} is before the day starts (${day.startTimeMin}) — ` +
+              `timeMin is absolute minutes since midnight (e.g. 12:00 → 720), not an offset from the day start`
+          );
         }
         if (slot.checkpoint.bufferMin < 0) err(`slot ${slot.id}: checkpoint bufferMin must be >= 0`);
       }
