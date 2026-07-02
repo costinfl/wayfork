@@ -16,8 +16,8 @@ product specification and the implementation log of this iteration.
 Deployed via GitHub Pages: **https://costinfl.github.io/wayfork/**
 
 Deployment runs automatically from `.github/workflows/deploy.yml` on every push to the
-main branch. If the site is not up yet, enable Pages once in the repo settings:
-*Settings → Pages → Source: GitHub Actions*.
+main branch: it builds the app and publishes `dist/` to the `gh-pages` branch, which
+GitHub Pages serves (*Settings → Pages → Source: Deploy from a branch, `gh-pages`*).
 
 ## Tech stack
 
