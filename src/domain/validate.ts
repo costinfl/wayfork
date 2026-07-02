@@ -73,7 +73,7 @@ export function validateTrip(trip: Trip): string[] {
       }
       for (const v of slot.variants) {
         if (v.microSteps.length === 0) err(`variant ${v.id} has no micro-steps`);
-        if (v.cost.amount < 0) err(`variant ${v.id}: cost must be >= 0`);
+        if (!(v.cost.amount >= 0)) err(`variant ${v.id}: cost must be >= 0`);
         knownCcy(v.cost.currency, `variant ${v.id}`);
         for (const ms of v.microSteps) {
           if (ms.durationMin <= 0 || !Number.isInteger(ms.durationMin)) {
@@ -85,7 +85,7 @@ export function validateTrip(trip: Trip): string[] {
   }
 
   for (const exp of trip.expenses) {
-    if (exp.amount <= 0) err(`expense ${exp.id}: amount must be > 0`);
+    if (!(exp.amount > 0)) err(`expense ${exp.id}: amount must be > 0`);
     knownCcy(exp.currency, `expense ${exp.id}`);
     if (!pids.has(exp.payerId)) err(`expense ${exp.id}: payer "${exp.payerId}" is not a participant`);
     if (exp.split.type !== "equal") {
@@ -94,10 +94,10 @@ export function validateTrip(trip: Trip): string[] {
         if (!pids.has(pid)) err(`expense ${exp.id}: split share for unknown participant "${pid}"`);
       }
       const sum = Object.values(shares).reduce((s, v) => s + v, 0);
-      if (exp.split.type === "percent" && Math.abs(sum - 1) > 0.001) {
+      if (exp.split.type === "percent" && !(Math.abs(sum - 1) <= 0.001)) {
         err(`expense ${exp.id}: percent shares sum to ${sum}, expected 1`);
       }
-      if (exp.split.type === "fixed" && Math.abs(sum - exp.amount) > 0.01) {
+      if (exp.split.type === "fixed" && !(Math.abs(sum - exp.amount) <= 0.01)) {
         err(`expense ${exp.id}: fixed shares sum to ${sum}, expected the amount ${exp.amount}`);
       }
     }

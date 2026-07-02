@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { TRIPS } from "../data";
+import { createLocalStorageStore } from "../data/localStorageStore";
+import { mergeWithBuiltins } from "../data/repository";
 import { convert, money, RATES_EUR } from "../domain/currency";
 import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
-import { parseTrip } from "../domain/parse";
+import { removeExpense, upsertExpense } from "../domain/mutate";
 import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
-import type { CurrencyView, Trip } from "../domain/types";
+import type { CurrencyView, ExpenseItem, Trip } from "../domain/types";
+import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
+import { ExpenseForm } from "./ExpenseForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 import { UploadTrip } from "./UploadTrip";
@@ -16,27 +20,17 @@ import { VariantCard } from "./VariantCard";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
-const STORAGE_KEY = "wayfork.uploadedTrips";
-
-// Uploaded trips are re-validated on load; anything stale or invalid is dropped.
-function loadStoredTrips(): Trip[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw);
-    if (!Array.isArray(list)) return [];
-    return list
-      .map((entry) => parseTrip(entry).trip)
-      .filter((t): t is Trip => t !== null && !TRIPS.some((b) => b.id === t.id));
-  } catch {
-    return [];
-  }
-}
+// Swap this factory for an API-backed TripStore when a real database arrives.
+const STORE = createLocalStorageStore();
 
 export default function WayforkApp() {
-  const [uploadedTrips, setUploadedTrips] = useState<Trip[]>(loadStoredTrips);
+  const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripId, setTripId] = useState(TRIPS[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  useEffect(() => {
+    STORE.list().then(setStoredTrips);
+  }, []);
 
   // Live ECB rates, fetched once at load; the built-in snapshot is the fallback.
   const [rates, setRates] = useState<RateMatrix>(RATES_EUR);
@@ -58,32 +52,31 @@ export default function WayforkApp() {
     };
   }, []);
 
-  const allTrips = [...TRIPS, ...uploadedTrips];
+  const allTrips = mergeWithBuiltins(TRIPS, storedTrips);
   const trip = allTrips.find((t) => t.id === tripId) ?? TRIPS[0];
-  const isUploaded = uploadedTrips.some((t) => t.id === trip.id);
+  const isStored = storedTrips.some((t) => t.id === trip.id);
+  const isBuiltin = TRIPS.some((b) => b.id === trip.id);
+  const isOverride = isStored && isBuiltin; // edited copy of a shipped trip
 
-  const persist = (list: Trip[]) => {
-    setUploadedTrips(list);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    } catch {
-      /* storage full/unavailable — keep in-memory state */
-    }
+  const saveTrip = (next: Trip) => {
+    void STORE.save(next);
+    setStoredTrips((prev) => [...prev.filter((t) => t.id !== next.id), next]);
   };
 
   const addTrip = (t: Trip): string | null => {
     if (TRIPS.some((b) => b.id === t.id)) {
       return `A built-in trip already uses the id "${t.id}" — give the trip a different id.`;
     }
-    persist([...uploadedTrips.filter((u) => u.id !== t.id), t]);
+    saveTrip(t);
     setTripId(t.id);
     setUploadOpen(false);
     return null;
   };
 
   const removeCurrentTrip = () => {
-    persist(uploadedTrips.filter((u) => u.id !== trip.id));
-    setTripId(TRIPS[0].id);
+    void STORE.remove(trip.id);
+    setStoredTrips((prev) => prev.filter((t) => t.id !== trip.id));
+    if (!isBuiltin) setTripId(TRIPS[0].id); // resetting an override keeps it selected
   };
 
   return (
@@ -97,22 +90,26 @@ export default function WayforkApp() {
               className="rounded-lg px-3 py-1.5 text-sm font-semibold"
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
             >
-              {allTrips.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {uploadedTrips.some((u) => u.id === t.id) ? " (uploaded)" : ""}
-                </option>
-              ))}
+              {allTrips.map((t) => {
+                const stored = storedTrips.some((s) => s.id === t.id);
+                const builtin = TRIPS.some((b) => b.id === t.id);
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {stored ? (builtin ? " (edited)" : " (uploaded)") : ""}
+                  </option>
+                );
+              })}
             </select>
           )}
-          {isUploaded && (
+          {isStored && (
             <button
               onClick={removeCurrentTrip}
-              title="Remove this uploaded trip"
+              title={isOverride ? "Reset to the built-in version" : "Remove this uploaded trip"}
               className="px-3 py-1.5 rounded-lg text-sm font-semibold"
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.red }}
             >
-              ✕
+              {isOverride ? "↺" : "✕"}
             </button>
           )}
           <button
@@ -128,13 +125,23 @@ export default function WayforkApp() {
           </button>
         </div>
         {uploadOpen && <UploadTrip onLoaded={addTrip} />}
-        <TripView key={trip.id} trip={trip} rates={rates} ratesLabel={ratesLabel} />
+        <TripView key={trip.id} trip={trip} rates={rates} ratesLabel={ratesLabel} onTripChange={saveTrip} />
       </div>
     </div>
   );
 }
 
-function TripView({ trip, rates, ratesLabel }: { trip: Trip; rates: RateMatrix; ratesLabel: string }) {
+function TripView({
+  trip,
+  rates,
+  ratesLabel,
+  onTripChange,
+}: {
+  trip: Trip;
+  rates: RateMatrix;
+  ratesLabel: string;
+  onTripChange: (next: Trip) => void;
+}) {
   const [dayIdx, setDayIdx] = useState(0);
   const day = trip.days[dayIdx];
 
@@ -177,6 +184,18 @@ function TripView({ trip, rates, ratesLabel }: { trip: Trip; rates: RateMatrix; 
   const balances = useMemo(() => computeBalances(trip, rates), [trip, rates]);
   const txns = useMemo(() => settle(balances), [balances]);
   const pName = (id: string) => trip.participants.find((p) => p.id === id)?.name || id;
+
+  // Expense CRUD: null = closed, "new" = add form, otherwise the expense being edited.
+  const [expenseForm, setExpenseForm] = useState<"new" | ExpenseItem | null>(null);
+
+  const saveExpense = (exp: ExpenseItem): string[] => {
+    const next = upsertExpense(trip, exp);
+    const errors = validateTrip(next);
+    if (errors.length) return errors;
+    onTripChange(next);
+    setExpenseForm(null);
+    return [];
+  };
 
   const projectedEUR = expensesEUR + variantCostEUR;
 
@@ -312,7 +331,19 @@ function TripView({ trip, rates, ratesLabel }: { trip: Trip; rates: RateMatrix; 
 
       {/* Ledger */}
       <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <h2 className="font-bold mb-3">Shared ledger</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold">Shared ledger</h2>
+          <button
+            onClick={() => setExpenseForm(expenseForm === "new" ? null : "new")}
+            className="px-3 py-1 rounded-lg text-sm font-semibold"
+            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.line }}
+          >
+            + Add expense
+          </button>
+        </div>
+        {expenseForm === "new" && (
+          <ExpenseForm trip={trip} initial={null} onSave={saveExpense} onCancel={() => setExpenseForm(null)} />
+        )}
 
         <div className="grid grid-cols-3 gap-2 mb-4">
           {(
@@ -340,17 +371,45 @@ function TripView({ trip, rates, ratesLabel }: { trip: Trip; rates: RateMatrix; 
             </div>
             {trip.expenses
               .filter((e) => e.phase === phase)
-              .map((e) => (
-                <div key={e.id} className="flex items-center justify-between py-1.5 text-sm" style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <div>
-                    {e.label}
-                    <span className="ml-2 text-xs" style={{ color: C.sub }}>
-                      {pName(e.payerId)} paid · {e.split.type}
-                    </span>
+              .map((e) =>
+                expenseForm !== "new" && expenseForm?.id === e.id ? (
+                  <ExpenseForm
+                    key={e.id}
+                    trip={trip}
+                    initial={e}
+                    onSave={saveExpense}
+                    onCancel={() => setExpenseForm(null)}
+                  />
+                ) : (
+                  <div key={e.id} className="flex items-center justify-between py-1.5 text-sm" style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <div>
+                      {e.label}
+                      <span className="ml-2 text-xs" style={{ color: C.sub }}>
+                        {pName(e.payerId)} paid · {e.split.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span style={mono}>{money(convert(e.amount, e.currency, viewCcy, rates), viewCcy)}</span>
+                      <button
+                        onClick={() => setExpenseForm(e)}
+                        title="Edit expense"
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={{ border: `1px solid ${C.border}`, color: C.sub }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => onTripChange(removeExpense(trip, e.id))}
+                        title="Delete expense"
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={{ border: `1px solid ${C.border}`, color: C.red }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div style={mono}>{money(convert(e.amount, e.currency, viewCcy, rates), viewCcy)}</div>
-                </div>
-              ))}
+                )
+              )}
           </div>
         ))}
 

@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.5
+## Current state — v0.6
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -58,9 +58,10 @@
 
 ### ❌ Not implemented yet
 
-- CRUD: adding/editing trips, slots, variants, steps, expenses (all data is mock).
-- Persistence for edits (localStorage adapter behind a repository interface,
-  then API) — uploaded trips already persist to localStorage as of v0.4.
+- CRUD for slots, variants, steps, participants, and trip metadata
+  (expense CRUD done in v0.6).
+- API/database-backed TripStore adapter (the interface exists as of v0.6;
+  localStorage is the only implementation).
 - Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
 - Auth / multi-user sync / sharing.
 - Checkpoint types other than time (e.g., opening hours).
@@ -87,9 +88,10 @@
 1. ~~Scaffold real repo (IntelliJ): Vite + React + TS; split into `domain/`,
    `data/`, `ui/`~~ — **done in v0.2**.
 2. ~~Unit-test `computeSchedule`, `expenseShares`, `settle`~~ — **done in v0.2**.
-3. CRUD forms + state management (Context or Zustand): start with expenses
-   (add/edit/delete), then variants/steps.
-4. Persistence: localStorage adapter behind a repository interface, then API.
+3. CRUD forms: ~~expenses (add/edit/delete)~~ (**done in v0.6**), then
+   variants/steps/slots, then participants & trip metadata.
+4. ~~Persistence: localStorage adapter behind a repository interface~~
+   (**done in v0.6**) — next: API/database adapter implementing `TripStore`.
 5. ~~ECB rate fetch with cached fallback~~ (**done in v0.5**); then weather
    per variant; then timezones.
 
@@ -115,6 +117,14 @@
   invalid rejection, reload persistence, removal). The contributed Neptun
   trip was integrated as the third built-in trip; its offset-style checkpoint
   times prompted a new validator rule (checkpoint before day start rejected).
+- **v0.6.0** — expense CRUD + repository layer: async `TripStore` interface
+  (`src/data/repository.ts`) as the persistence boundary for a future
+  database/API, with `createLocalStorageStore` (validated reads, legacy-key
+  migration) as the current adapter; edits to built-in trips are
+  copy-on-write overrides ("(edited)" in the picker, ↺ resets); add/edit/
+  delete expenses with split authoring (equal/percent/fixed) validated
+  through `validateTrip` before saving; pure trip mutations in
+  `src/domain/mutate.ts`; 66 tests.
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions
