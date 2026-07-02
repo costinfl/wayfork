@@ -51,8 +51,8 @@ src/
   main.tsx         entry point, mounts the app
   index.css        Tailwind entry
   domain/          framework-free types + pure engines (schedule, ledger,
-                   currency, time, validate) with unit tests alongside
-  data/trips/      mock trips (Rome, Lisbon); register new ones in data/index.ts
+                   currency, time, parse, validate) with unit tests alongside
+  data/trips/      mock trips as JSON (Rome, Lisbon); register in data/index.ts
   ui/              React components (WayforkApp, VariantCard, …)
 docs/              product spec (PDF), living implementation log, and
                    MOCK_TRIP_PROMPT.md — a prompt template for generating
@@ -64,6 +64,9 @@ docs/              product spec (PDF), living implementation log, and
 
 `docs/MOCK_TRIP_PROMPT.md` is a fill-in prompt template (destination, start
 date, end date) that any AI assistant can use to generate a new, schema-valid
-mock trip. Save the output under `src/data/trips/`, register it in
-`src/data/index.ts`, and `npm test` will validate it against the domain
-invariants before it ships.
+mock trip as JSON. To test it, open the live app, click **+ Add trip**, and
+paste the JSON (or upload it as a `.json` file): it is validated in the
+browser — valid trips join the picker and are remembered in localStorage,
+invalid ones get a list of reasons. To ship a trip permanently, commit it
+under `src/data/trips/` and register it in `src/data/index.ts`; `npm test`
+validates every registered trip against the same invariants.

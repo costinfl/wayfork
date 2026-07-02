@@ -2,38 +2,110 @@ import { useMemo, useState } from "react";
 import { TRIPS } from "../data";
 import { convert, money } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
+import { parseTrip } from "../domain/parse";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
 import type { CurrencyView, Trip } from "../domain/types";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { Chip } from "./Chip";
 import { C, STEP_ICON, mono } from "./theme";
+import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
+const STORAGE_KEY = "wayfork.uploadedTrips";
+
+// Uploaded trips are re-validated on load; anything stale or invalid is dropped.
+function loadStoredTrips(): Trip[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((entry) => parseTrip(entry).trip)
+      .filter((t): t is Trip => t !== null && !TRIPS.some((b) => b.id === t.id));
+  } catch {
+    return [];
+  }
+}
+
 export default function WayforkApp() {
+  const [uploadedTrips, setUploadedTrips] = useState<Trip[]>(loadStoredTrips);
   const [tripId, setTripId] = useState(TRIPS[0].id);
-  const trip = TRIPS.find((t) => t.id === tripId) ?? TRIPS[0];
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  const allTrips = [...TRIPS, ...uploadedTrips];
+  const trip = allTrips.find((t) => t.id === tripId) ?? TRIPS[0];
+  const isUploaded = uploadedTrips.some((t) => t.id === trip.id);
+
+  const persist = (list: Trip[]) => {
+    setUploadedTrips(list);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch {
+      /* storage full/unavailable — keep in-memory state */
+    }
+  };
+
+  const addTrip = (t: Trip): string | null => {
+    if (TRIPS.some((b) => b.id === t.id)) {
+      return `A built-in trip already uses the id "${t.id}" — give the trip a different id.`;
+    }
+    persist([...uploadedTrips.filter((u) => u.id !== t.id), t]);
+    setTripId(t.id);
+    setUploadOpen(false);
+    return null;
+  };
+
+  const removeCurrentTrip = () => {
+    persist(uploadedTrips.filter((u) => u.id !== trip.id));
+    setTripId(TRIPS[0].id);
+  };
+
   return (
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
       <div className="max-w-2xl mx-auto">
-        {TRIPS.length > 1 && (
-          <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2 flex-wrap">
+          {allTrips.length > 1 && (
             <select
               value={trip.id}
               onChange={(e) => setTripId(e.target.value)}
               className="rounded-lg px-3 py-1.5 text-sm font-semibold"
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
             >
-              {TRIPS.map((t) => (
+              {allTrips.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
+                  {uploadedTrips.some((u) => u.id === t.id) ? " (uploaded)" : ""}
                 </option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+          {isUploaded && (
+            <button
+              onClick={removeCurrentTrip}
+              title="Remove this uploaded trip"
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+              style={{ border: `1px solid ${C.border}`, background: C.card, color: C.red }}
+            >
+              ✕
+            </button>
+          )}
+          <button
+            onClick={() => setUploadOpen((o) => !o)}
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{
+              border: `1px solid ${uploadOpen ? C.line : C.border}`,
+              background: uploadOpen ? C.lineSoft : C.card,
+              color: C.line,
+            }}
+          >
+            + Add trip
+          </button>
+        </div>
+        {uploadOpen && <UploadTrip onLoaded={addTrip} />}
         <TripView key={trip.id} trip={trip} />
       </div>
     </div>

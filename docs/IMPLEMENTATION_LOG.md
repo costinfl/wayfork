@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.3
+## Current state — v0.4
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -13,10 +13,12 @@
 - Source layout:
   - `src/domain/` — framework-free types + pure engines (`time`, `currency`,
     `schedule`, `ledger`) with Vitest unit tests alongside (`*.test.ts`).
-  - `src/data/trips/` — mock trips (Rome 1-day, Lisbon 3-day), registered in
-    `src/data/index.ts`; new trips can be AI-generated via
-    `docs/MOCK_TRIP_PROMPT.md` and are schema-validated by the test suite
-    (`src/domain/validate.ts`).
+  - `src/data/trips/` — mock trips as **JSON** (Rome 1-day, Lisbon 3-day),
+    registered in `src/data/index.ts`. New trips are AI-generated via
+    `docs/MOCK_TRIP_PROMPT.md` (JSON output) and can be loaded **in the app**
+    (`+ Add trip`: file upload or paste), validated by
+    `src/domain/parse.ts` (structural) + `src/domain/validate.ts` (semantic);
+    valid uploads persist in localStorage, invalid ones show the reasons.
   - `src/ui/` — React components (`WayforkApp`, `VariantCard`,
     `CheckpointBanner`, `Chip`, `theme`).
 - Still in-memory only: no persistence, no CRUD, no live rates.
@@ -56,7 +58,8 @@
 ### ❌ Not implemented yet
 
 - CRUD: adding/editing trips, slots, variants, steps, expenses (all data is mock).
-- Persistence (localStorage adapter behind a repository interface, then API).
+- Persistence for edits (localStorage adapter behind a repository interface,
+  then API) — uploaded trips already persist to localStorage as of v0.4.
 - Live ECB rate fetch (rates are a hardcoded EUR-pivot constant).
 - Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
 - Auth / multi-user sync / sharing.
@@ -101,3 +104,9 @@
   day tabs in the UI (multi-day support); Lisbon 3-day / 3-participant trip
   added as the template's reference output (exercises fixed splits, USD
   expenses, zero-cost variants, 3-way settlement, per-day checkpoints).
+- **v0.4.0** — in-app trip upload: trip data format unified on JSON (built-in
+  trips converted; prompt template now emits JSON); `parseTrip` defensive
+  runtime parser in front of `validateTrip`; `+ Add trip` UI (file upload +
+  paste) with error reporting, localStorage persistence, and ✕ removal;
+  50 tests. E2E-verified with a template-generated Vienna trip (valid upload,
+  invalid rejection, reload persistence, removal).

@@ -1,0 +1,279 @@
+{
+  "id": "trip-rome-0526",
+  "name": "Rome · May 2026",
+  "participants": [
+    {
+      "id": "p-andrei",
+      "name": "Andrei"
+    },
+    {
+      "id": "p-ioana",
+      "name": "Ioana"
+    }
+  ],
+  "currencies": {
+    "home": "RON",
+    "local": "EUR",
+    "intl": "USD"
+  },
+  "days": [
+    {
+      "id": "day-1",
+      "date": "2026-05-14",
+      "startTimeMin": 390,
+      "slots": [
+        {
+          "id": "slot-otp",
+          "title": "Hotel → Otopeni Airport",
+          "defaultVariantId": "v-otp-public",
+          "checkpoint": null,
+          "variants": [
+            {
+              "id": "v-otp-public",
+              "name": "Public transit",
+              "microSteps": [
+                {
+                  "id": "otp-pub-1",
+                  "type": "walk",
+                  "label": "Walk to Piața Unirii",
+                  "durationMin": 9,
+                  "distanceKm": 0.7
+                },
+                {
+                  "id": "otp-pub-2",
+                  "type": "metro",
+                  "label": "Metro M2 → Pipera",
+                  "durationMin": 30,
+                  "distanceKm": null
+                },
+                {
+                  "id": "otp-pub-3",
+                  "type": "transfer",
+                  "label": "Transfer to shuttle",
+                  "durationMin": 3,
+                  "distanceKm": null
+                },
+                {
+                  "id": "otp-pub-4",
+                  "type": "shuttle",
+                  "label": "Shuttle 100 → Terminal",
+                  "durationMin": 20,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 24,
+                "currency": "RON"
+              }
+            },
+            {
+              "id": "v-otp-uber",
+              "name": "Uber",
+              "microSteps": [
+                {
+                  "id": "otp-uber-1",
+                  "type": "wait",
+                  "label": "Wait for pickup",
+                  "durationMin": 4,
+                  "distanceKm": null
+                },
+                {
+                  "id": "otp-uber-2",
+                  "type": "car",
+                  "label": "Ride to Departures",
+                  "durationMin": 35,
+                  "distanceKm": 17
+                }
+              ],
+              "cost": {
+                "amount": 95,
+                "currency": "RON"
+              }
+            }
+          ]
+        },
+        {
+          "id": "slot-sec",
+          "title": "Check-in, security & gate",
+          "defaultVariantId": "v-sec",
+          "checkpoint": null,
+          "variants": [
+            {
+              "id": "v-sec",
+              "name": "Standard",
+              "microSteps": [
+                {
+                  "id": "sec-1",
+                  "type": "wait",
+                  "label": "Bag drop + security",
+                  "durationMin": 45,
+                  "distanceKm": null
+                },
+                {
+                  "id": "sec-2",
+                  "type": "walk",
+                  "label": "Walk to gate",
+                  "durationMin": 10,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 0,
+                "currency": "RON"
+              }
+            }
+          ]
+        },
+        {
+          "id": "slot-flight",
+          "title": "Flight W4 3105 → Rome FCO",
+          "defaultVariantId": "v-flight",
+          "checkpoint": {
+            "label": "Boarding starts 10:00",
+            "timeMin": 600,
+            "bufferMin": 20
+          },
+          "variants": [
+            {
+              "id": "v-flight",
+              "name": "Booked",
+              "microSteps": [
+                {
+                  "id": "fl-1",
+                  "type": "wait",
+                  "label": "Boarding",
+                  "durationMin": 25,
+                  "distanceKm": null
+                },
+                {
+                  "id": "fl-2",
+                  "type": "flight",
+                  "label": "OTP → FCO",
+                  "durationMin": 145,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 0,
+                "currency": "EUR"
+              }
+            }
+          ]
+        },
+        {
+          "id": "slot-fco",
+          "title": "FCO → Trastevere apartment",
+          "defaultVariantId": "v-fco-train",
+          "checkpoint": null,
+          "variants": [
+            {
+              "id": "v-fco-train",
+              "name": "Leonardo Express + tram",
+              "microSteps": [
+                {
+                  "id": "fco-tr-1",
+                  "type": "train",
+                  "label": "Leonardo Express → Termini",
+                  "durationMin": 32,
+                  "distanceKm": null
+                },
+                {
+                  "id": "fco-tr-2",
+                  "type": "walk",
+                  "label": "Walk to tram stop",
+                  "durationMin": 6,
+                  "distanceKm": null
+                },
+                {
+                  "id": "fco-tr-3",
+                  "type": "bus",
+                  "label": "Tram 8 → Trastevere",
+                  "durationMin": 15,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 30,
+                "currency": "EUR"
+              }
+            },
+            {
+              "id": "v-fco-taxi",
+              "name": "Taxi (flat rate)",
+              "microSteps": [
+                {
+                  "id": "fco-tx-1",
+                  "type": "wait",
+                  "label": "Taxi rank queue",
+                  "durationMin": 8,
+                  "distanceKm": null
+                },
+                {
+                  "id": "fco-tx-2",
+                  "type": "car",
+                  "label": "Ride to apartment",
+                  "durationMin": 45,
+                  "distanceKm": 31
+                }
+              ],
+              "cost": {
+                "amount": 55,
+                "currency": "EUR"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expenses": [
+    {
+      "id": "e1",
+      "phase": "pre-trip",
+      "label": "Flights ×2 (Wizz)",
+      "payerId": "p-andrei",
+      "amount": 1240,
+      "currency": "RON",
+      "split": {
+        "type": "equal"
+      }
+    },
+    {
+      "id": "e2",
+      "phase": "pre-trip",
+      "label": "Apartment · 4 nights",
+      "payerId": "p-ioana",
+      "amount": 380,
+      "currency": "EUR",
+      "split": {
+        "type": "equal"
+      }
+    },
+    {
+      "id": "e3",
+      "phase": "mid-trip",
+      "label": "Dinner in Trastevere",
+      "payerId": "p-andrei",
+      "amount": 62,
+      "currency": "EUR",
+      "split": {
+        "type": "percent",
+        "shares": {
+          "p-andrei": 0.6,
+          "p-ioana": 0.4
+        }
+      }
+    },
+    {
+      "id": "e4",
+      "phase": "mid-trip",
+      "label": "Metro tickets",
+      "payerId": "p-ioana",
+      "amount": 24,
+      "currency": "RON",
+      "split": {
+        "type": "equal"
+      }
+    }
+  ]
+}

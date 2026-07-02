@@ -1,9 +1,15 @@
+import { parseTrip } from "../domain/parse";
 import type { Trip } from "../domain/types";
-import { LISBON_TRIP } from "./trips/lisbon";
-import { ROME_TRIP } from "./trips/rome";
-import { NEPTUN_TRIP } from "./trips/neptun";
+import lisbonJson from "./trips/lisbon.json";
+import romeJson from "./trips/rome.json";
 
-// All trips available in the app. Register newly generated mock trips here
-// (see docs/MOCK_TRIP_PROMPT.md); the header shows a picker when there is
-// more than one.
-export const TRIPS: Trip[] = [ROME_TRIP, LISBON_TRIP, NEPTUN_TRIP];
+// Built-in trips ship as JSON — the same format the in-app "Add trip" upload
+// accepts (see docs/MOCK_TRIP_PROMPT.md). Register new committed trips here;
+// the header shows a picker when there is more than one.
+const load = (raw: unknown, name: string): Trip => {
+  const { trip, errors } = parseTrip(raw);
+  if (!trip) throw new Error(`Invalid built-in trip "${name}":\n${errors.join("\n")}`);
+  return trip;
+};
+
+export const TRIPS: Trip[] = [load(romeJson, "rome"), load(lisbonJson, "lisbon")];

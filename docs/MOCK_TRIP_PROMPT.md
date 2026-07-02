@@ -2,20 +2,25 @@
 
 Use this template to have any AI assistant generate a new mock trip for Wayfork.
 Fill in the three placeholders at the top of the prompt, paste the whole prompt,
-and you get back a TypeScript file ready to drop into the repo.
+and you get back a JSON document ready to load into the app.
 
-**Wiring the result into the app (2 steps):**
+**Using the result — primary path (no code changes):**
 
-1. Save the generated file as `src/data/trips/<destination>.ts`.
-2. Import it in `src/data/index.ts` and add it to the `TRIPS` array.
-   The app header shows a trip picker whenever more than one trip is registered.
+Open the live app, click **+ Add trip** (top right), then either paste the JSON
+into the text box or upload it as a `.json` file. The app validates it in the
+browser: if it is valid it appears in the trip picker (and is remembered in
+your browser); otherwise you get the list of problems. Uploaded trips can be
+removed again with the ✕ button.
 
-**Verifying it:** run `npm test`. The suite validates every registered trip
-against the schema invariants (`src/domain/validate.ts`) — unique ids, split
-sums, known currencies, valid dates, etc. If tests pass, the page will render it.
+**Using the result — committing it to the repo:**
 
-A reference output produced with this template lives at `src/data/trips/lisbon.ts`
-(inputs: Lisbon, 2026-09-10 → 2026-09-12).
+Save it as `src/data/trips/<destination>.json` and register it in the `TRIPS`
+array in `src/data/index.ts`. Run `npm test` — the suite validates every
+registered trip against the same invariants (`src/domain/parse.ts` +
+`src/domain/validate.ts`).
+
+A reference output produced with this template lives at
+`src/data/trips/lisbon.json` (inputs: Lisbon, 2026-09-10 → 2026-09-12).
 
 ---
 
@@ -25,8 +30,9 @@ Copy everything below, replacing `{DESTINATION}`, `{START_DATE}` and `{END_DATE}
 
 ````text
 You are generating mock data for Wayfork, a multi-variant travel planner and
-shared expense engine. Produce ONE TypeScript file and nothing else — no
-commentary before or after the code.
+shared expense engine. Produce ONE JSON document and nothing else — no
+commentary before or after it, no markdown code fences, no comments inside
+(JSON does not allow them). It must parse with JSON.parse.
 
 ## Inputs
 
@@ -38,20 +44,7 @@ Everything else (participants, itinerary, variants, costs, expenses) you invent:
 realistic, specific to the destination (real stations, tram lines, landmarks,
 plausible durations and prices), departing from Bucharest, Romania.
 
-## Output file contract
-
-The file must compile under TypeScript strict mode and follow exactly this shape
-(this is `src/data/trips/<name>.ts` in the repo):
-
-```ts
-import type { Trip } from "../../domain/types";
-
-const P = { alice: "<prefix>-p-alice", ... }; // participant id constants
-
-export const <DESTINATION_UPPER>_TRIP: Trip = { ... };
-```
-
-## The schema (from src/domain/types.ts)
+## The schema (TypeScript notation; your output is the JSON form of `Trip`)
 
 ```ts
 type StepType = "walk" | "metro" | "bus" | "train" | "car" | "shuttle"
@@ -112,6 +105,9 @@ interface Trip {
 }
 ```
 
+Every field shown is required. Use `null` (not omission) for absent
+`checkpoint` and `distanceKm`.
+
 ## Hard invariants (machine-checked — the file is rejected if violated)
 
 1. Every id in the file is unique. Prefix all ids with a short destination
@@ -121,8 +117,8 @@ interface Trip {
 4. `startTimeMin` is an integer in [0, 1440); day dates are strictly increasing,
    one Day per calendar date from start to end inclusive.
 5. ONLY these currency codes anywhere: "RON", "EUR", "USD" (the app's cached
-   rate matrix). Set currencies to { home: "RON", local: <the destination's
-   currency if it is EUR or USD, otherwise "EUR">, intl: "USD" }.
+   rate matrix). Set currencies to { "home": "RON", "local": <the destination's
+   currency if it is EUR or USD, otherwise "EUR">, "intl": "USD" }.
 6. Percent shares sum to 1; fixed shares sum to the expense amount; all share
    keys and payerId are participant ids.
 7. Variant costs are >= 0; expense amounts are > 0.
@@ -149,31 +145,30 @@ interface Trip {
   3 mid-trip; at least one "equal", one "percent", and one "fixed" split;
   at least 3 different payers (if 3+ participants) and at least 2 different
   currencies, with amounts plausible for the destination.
-- Flight/entry-fee variants whose money sits in the ledger get cost 0 with a
-  comment `// fare sits in pre-trip ledger` (see the flight example below).
+- Flights and prepaid entry tickets get variant cost 0 — their money belongs
+  in the pre-trip ledger as expenses instead.
 
-## Style reference (excerpt of a valid file)
+## Style reference (excerpt of a valid document)
 
-```ts
+```json
 {
-  id: "lx-slot-otp",
-  title: "Hotel → Otopeni Airport",
-  defaultVariantId: "lx-v-otp-public",
-  checkpoint: null,
-  variants: [
+  "id": "lx-slot-otp",
+  "title": "Hotel → Otopeni Airport",
+  "defaultVariantId": "lx-v-otp-public",
+  "checkpoint": null,
+  "variants": [
     {
-      id: "lx-v-otp-public",
-      name: "Public transit",
-      microSteps: [
-        { id: "lx-otp-pub-1", type: "walk", label: "Walk to Piața Romană", durationMin: 8, distanceKm: 0.6 },
-        { id: "lx-otp-pub-2", type: "metro", label: "Metro M2 → Pipera", durationMin: 26, distanceKm: null },
+      "id": "lx-v-otp-public",
+      "name": "Public transit",
+      "microSteps": [
+        { "id": "lx-otp-pub-1", "type": "walk", "label": "Walk to Piața Romană", "durationMin": 8, "distanceKm": 0.6 },
+        { "id": "lx-otp-pub-2", "type": "metro", "label": "Metro M2 → Pipera", "durationMin": 26, "distanceKm": null }
       ],
-      cost: { amount: 36, currency: "RON" },
-    },
-    // ... second variant: taxi
-  ],
-},
+      "cost": { "amount": 36, "currency": "RON" }
+    }
+  ]
+}
 ```
 
-Now generate the complete file for the inputs above.
+Now generate the complete JSON document for the inputs above.
 ````
