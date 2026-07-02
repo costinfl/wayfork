@@ -21,15 +21,17 @@ GitHub Pages serves (*Settings → Pages → Source: Deploy from a branch, `gh-p
 
 ## Tech stack
 
-- [Vite](https://vite.dev/) + [React 19](https://react.dev/)
+- [Vite](https://vite.dev/) + [React 19](https://react.dev/) + TypeScript
 - [Tailwind CSS v4](https://tailwindcss.com/) (via the `@tailwindcss/vite` plugin)
+- [Vitest](https://vitest.dev/) for unit tests
 
 ## Getting started
 
 ```bash
 npm install
 npm run dev      # local dev server with hot reload
-npm run build    # production build → dist/
+npm test         # unit tests (Vitest)
+npm run build    # typecheck + production build → dist/
 npm run preview  # serve the production build locally
 ```
 
@@ -46,9 +48,12 @@ is git-ignored.
 
 ```
 src/
-  main.jsx         entry point, mounts the app
-  WayforkApp.jsx   prototype v0.1 — domain model, mock data, engines, UI
+  main.tsx         entry point, mounts the app
   index.css        Tailwind entry
-docs/              product spec & implementation log (PDF)
-.github/workflows/ GitHub Pages deployment
+  domain/          framework-free types + pure engines (schedule, ledger,
+                   currency, time) with unit tests alongside (*.test.ts)
+  data/mock.ts     mock trip data (Rome · May 2026)
+  ui/              React components (WayforkApp, VariantCard, …)
+docs/              product spec (PDF) & living implementation log (md)
+.github/workflows/ GitHub Pages deployment + tag-release
 ```
