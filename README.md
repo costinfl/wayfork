@@ -51,9 +51,19 @@ src/
   main.tsx         entry point, mounts the app
   index.css        Tailwind entry
   domain/          framework-free types + pure engines (schedule, ledger,
-                   currency, time) with unit tests alongside (*.test.ts)
-  data/mock.ts     mock trip data (Rome · May 2026)
+                   currency, time, validate) with unit tests alongside
+  data/trips/      mock trips (Rome, Lisbon); register new ones in data/index.ts
   ui/              React components (WayforkApp, VariantCard, …)
-docs/              product spec (PDF) & living implementation log (md)
+docs/              product spec (PDF), living implementation log, and
+                   MOCK_TRIP_PROMPT.md — a prompt template for generating
+                   new mock trips with any AI assistant
 .github/workflows/ GitHub Pages deployment + tag-release
 ```
+
+## Generating more mock data
+
+`docs/MOCK_TRIP_PROMPT.md` is a fill-in prompt template (destination, start
+date, end date) that any AI assistant can use to generate a new, schema-valid
+mock trip. Save the output under `src/data/trips/`, register it in
+`src/data/index.ts`, and `npm test` will validate it against the domain
+invariants before it ships.

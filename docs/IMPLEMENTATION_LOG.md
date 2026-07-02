@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.2
+## Current state — v0.3
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -13,7 +13,10 @@
 - Source layout:
   - `src/domain/` — framework-free types + pure engines (`time`, `currency`,
     `schedule`, `ledger`) with Vitest unit tests alongside (`*.test.ts`).
-  - `src/data/mock.ts` — the Rome mock trip (typed literal, stable ids).
+  - `src/data/trips/` — mock trips (Rome 1-day, Lisbon 3-day), registered in
+    `src/data/index.ts`; new trips can be AI-generated via
+    `docs/MOCK_TRIP_PROMPT.md` and are schema-validated by the test suite
+    (`src/domain/validate.ts`).
   - `src/ui/` — React components (`WayforkApp`, `VariantCard`,
     `CheckpointBanner`, `Chip`, `theme`).
 - Still in-memory only: no persistence, no CRUD, no live rates.
@@ -37,15 +40,18 @@
 
 ### 🟡 Partially implemented
 
-- **Fixed-share splits**: engine supports and now unit-tests `{type:'fixed'}`,
-  but no mock expense exercises it and there is no UI to author splits.
+- **Fixed-share splits**: engine supports and unit-tests `{type:'fixed'}`, and
+  the Lisbon mock now exercises it in the UI — but there is still no UI to
+  author splits.
 - **Variant cost → balances**: variant costs appear in the *projection* only.
   Design decision: unpaid projected costs are NOT netted into settlement
   (they have no payer yet). Spec was ambiguous here — revisit.
 - **Micro-step model**: has `distanceKm` but distance is not rendered.
 - **Weather state on VariantNode**: field exists in spec, omitted from the
   domain types to stay lean. Add `weather` to `VariantNode` next.
-- **Multi-day**: model supports `trip.days[]` but UI renders `days[0]` only.
+- ~~Multi-day: model supports `trip.days[]` but UI renders `days[0]` only~~ —
+  **done in v0.3** (day tabs; per-day departure time; projection sums active
+  variants across all days).
 
 ### ❌ Not implemented yet
 
@@ -89,3 +95,9 @@
   `data/`, `ui/`; 28 Vitest unit tests over schedule/ledger/currency/time
   engines; CI runs tests before deploying. UI behavior unchanged
   (screenshot-verified against v0.1).
+- **v0.3.0** — mock-data pipeline: `docs/MOCK_TRIP_PROMPT.md` prompt template
+  (inputs: destination + start/end date) for AI-generating new trips;
+  `validateTrip` domain validator wired into the test suite; trip picker and
+  day tabs in the UI (multi-day support); Lisbon 3-day / 3-participant trip
+  added as the template's reference output (exercises fixed splits, USD
+  expenses, zero-cost variants, 3-way settlement, per-day checkpoints).

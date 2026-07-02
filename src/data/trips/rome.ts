@@ -1,10 +1,10 @@
-import type { Trip } from "../domain/types";
+import type { Trip } from "../../domain/types";
 
 // Bucharest → Rome, one travel day, 2 variant forks.
 
-export const P = { andrei: "p-andrei", ioana: "p-ioana" };
+const P = { andrei: "p-andrei", ioana: "p-ioana" };
 
-export const MOCK_TRIP: Trip = {
+export const ROME_TRIP: Trip = {
   id: "trip-rome-0526",
   name: "Rome · May 2026",
   participants: [
