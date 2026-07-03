@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins } from "../data/repository";
+import type { TripStore } from "../data/repository";
+import { SUPABASE_CONFIG } from "../data/supabaseConfig";
+import { createSupabaseStore } from "../data/supabaseStore";
 import { convert, money, RATES_EUR } from "../domain/currency";
 import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
@@ -35,17 +38,42 @@ import { VariantForm } from "./VariantForm";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
-// Swap this factory for an API-backed TripStore when a real database arrives.
-const STORE = createLocalStorageStore();
+// Shared Supabase database when configured & reachable; localStorage otherwise.
+const LOCAL_STORE = createLocalStorageStore();
+const REMOTE_STORE = SUPABASE_CONFIG.url ? createSupabaseStore(SUPABASE_CONFIG) : null;
 
 export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripId, setTripId] = useState(TRIPS[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [tripForm, setTripForm] = useState<"new" | "settings" | null>(null);
+  const [store, setStore] = useState<TripStore>(LOCAL_STORE);
+  const [storeLabel, setStoreLabel] = useState("local browser");
 
   useEffect(() => {
-    STORE.list().then(setStoredTrips);
+    let cancelled = false;
+    const useLocal = () =>
+      LOCAL_STORE.list().then((trips) => {
+        if (!cancelled) setStoredTrips(trips);
+      });
+    if (!REMOTE_STORE) {
+      void useLocal();
+      return;
+    }
+    REMOTE_STORE.list()
+      .then((trips) => {
+        if (!cancelled) {
+          setStore(REMOTE_STORE);
+          setStoreLabel("Supabase (shared)");
+          setStoredTrips(trips);
+        }
+      })
+      .catch(() => {
+        void useLocal(); // offline or DB unreachable — degrade to the browser store
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Live ECB rates, fetched once at load; the built-in snapshot is the fallback.
@@ -75,7 +103,7 @@ export default function WayforkApp() {
   const isOverride = isStored && isBuiltin; // edited copy of a shipped trip
 
   const saveTrip = (next: Trip) => {
-    void STORE.save(next);
+    store.save(next).catch((e) => console.error("trip save failed:", e));
     setStoredTrips((prev) => [...prev.filter((t) => t.id !== next.id), next]);
   };
 
@@ -90,7 +118,7 @@ export default function WayforkApp() {
   };
 
   const removeCurrentTrip = () => {
-    void STORE.remove(trip.id);
+    store.remove(trip.id).catch((e) => console.error("trip remove failed:", e));
     setStoredTrips((prev) => prev.filter((t) => t.id !== trip.id));
     if (!isBuiltin) setTripId(TRIPS[0].id); // resetting an override keeps it selected
   };
@@ -181,7 +209,14 @@ export default function WayforkApp() {
             onCancel={() => setTripForm(null)}
           />
         )}
-        <TripView key={trip.id} trip={trip} rates={rates} ratesLabel={ratesLabel} onTripChange={saveTrip} />
+        <TripView
+          key={trip.id}
+          trip={trip}
+          rates={rates}
+          ratesLabel={ratesLabel}
+          storeLabel={storeLabel}
+          onTripChange={saveTrip}
+        />
       </div>
     </div>
   );
@@ -191,11 +226,13 @@ function TripView({
   trip,
   rates,
   ratesLabel,
+  storeLabel,
   onTripChange,
 }: {
   trip: Trip;
   rates: RateMatrix;
   ratesLabel: string;
+  storeLabel: string;
   onTripChange: (next: Trip) => void;
 }) {
   const [dayIdx, setDayIdx] = useState(0);
@@ -708,7 +745,7 @@ function TripView({
           </div>
         </div>
         <p className="text-xs mt-3" style={{ color: C.sub }}>
-          Balances cover paid expenses only; active variant costs are projected and split equally once spent. Rates: {ratesLabel} (EUR pivot).
+          Balances cover paid expenses only; active variant costs are projected and split equally once spent. Rates: {ratesLabel} (EUR pivot). Storage: {storeLabel}.
         </p>
       </section>
     </>
