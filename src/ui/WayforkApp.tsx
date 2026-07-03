@@ -5,18 +5,28 @@ import { mergeWithBuiltins } from "../data/repository";
 import { convert, money, RATES_EUR } from "../domain/currency";
 import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
-import { removeExpense, upsertExpense } from "../domain/mutate";
+import {
+  moveSlot,
+  removeExpense,
+  removeSlot,
+  removeVariant,
+  upsertExpense,
+  upsertSlot,
+  upsertVariant,
+} from "../domain/mutate";
 import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
-import type { CurrencyView, ExpenseItem, Trip } from "../domain/types";
+import type { CurrencyView, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { ExpenseForm } from "./ExpenseForm";
+import { SlotForm } from "./SlotForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
+import { VariantForm } from "./VariantForm";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
@@ -188,14 +198,41 @@ function TripView({
   // Expense CRUD: null = closed, "new" = add form, otherwise the expense being edited.
   const [expenseForm, setExpenseForm] = useState<"new" | ExpenseItem | null>(null);
 
-  const saveExpense = (exp: ExpenseItem): string[] => {
-    const next = upsertExpense(trip, exp);
+  // Itinerary CRUD state.
+  const [editMode, setEditMode] = useState(false);
+  const [slotForm, setSlotForm] = useState<"new" | ItinerarySlot | null>(null);
+  const [variantForm, setVariantForm] = useState<{ slotId: string; variant: VariantNode | null } | null>(null);
+  const [editError, setEditError] = useState<string[]>([]);
+
+  // Validate, then persist through the repository; returns the problems.
+  const applyTrip = (next: Trip): string[] => {
     const errors = validateTrip(next);
-    if (errors.length) return errors;
-    onTripChange(next);
-    setExpenseForm(null);
-    return [];
+    if (!errors.length) {
+      onTripChange(next);
+      setEditError([]);
+    }
+    return errors;
   };
+
+  const saveExpense = (exp: ExpenseItem): string[] => {
+    const errors = applyTrip(upsertExpense(trip, exp));
+    if (!errors.length) setExpenseForm(null);
+    return errors;
+  };
+
+  const saveSlot = (slot: ItinerarySlot): string[] => {
+    const errors = applyTrip(upsertSlot(trip, day.id, slot));
+    if (!errors.length) setSlotForm(null);
+    return errors;
+  };
+
+  const saveVariant = (slotId: string) => (variant: VariantNode): string[] => {
+    const errors = applyTrip(upsertVariant(trip, slotId, variant));
+    if (!errors.length) setVariantForm(null);
+    return errors;
+  };
+
+  const editBtn = { border: `1px solid ${C.border}`, background: C.card, color: C.sub };
 
   const projectedEUR = expensesEUR + variantCostEUR;
 
@@ -262,10 +299,27 @@ function TripView({
 
       {/* Timeline */}
       <section className="rounded-xl p-4 mb-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-bold">
             Day {dayIdx + 1} — {day.date}
           </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setEditMode((e) => !e);
+                setSlotForm(null);
+                setVariantForm(null);
+                setEditError([]);
+              }}
+              className="px-3 py-1 rounded-lg text-sm font-semibold"
+              style={{
+                border: `1px solid ${editMode ? C.line : C.border}`,
+                background: editMode ? C.lineSoft : C.card,
+                color: C.line,
+              }}
+            >
+              {editMode ? "Done" : "Edit"}
+            </button>
           <label className="flex items-center gap-2 text-sm" style={{ color: C.sub }}>
             Depart
             <input
@@ -279,7 +333,16 @@ function TripView({
               style={{ border: `1px solid ${C.border}`, ...mono, color: C.ink }}
             />
           </label>
+          </div>
         </div>
+
+        {editError.length > 0 && (
+          <div className="rounded-md px-3 py-2 mb-3 text-xs" style={{ background: C.redBg, color: C.red }}>
+            {editError.map((e, i) => (
+              <div key={i}>• {e}</div>
+            ))}
+          </div>
+        )}
 
         <div className="relative" style={{ borderLeft: `3px solid ${C.line}`, marginLeft: 8 }}>
           {schedule.map((row) => (
@@ -321,9 +384,103 @@ function TripView({
                   ))}
                 </div>
               )}
+
+              {editMode && (
+                <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+                  <button
+                    onClick={() => {
+                      setSlotForm(row.slot);
+                      setVariantForm(null);
+                    }}
+                    className="text-xs px-2 py-0.5 rounded"
+                    style={editBtn}
+                  >
+                    ✎ slot
+                  </button>
+                  <button onClick={() => setEditError(applyTrip(moveSlot(trip, row.slot.id, -1)))} title="Move up" className="text-xs px-2 py-0.5 rounded" style={editBtn}>
+                    ↑
+                  </button>
+                  <button onClick={() => setEditError(applyTrip(moveSlot(trip, row.slot.id, 1)))} title="Move down" className="text-xs px-2 py-0.5 rounded" style={editBtn}>
+                    ↓
+                  </button>
+                  {day.slots.length > 1 && (
+                    <button
+                      onClick={() => setEditError(applyTrip(removeSlot(trip, row.slot.id)))}
+                      title="Delete slot"
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{ ...editBtn, color: C.red }}
+                    >
+                      ✕ slot
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setVariantForm({ slotId: row.slot.id, variant: null });
+                      setSlotForm(null);
+                    }}
+                    className="text-xs px-2 py-0.5 rounded"
+                    style={{ ...editBtn, color: C.line }}
+                  >
+                    + variant
+                  </button>
+                  {row.slot.variants.map((v) => (
+                    <span key={v.id} className="inline-flex items-center gap-0.5">
+                      <button
+                        onClick={() => {
+                          setVariantForm({ slotId: row.slot.id, variant: v });
+                          setSlotForm(null);
+                        }}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={editBtn}
+                      >
+                        ✎ {v.name}
+                      </button>
+                      {row.slot.variants.length > 1 && (
+                        <button
+                          onClick={() => setEditError(applyTrip(removeVariant(trip, row.slot.id, v.id)))}
+                          title={`Delete variant ${v.name}`}
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ ...editBtn, color: C.red }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {editMode && slotForm !== null && slotForm !== "new" && slotForm.id === row.slot.id && (
+                <SlotForm trip={trip} initial={slotForm} onSave={saveSlot} onCancel={() => setSlotForm(null)} />
+              )}
+              {editMode && variantForm?.slotId === row.slot.id && (
+                <VariantForm
+                  initial={variantForm.variant}
+                  defaultCurrency={trip.currencies.local}
+                  onSave={saveVariant(row.slot.id)}
+                  onCancel={() => setVariantForm(null)}
+                />
+              )}
             </div>
           ))}
         </div>
+        {editMode && (
+          <div className="mt-1">
+            {slotForm === "new" ? (
+              <SlotForm trip={trip} initial={null} onSave={saveSlot} onCancel={() => setSlotForm(null)} />
+            ) : (
+              <button
+                onClick={() => {
+                  setSlotForm("new");
+                  setVariantForm(null);
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+                style={{ border: `1px dashed ${C.border}`, background: C.card, color: C.line }}
+              >
+                + Add slot
+              </button>
+            )}
+          </div>
+        )}
         <p className="text-xs mt-1" style={{ color: C.sub }}>
           Change the departure time or switch a variant — every downstream time and the checkpoint buffer recalculate instantly.
         </p>
