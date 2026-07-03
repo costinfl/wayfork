@@ -5,6 +5,6 @@ import type { SupabaseConfig } from "./supabaseStore";
 // row-level security policies on the tables. An empty url disables the
 // remote store and the app runs on localStorage only.
 export const SUPABASE_CONFIG: SupabaseConfig = {
-  url: "",
-  anonKey: "",
+  url: "https://uwffkbfwikwomzhbrthj.supabase.co",
+  anonKey: "sb_publishable_mAf8edtczeP8jRR3qe38MQ_J38rse3l",
 };

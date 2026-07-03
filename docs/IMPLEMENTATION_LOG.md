@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.8
+## Current state — v0.9
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -21,9 +21,13 @@
     valid uploads persist in localStorage, invalid ones show the reasons.
   - `src/ui/` — React components (`WayforkApp`, `VariantCard`,
     `CheckpointBanner`, `Chip`, `theme`).
-- CRUD for expenses (v0.6) and slots/variants/steps (v0.7); all edits persist
-  to localStorage through the `TripStore` repository boundary
-  (`src/data/repository.ts`) — swap the adapter for an API/database later.
+- Full CRUD (expenses v0.6, itinerary v0.7, trips/days/participants v0.8);
+  edits persist through the `TripStore` repository boundary
+  (`src/data/repository.ts`) to **Supabase** (`wayfork-db`, table
+  `public.trips`, one jsonb document per trip — see `supabase/migrations/`),
+  degrading to localStorage when the database is unreachable. The ledger
+  footnote shows the active storage. No auth yet: the database is a shared
+  sandbox for all visitors.
 - Live ECB rates at load with built-in fallback (v0.5).
 
 ## Status matrix
@@ -61,10 +65,9 @@
 
 ### ❌ Not implemented yet
 
-- API/database-backed TripStore adapter (the interface exists as of v0.6;
-  localStorage is the only implementation).
 - Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
-- Auth / multi-user sync / sharing.
+- Auth / per-user trips (Supabase Auth + per-user RLS policies; the DB is a
+  shared sandbox until then) / live multi-user sync.
 - Checkpoint types other than time (e.g., opening hours).
 - Component/UI tests (only the pure engines are tested).
 
@@ -92,8 +95,9 @@
 3. ~~CRUD forms: expenses (v0.6), slots/variants/steps (v0.7), days,
    participants & trip metadata (v0.8)~~ — **complete**; trips can now be
    created from scratch in the app.
-4. ~~Persistence: localStorage adapter behind a repository interface~~
-   (**done in v0.6**) — next: API/database adapter implementing `TripStore`.
+4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9)~~ —
+   **complete**. Next tier: Supabase Auth + per-user row-level security
+   (trips are currently a shared sandbox).
 5. ~~ECB rate fetch with cached fallback~~ (**done in v0.5**); then weather
    per variant; then timezones.
 
@@ -140,6 +144,12 @@
   participants; day tabs gain ✎/+/✕ in edit mode (dates kept sorted, date
   and persisted departure time editable); starterSlot/newTrip factories keep
   schema invariants intact; 79 tests.
+- **v0.9.0** — Supabase persistence: `createSupabaseStore` implements
+  `TripStore` over PostgREST (project `wayfork-db`, table `public.trips`,
+  one validated jsonb document per trip; publishable key + permissive anon
+  RLS policies, see `supabase/migrations/0001_trips.sql`). The app prefers
+  the remote store at startup and degrades to localStorage when unreachable;
+  storage source shown in the ledger footnote. 83 tests.
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

@@ -24,6 +24,9 @@ GitHub Pages serves (*Settings → Pages → Source: Deploy from a branch, `gh-p
 - [Vite](https://vite.dev/) + [React 19](https://react.dev/) + TypeScript
 - [Tailwind CSS v4](https://tailwindcss.com/) (via the `@tailwindcss/vite` plugin)
 - [Vitest](https://vitest.dev/) for unit tests
+- [Supabase](https://supabase.com/) (`wayfork-db` project) for shared trip
+  storage behind the `TripStore` repository interface, with localStorage as
+  the offline fallback — schema in `supabase/migrations/`
 
 ## Getting started
 
