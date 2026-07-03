@@ -1,4 +1,12 @@
-import type { ExpenseItem, ItinerarySlot, Trip, VariantNode } from "./types";
+import type {
+  Day,
+  ExpenseItem,
+  ItinerarySlot,
+  Participant,
+  Trip,
+  TripCurrencies,
+  VariantNode,
+} from "./types";
 
 // Immutable trip mutations — return a new Trip, never touch the input.
 
@@ -75,3 +83,72 @@ export const removeVariant = (trip: Trip, slotId: string, variantId: string): Tr
         : variants[0].id,
     };
   });
+
+// A slot with one starter variant — keeps the >=1-variant/-step invariants
+// intact for freshly created slots, days, and trips.
+export const starterSlot = (localCurrency: string, title = "New slot"): ItinerarySlot => {
+  const vid = newId("v");
+  return {
+    id: newId("slot"),
+    title,
+    checkpoint: null,
+    defaultVariantId: vid,
+    variants: [
+      {
+        id: vid,
+        name: "Option A",
+        cost: { amount: 0, currency: localCurrency },
+        microSteps: [
+          { id: newId("ms"), type: "walk", label: "New step", durationMin: 15, distanceKm: null },
+        ],
+      },
+    ],
+  };
+};
+
+// Replaces the day by id or appends it; days are kept sorted by date so a
+// day can be inserted in the middle of a trip.
+export const upsertDay = (trip: Trip, day: Day): Trip => {
+  const days = trip.days.some((d) => d.id === day.id)
+    ? trip.days.map((d) => (d.id === day.id ? day : d))
+    : [...trip.days, day];
+  return { ...trip, days: [...days].sort((a, b) => a.date.localeCompare(b.date)) };
+};
+
+export const removeDay = (trip: Trip, dayId: string): Trip => ({
+  ...trip,
+  days: trip.days.filter((d) => d.id !== dayId),
+});
+
+export const setTripMeta = (
+  trip: Trip,
+  meta: { name: string; currencies: TripCurrencies; participants: Participant[] }
+): Trip => ({ ...trip, ...meta });
+
+export const newTrip = (
+  name: string,
+  startDate: string,
+  participants: Participant[],
+  currencies: TripCurrencies
+): Trip => ({
+  id: newId("trip"),
+  name,
+  participants,
+  currencies,
+  days: [
+    {
+      id: newId("day"),
+      date: startDate,
+      startTimeMin: 9 * 60,
+      slots: [starterSlot(currencies.local)],
+    },
+  ],
+  expenses: [],
+});
+
+// The calendar day after an ISO date, for "add day" defaults.
+export const nextDate = (isoDate: string): string => {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};

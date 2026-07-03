@@ -7,9 +7,12 @@ import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
 import {
   moveSlot,
+  nextDate,
+  removeDay,
   removeExpense,
   removeSlot,
   removeVariant,
+  upsertDay,
   upsertExpense,
   upsertSlot,
   upsertVariant,
@@ -17,11 +20,13 @@ import {
 import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
-import type { CurrencyView, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
+import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
+import { DayForm } from "./DayForm";
 import { ExpenseForm } from "./ExpenseForm";
 import { SlotForm } from "./SlotForm";
+import { TripForm } from "./TripForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 import { UploadTrip } from "./UploadTrip";
@@ -37,6 +42,7 @@ export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripId, setTripId] = useState(TRIPS[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [tripForm, setTripForm] = useState<"new" | "settings" | null>(null);
 
   useEffect(() => {
     STORE.list().then(setStoredTrips);
@@ -89,6 +95,15 @@ export default function WayforkApp() {
     if (!isBuiltin) setTripId(TRIPS[0].id); // resetting an override keeps it selected
   };
 
+  const saveTripForm = (t: Trip): string[] => {
+    const errors = validateTrip(t);
+    if (errors.length) return errors;
+    saveTrip(t);
+    setTripId(t.id);
+    setTripForm(null);
+    return [];
+  };
+
   return (
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
       <div className="max-w-2xl mx-auto">
@@ -123,6 +138,29 @@ export default function WayforkApp() {
             </button>
           )}
           <button
+            onClick={() => setTripForm(tripForm === "settings" ? null : "settings")}
+            title="Trip settings (name, currencies, participants)"
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{
+              border: `1px solid ${tripForm === "settings" ? C.line : C.border}`,
+              background: tripForm === "settings" ? C.lineSoft : C.card,
+              color: C.sub,
+            }}
+          >
+            ⚙
+          </button>
+          <button
+            onClick={() => setTripForm(tripForm === "new" ? null : "new")}
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{
+              border: `1px solid ${tripForm === "new" ? C.line : C.border}`,
+              background: tripForm === "new" ? C.lineSoft : C.card,
+              color: C.line,
+            }}
+          >
+            + New trip
+          </button>
+          <button
             onClick={() => setUploadOpen((o) => !o)}
             className="px-3 py-1.5 rounded-lg text-sm font-semibold"
             style={{
@@ -135,6 +173,14 @@ export default function WayforkApp() {
           </button>
         </div>
         {uploadOpen && <UploadTrip onLoaded={addTrip} />}
+        {tripForm !== null && (
+          <TripForm
+            key={`${tripForm}-${trip.id}`}
+            initial={tripForm === "settings" ? trip : null}
+            onSave={saveTripForm}
+            onCancel={() => setTripForm(null)}
+          />
+        )}
         <TripView key={trip.id} trip={trip} rates={rates} ratesLabel={ratesLabel} onTripChange={saveTrip} />
       </div>
     </div>
@@ -153,7 +199,7 @@ function TripView({
   onTripChange: (next: Trip) => void;
 }) {
   const [dayIdx, setDayIdx] = useState(0);
-  const day = trip.days[dayIdx];
+  const day = trip.days[dayIdx] ?? trip.days[0];
 
   const [dayStarts, setDayStarts] = useState<Record<string, number>>(() =>
     Object.fromEntries(trip.days.map((d) => [d.id, d.startTimeMin]))
@@ -164,7 +210,7 @@ function TripView({
   const [ccyView, setCcyView] = useState<CurrencyView>("local");
 
   const viewCcy = trip.currencies[ccyView];
-  const dayStart = dayStarts[day.id];
+  const dayStart = dayStarts[day.id] ?? day.startTimeMin;
 
   const schedule = useMemo(
     () => computeSchedule({ ...day, startTimeMin: dayStart }, activeVariants),
@@ -177,7 +223,7 @@ function TripView({
       trip.days.reduce(
         (total, d) =>
           total +
-          computeSchedule({ ...d, startTimeMin: dayStarts[d.id] }, activeVariants).reduce(
+          computeSchedule({ ...d, startTimeMin: dayStarts[d.id] ?? d.startTimeMin }, activeVariants).reduce(
             (s, r) => s + convert(r.variant.cost.amount, r.variant.cost.currency, "EUR", rates),
             0
           ),
@@ -232,6 +278,23 @@ function TripView({
     return errors;
   };
 
+  const [dayForm, setDayForm] = useState<"new" | Day | null>(null);
+
+  const saveDay = (d: Day): string[] => {
+    const errors = applyTrip(upsertDay(trip, d));
+    if (!errors.length) {
+      setDayForm(null);
+      setDayStarts((s) => ({ ...s, [d.id]: d.startTimeMin }));
+    }
+    return errors;
+  };
+
+  const removeCurrentDay = () => {
+    const errors = applyTrip(removeDay(trip, day.id));
+    setEditError(errors);
+    if (!errors.length) setDayIdx(0);
+  };
+
   const editBtn = { border: `1px solid ${C.border}`, background: C.card, color: C.sub };
 
   const projectedEUR = expensesEUR + variantCostEUR;
@@ -275,8 +338,8 @@ function TripView({
       </header>
 
       {/* Day tabs */}
-      {trip.days.length > 1 && (
-        <div className="flex gap-2 mb-4 flex-wrap">
+      {(trip.days.length > 1 || editMode) && (
+        <div className="flex gap-2 mb-4 flex-wrap items-center">
           {trip.days.map((d, i) => (
             <button
               key={d.id}
@@ -294,7 +357,45 @@ function TripView({
               </span>
             </button>
           ))}
+          {editMode && (
+            <>
+              <button
+                onClick={() => setDayForm(dayForm !== "new" && dayForm?.id === day.id ? null : day)}
+                className="text-xs px-2 py-1 rounded"
+                style={editBtn}
+              >
+                ✎ day
+              </button>
+              <button
+                onClick={() => setDayForm(dayForm === "new" ? null : "new")}
+                className="text-xs px-2 py-1 rounded"
+                style={{ ...editBtn, color: C.line }}
+              >
+                + day
+              </button>
+              {trip.days.length > 1 && (
+                <button
+                  onClick={removeCurrentDay}
+                  title="Delete the selected day"
+                  className="text-xs px-2 py-1 rounded"
+                  style={{ ...editBtn, color: C.red }}
+                >
+                  ✕ day
+                </button>
+              )}
+            </>
+          )}
         </div>
+      )}
+      {editMode && dayForm !== null && (
+        <DayForm
+          key={dayForm === "new" ? "new" : dayForm.id}
+          trip={trip}
+          initial={dayForm === "new" ? null : dayForm}
+          defaultDate={nextDate(trip.days[trip.days.length - 1].date)}
+          onSave={saveDay}
+          onCancel={() => setDayForm(null)}
+        />
       )}
 
       {/* Timeline */}

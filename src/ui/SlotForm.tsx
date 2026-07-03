@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { newId } from "../domain/mutate";
+import { starterSlot } from "../domain/mutate";
 import { fmtTime } from "../domain/time";
 import type { Checkpoint, ItinerarySlot, Trip } from "../domain/types";
 import { C, mono } from "./theme";
@@ -44,28 +44,9 @@ export function SlotForm({
       setErrors(pre);
       return;
     }
-    let slot: ItinerarySlot;
-    if (initial) {
-      slot = { ...initial, title: title.trim(), checkpoint };
-    } else {
-      const vid = newId("v");
-      slot = {
-        id: newId("slot"),
-        title: title.trim(),
-        checkpoint,
-        defaultVariantId: vid,
-        variants: [
-          {
-            id: vid,
-            name: "Option A",
-            cost: { amount: 0, currency: trip.currencies.local },
-            microSteps: [
-              { id: newId("ms"), type: "walk", label: "New step", durationMin: 15, distanceKm: null },
-            ],
-          },
-        ],
-      };
-    }
+    const slot: ItinerarySlot = initial
+      ? { ...initial, title: title.trim(), checkpoint }
+      : { ...starterSlot(trip.currencies.local, title.trim()), checkpoint };
     setErrors(onSave(slot));
   };
 

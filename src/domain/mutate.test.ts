@@ -4,13 +4,19 @@ import {
   moveSlot,
   newExpenseId,
   newId,
+  newTrip,
+  nextDate,
+  removeDay,
   removeExpense,
   removeSlot,
   removeVariant,
+  starterSlot,
+  upsertDay,
   upsertExpense,
   upsertSlot,
   upsertVariant,
 } from "./mutate";
+import { validateTrip } from "./validate";
 import type { ExpenseItem, ItinerarySlot, VariantNode } from "./types";
 
 const trip = TRIPS[0];
@@ -131,5 +137,59 @@ describe("variant mutations", () => {
     const single = trip.days[0].slots[1]; // "slot-sec" has one variant
     const next = removeVariant(trip, single.id, single.variants[0].id);
     expect(next.days[0].slots[1].variants).toHaveLength(1);
+  });
+});
+
+describe("day mutations", () => {
+  const lisbon = TRIPS[1]; // 3 days
+
+  it("upsertDay appends and keeps days sorted by date", () => {
+    const middle = {
+      id: newId("day"),
+      date: "2026-09-11", // between day 1 and 2? equal dates rejected by validator; use sorting check
+      startTimeMin: 600,
+      slots: [starterSlot("EUR")],
+    };
+    // use a date after the last day for a clean append
+    const appended = upsertDay(lisbon, { ...middle, date: "2026-09-13" });
+    expect(appended.days.at(-1)?.date).toBe("2026-09-13");
+    // and an early date sorts to the front
+    const front = upsertDay(lisbon, { ...middle, id: newId("day"), date: "2026-09-09" });
+    expect(front.days[0].date).toBe("2026-09-09");
+  });
+
+  it("upsertDay replaces by id", () => {
+    const edited = { ...lisbon.days[0], startTimeMin: 300 };
+    const next = upsertDay(lisbon, edited);
+    expect(next.days[0].startTimeMin).toBe(300);
+    expect(next.days).toHaveLength(lisbon.days.length);
+  });
+
+  it("removeDay removes by id", () => {
+    const next = removeDay(lisbon, lisbon.days[1].id);
+    expect(next.days.map((d) => d.date)).toEqual(["2026-09-10", "2026-09-12"]);
+  });
+});
+
+describe("newTrip", () => {
+  it("creates a minimal valid trip", () => {
+    const t = newTrip(
+      "Weekend in Brașov",
+      "2026-08-01",
+      [{ id: newId("p"), name: "Andrei" }],
+      { home: "RON", local: "EUR", intl: "USD" }
+    );
+    expect(validateTrip(t)).toEqual([]);
+    expect(t.days).toHaveLength(1);
+    expect(t.days[0].slots[0].variants[0].microSteps).toHaveLength(1);
+    expect(t.expenses).toEqual([]);
+  });
+});
+
+describe("nextDate", () => {
+  it("advances one calendar day, across month ends", () => {
+    expect(nextDate("2026-09-10")).toBe("2026-09-11");
+    expect(nextDate("2026-09-30")).toBe("2026-10-01");
+    expect(nextDate("2026-12-31")).toBe("2027-01-01");
   });
 });
