@@ -47,6 +47,21 @@ describe("createSupabaseStore", () => {
     expect(body[0].data.name).toBe(TRIPS[0].name);
   });
 
+  it("sends the signed-in user's JWT as the bearer token", async () => {
+    const { calls, fetchFn } = stub(200, []);
+    const store = createSupabaseStore(config, fetchFn, async () => "user-jwt");
+    await store.list();
+    const headers = calls[0].init?.headers as Record<string, string>;
+    expect(headers.apikey).toBe("anon-key"); // gateway key stays the anon key
+    expect(headers.Authorization).toBe("Bearer user-jwt"); // RLS scopes to the user
+  });
+
+  it("falls back to the anon key when signed out", async () => {
+    const { calls, fetchFn } = stub(200, []);
+    await createSupabaseStore(config, fetchFn).list();
+    expect((calls[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer anon-key");
+  });
+
   it("removes by id filter", async () => {
     const { calls, fetchFn } = stub(204, null);
     await createSupabaseStore(config, fetchFn).remove("trip x/1");

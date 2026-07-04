@@ -26,8 +26,11 @@
 - **Persistence:** all trip edits go through the `TripStore` interface
   (`src/data/repository.ts`). Live adapter is Supabase (`src/data/supabaseStore.ts`,
   config in `src/data/supabaseConfig.ts`, schema in `supabase/migrations/`),
-  falling back to `localStorageStore` when unreachable. The DB is a **shared,
-  no-auth sandbox** — adding auth is the next task.
+  falling back to `localStorageStore` when unreachable. **Trips are per-user
+  (v0.13):** signed in via email magic link (`src/data/supabaseAuth.ts`), the
+  remote store carries the user's JWT so row-level security scopes trips to
+  their account; signed out, the app runs on localStorage and never touches
+  the remote table.
 - **Verification discipline:** every user-visible change is screenshot-verified
   with Playwright against `npm run preview` (chromium at
   `/opt/pw-browsers/chromium`). This sandbox blocks external APIs, so stub
@@ -37,11 +40,12 @@
   registered in `src/data/index.ts`. Untrusted trip JSON is checked by
   `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
   functions in `mutate.ts`; every edit is re-validated before it is saved.
-- **NEXT TASK: auth** — Supabase Auth (email magic-link) + per-user RLS so trips
-  become per-account instead of a shared sandbox; keep anonymous/localStorage
-  working for signed-out users. Then optionally: component/UI tests.
+- **NEXT TASK:** component/UI tests (only the pure engines + data adapters are
+  unit-tested; needs jsdom + @testing-library/react wired into Vitest). Auth is
+  done (v0.13). Possible follow-ups: migrate a signed-out user's localStorage
+  trips into their account on first sign-in; live multi-device sync.
 
-## Current state — v0.12
+## Current state — v0.13
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -62,8 +66,9 @@
   (`src/data/repository.ts`) to **Supabase** (`wayfork-db`, table
   `public.trips`, one jsonb document per trip — see `supabase/migrations/`),
   degrading to localStorage when the database is unreachable. The ledger
-  footnote shows the active storage. No auth yet: the database is a shared
-  sandbox for all visitors.
+  footnote shows the active storage. **Per-user (v0.13):** email magic-link
+  sign-in (`supabaseAuth.ts` + `AuthBar`) scopes trips to an account via
+  row-level security; signed-out visitors stay on localStorage.
 - Live ECB rates at load with built-in fallback (v0.5).
 
 ## Status matrix
@@ -82,6 +87,8 @@
 | C. Variant cost sync | Active variant costs → "Projected total" card | `variantCostEUR` in `WayforkApp` |
 | C. Settlement | Net balances + greedy minimal-transaction list | `computeBalances`, `settle` |
 | — | Unit tests for all pure engines (28 tests) | `src/domain/*.test.ts` |
+| Auth | Email magic-link sign-in (hand-rolled GoTrue client); session persisted + auto-refreshed | `src/data/supabaseAuth.ts`, `src/ui/AuthBar.tsx` |
+| Auth | Per-user trips: signed-in requests carry the user JWT; per-user RLS policies; signed-out → localStorage | `supabase/migrations/0002_auth_rls.sql`, `supabaseStore.ts` |
 
 ### 🟡 Partially implemented
 
@@ -102,10 +109,11 @@
 
 ### ❌ Not implemented yet
 
-- Auth / per-user trips (Supabase Auth + per-user RLS policies; the DB is a
-  shared sandbox until then) / live multi-user sync.
-- Component/UI tests (only the pure engines are tested; needs jsdom +
-  @testing-library/react wired into Vitest).
+- Live multi-device sync (a signed-in trip only reloads on refresh/sign-in, no
+  realtime channel yet); migrating a signed-out user's localStorage trips into
+  their account on first sign-in.
+- Component/UI tests (only the pure engines + data adapters are tested; needs
+  jsdom + @testing-library/react wired into Vitest).
 
 ## Key algorithms & decisions
 
@@ -137,11 +145,11 @@
 3. ~~CRUD forms: expenses (v0.6), slots/variants/steps (v0.7), days,
    participants & trip metadata (v0.8)~~ — **complete**; trips can now be
    created from scratch in the app.
-4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9)~~ —
-   **complete**. Next tier: Supabase Auth + per-user row-level security
-   (trips are currently a shared sandbox).
-5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11)~~ — done.
-   Remaining big item: auth (Supabase Auth + per-user RLS).
+4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9);
+   Supabase Auth + per-user row-level security (v0.13)~~ — **complete**.
+   Next tier: realtime multi-device sync; local→account trip migration.
+5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11); auth (v0.13)~~
+   — done. Remaining: component/UI test harness (jsdom + testing-library).
 
 ## Session history
 
@@ -214,6 +222,19 @@
   "you'd wait Nm" note; SlotForm gains an optional "Opens" input; parser and
   validator accept it (opensMin ≤ timeMin). Lisbon's Jerónimos slot is now a
   window (11:00–11:30). 97 tests. Closes the "checkpoint types" roadmap item.
+- **v0.13.0** — auth: per-user trips. A hand-rolled GoTrue client
+  (`src/data/supabaseAuth.ts`, library-free like the PostgREST adapter) does
+  email magic-link sign-in — request a link (`/auth/v1/otp`), exchange the
+  redirect-fragment tokens for a session, persist it, and auto-refresh the
+  access JWT near expiry. `createSupabaseStore` gained a token provider so
+  signed-in reads/writes send the user's JWT as the bearer; the anon key stays
+  the API-gateway key. `AuthBar` (sign-in field / signed-in identity) sits atop
+  `WayforkApp`, which now selects the store by auth state: per-user Supabase
+  when signed in, localStorage when signed out (the remote table is never
+  touched anonymously). Migration `0002_auth_rls.sql` adds an `owner uuid`
+  column (default `auth.uid()`) and replaces the shared-sandbox anon policies
+  with per-user `authenticated` RLS. 107 tests; signed-out and signed-in states
+  screenshot-verified (JWT bearer confirmed on the REST call).
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

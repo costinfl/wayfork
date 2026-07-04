@@ -3,9 +3,11 @@ import type { Trip } from "../domain/types";
 import type { TripStore } from "./repository";
 
 // Supabase-backed TripStore over the PostgREST API. Trips are stored as one
-// jsonb document per row (table public.trips: id text pk, data jsonb),
-// mirroring the TripStore granularity. Uses the publishable anon key — safe
-// to ship in the client bundle; row-level security governs access.
+// jsonb document per row (table public.trips: id text pk, data jsonb, owner
+// uuid), mirroring the TripStore granularity. The publishable anon key is the
+// API gateway key (safe in the client bundle); when a user is signed in their
+// JWT rides in the Authorization header so per-user row-level security scopes
+// every read and write to their own trips.
 export interface SupabaseConfig {
   url: string; // e.g. https://xyzcompany.supabase.co
   anonKey: string;
@@ -13,17 +15,24 @@ export interface SupabaseConfig {
 
 export function createSupabaseStore(
   config: SupabaseConfig,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  getToken: () => Promise<string | null> = async () => null
 ): TripStore {
   const endpoint = `${config.url}/rest/v1/trips`;
-  const headers = {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${config.anonKey}`,
-    "Content-Type": "application/json",
+  // Built per request: the access token may be refreshed between calls.
+  const authHeaders = async () => {
+    const token = (await getToken()) ?? config.anonKey;
+    return {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
   };
   return {
     async list() {
-      const res = await fetchFn(`${endpoint}?select=data&order=updated_at.asc`, { headers });
+      const res = await fetchFn(`${endpoint}?select=data&order=updated_at.asc`, {
+        headers: await authHeaders(),
+      });
       if (!res.ok) throw new Error(`Supabase list failed: HTTP ${res.status}`);
       const rows: unknown = await res.json();
       if (!Array.isArray(rows)) throw new Error("Supabase list: unexpected response shape");
@@ -38,7 +47,7 @@ export function createSupabaseStore(
     async save(trip) {
       const res = await fetchFn(endpoint, {
         method: "POST",
-        headers: { ...headers, Prefer: "resolution=merge-duplicates" },
+        headers: { ...(await authHeaders()), Prefer: "resolution=merge-duplicates" },
         body: JSON.stringify([{ id: trip.id, data: trip }]),
       });
       if (!res.ok) throw new Error(`Supabase save failed: HTTP ${res.status}`);
@@ -46,7 +55,7 @@ export function createSupabaseStore(
     async remove(id) {
       const res = await fetchFn(`${endpoint}?id=eq.${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers,
+        headers: await authHeaders(),
       });
       if (!res.ok) throw new Error(`Supabase remove failed: HTTP ${res.status}`);
     },

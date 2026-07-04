@@ -3,6 +3,8 @@ import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins } from "../data/repository";
 import type { TripStore } from "../data/repository";
+import { createAuthClient } from "../data/supabaseAuth";
+import type { Session } from "../data/supabaseAuth";
 import { SUPABASE_CONFIG } from "../data/supabaseConfig";
 import { createSupabaseStore } from "../data/supabaseStore";
 import { convert, money, RATES_EUR } from "../domain/currency";
@@ -34,6 +36,7 @@ import { SlotForm } from "./SlotForm";
 import { TripForm } from "./TripForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
+import { AuthBar } from "./AuthBar";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
@@ -41,9 +44,12 @@ import { WeatherBadge } from "./WeatherBadge";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
-// Shared Supabase database when configured & reachable; localStorage otherwise.
 const LOCAL_STORE = createLocalStorageStore();
-const REMOTE_STORE = SUPABASE_CONFIG.url ? createSupabaseStore(SUPABASE_CONFIG) : null;
+// Auth + per-user remote store. Signed-in requests carry the user's JWT so
+// row-level security scopes trips to their account; signed-out users stay on
+// localStorage and never consult the remote store.
+const AUTH = SUPABASE_CONFIG.url ? createAuthClient(SUPABASE_CONFIG) : null;
+const REMOTE_STORE = AUTH ? createSupabaseStore(SUPABASE_CONFIG, fetch, () => AUTH.getAccessToken()) : null;
 
 export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
@@ -52,32 +58,62 @@ export default function WayforkApp() {
   const [tripForm, setTripForm] = useState<"new" | "settings" | null>(null);
   const [store, setStore] = useState<TripStore>(LOCAL_STORE);
   const [storeLabel, setStoreLabel] = useState("local browser");
+  const [session, setSession] = useState<Session | null>(() => AUTH?.getSession() ?? null);
 
+  // Complete a magic-link sign-in: exchange the tokens in the redirect
+  // fragment for a session, then scrub them out of the URL.
   useEffect(() => {
+    if (!AUTH) return;
     let cancelled = false;
-    const useLocal = () =>
-      LOCAL_STORE.list().then((trips) => {
-        if (!cancelled) setStoredTrips(trips);
-      });
-    if (!REMOTE_STORE) {
-      void useLocal();
-      return;
-    }
-    REMOTE_STORE.list()
-      .then((trips) => {
-        if (!cancelled) {
-          setStore(REMOTE_STORE);
-          setStoreLabel("Supabase (shared)");
-          setStoredTrips(trips);
-        }
-      })
-      .catch(() => {
-        void useLocal(); // offline or DB unreachable — degrade to the browser store
-      });
+    void AUTH.consumeUrlTokens(window.location.hash).then((s) => {
+      if (!s || cancelled) return;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setSession(s);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Load trips from the store that matches the auth state: the per-user remote
+  // store when signed in, the browser store otherwise. Re-runs on sign in/out.
+  useEffect(() => {
+    let cancelled = false;
+    const signedIn = !!session && !!REMOTE_STORE;
+    const active = signedIn ? REMOTE_STORE! : LOCAL_STORE;
+    const useLocal = () =>
+      LOCAL_STORE.list().then((trips) => {
+        if (cancelled) return;
+        setStore(LOCAL_STORE);
+        setStoreLabel("local browser");
+        setStoredTrips(trips);
+      });
+    active
+      .list()
+      .then((trips) => {
+        if (cancelled) return;
+        setStore(active);
+        setStoreLabel(signedIn ? "Supabase (your account)" : "local browser");
+        setStoredTrips(trips);
+      })
+      .catch(() => {
+        if (!cancelled && active !== LOCAL_STORE) void useLocal(); // remote unreachable
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const signIn = async (email: string) => {
+    if (!AUTH) throw new Error("Sign-in is not configured.");
+    await AUTH.sendMagicLink(email, window.location.href.split("#")[0]);
+  };
+  const signOut = () => {
+    AUTH?.signOut().catch(() => {
+      /* session already cleared locally */
+    });
+    setSession(null);
+  };
 
   // Live ECB rates, fetched once at load; the built-in snapshot is the fallback.
   const [rates, setRates] = useState<RateMatrix>(RATES_EUR);
@@ -138,6 +174,7 @@ export default function WayforkApp() {
   return (
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
       <div className="max-w-2xl mx-auto">
+        {AUTH && <AuthBar session={session} onSignIn={signIn} onSignOut={signOut} />}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (
             <select
