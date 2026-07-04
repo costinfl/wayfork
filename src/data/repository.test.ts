@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+import { TRIPS } from "./index";
+import { createLocalStorageStore } from "./localStorageStore";
+import { migrateLocalTrips } from "./repository";
+import type { TripStore } from "./repository";
+import type { Trip } from "../domain/types";
+
+const memStorage = () => {
+  const m = new Map<string, string>();
+  return {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+  };
+};
+
+// In-memory account store so we can assert what got saved.
+const memStore = (init: Trip[] = []): TripStore => {
+  let data = [...init];
+  return {
+    async list() {
+      return [...data];
+    },
+    async save(t) {
+      data = [...data.filter((x) => x.id !== t.id), t];
+    },
+    async remove(id) {
+      data = data.filter((x) => x.id !== id);
+    },
+  };
+};
+
+// Two valid local trips (real trips with fresh ids, so the localStorage store's
+// re-validating reads accept them).
+const clone = (t: Trip, id: string, name: string): Trip => ({ ...structuredClone(t), id, name });
+
+const seedLocal = async (trips: Trip[]) => {
+  const local = createLocalStorageStore(memStorage());
+  for (const t of trips) await local.save(t);
+  return local;
+};
+
+describe("migrateLocalTrips", () => {
+  it("moves every local trip into an empty account and clears the browser", async () => {
+    const a = clone(TRIPS[0], "local-a", "Local A");
+    const b = clone(TRIPS[1], "local-b", "Local B");
+    const local = await seedLocal([a, b]);
+    const account = memStore();
+
+    const result = await migrateLocalTrips(local, account, []);
+
+    expect(result.imported.sort()).toEqual(["local-a", "local-b"]);
+    expect(result.skipped).toEqual([]);
+    expect((await account.list()).map((t) => t.id).sort()).toEqual(["local-a", "local-b"]);
+    expect(await local.list()).toEqual([]); // moved, not copied
+  });
+
+  it("skips trips whose id already exists in the account, leaving them local", async () => {
+    const a = clone(TRIPS[0], "local-a", "Local A");
+    const b = clone(TRIPS[1], "local-b", "Local B");
+    const local = await seedLocal([a, b]);
+    const accountA = clone(TRIPS[0], "local-a", "Account A"); // same id, different content
+    const account = memStore([accountA]);
+
+    const result = await migrateLocalTrips(local, account, ["local-a"]);
+
+    expect(result.imported).toEqual(["local-b"]);
+    expect(result.skipped).toEqual(["local-a"]);
+    // The account's own copy of local-a is untouched; only local-b was added.
+    const acct = await account.list();
+    expect(acct.find((t) => t.id === "local-a")?.name).toBe("Account A");
+    expect(acct.map((t) => t.id).sort()).toEqual(["local-a", "local-b"]);
+    // The colliding trip stays in the browser; the imported one is gone.
+    expect((await local.list()).map((t) => t.id)).toEqual(["local-a"]);
+  });
+
+  it("is a no-op when the browser has nothing to migrate", async () => {
+    const local = await seedLocal([]);
+    const account = memStore([clone(TRIPS[0], "acct-1", "Acct 1")]);
+    const result = await migrateLocalTrips(local, account, ["acct-1"]);
+    expect(result).toEqual({ imported: [], skipped: [] });
+    expect((await account.list()).map((t) => t.id)).toEqual(["acct-1"]);
+  });
+});

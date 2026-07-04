@@ -30,7 +30,8 @@
   (v0.13):** signed in via email magic link (`src/data/supabaseAuth.ts`), the
   remote store carries the user's JWT so row-level security scopes trips to
   their account; signed out, the app runs on localStorage and never touches
-  the remote table.
+  the remote table. On sign-in, trips created while signed out are offered for
+  import into the account (v0.14, `migrateLocalTrips` + `MigrationBanner`).
 - **Verification discipline:** every user-visible change is screenshot-verified
   with Playwright against `npm run preview` (chromium at
   `/opt/pw-browsers/chromium`). This sandbox blocks external APIs, so stub
@@ -41,11 +42,11 @@
   `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
   functions in `mutate.ts`; every edit is re-validated before it is saved.
 - **NEXT TASK:** component/UI tests (only the pure engines + data adapters are
-  unit-tested; needs jsdom + @testing-library/react wired into Vitest). Auth is
-  done (v0.13). Possible follow-ups: migrate a signed-out user's localStorage
-  trips into their account on first sign-in; live multi-device sync.
+  unit-tested; needs jsdom + @testing-library/react wired into Vitest). Auth
+  (v0.13) and local→account trip migration (v0.14) are done. Possible
+  follow-up: live multi-device sync (realtime channel).
 
-## Current state — v0.13
+## Current state — v0.14
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -89,6 +90,7 @@
 | — | Unit tests for all pure engines (28 tests) | `src/domain/*.test.ts` |
 | Auth | Email magic-link sign-in (hand-rolled GoTrue client); session persisted + auto-refreshed | `src/data/supabaseAuth.ts`, `src/ui/AuthBar.tsx` |
 | Auth | Per-user trips: signed-in requests carry the user JWT; per-user RLS policies; signed-out → localStorage | `supabase/migrations/0002_auth_rls.sql`, `supabaseStore.ts` |
+| Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
 
 ### 🟡 Partially implemented
 
@@ -110,8 +112,7 @@
 ### ❌ Not implemented yet
 
 - Live multi-device sync (a signed-in trip only reloads on refresh/sign-in, no
-  realtime channel yet); migrating a signed-out user's localStorage trips into
-  their account on first sign-in.
+  realtime channel yet).
 - Component/UI tests (only the pure engines + data adapters are tested; needs
   jsdom + @testing-library/react wired into Vitest).
 
@@ -146,8 +147,8 @@
    participants & trip metadata (v0.8)~~ — **complete**; trips can now be
    created from scratch in the app.
 4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9);
-   Supabase Auth + per-user row-level security (v0.13)~~ — **complete**.
-   Next tier: realtime multi-device sync; local→account trip migration.
+   Supabase Auth + per-user row-level security (v0.13); local→account trip
+   migration (v0.14)~~ — **complete**. Next tier: realtime multi-device sync.
 5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11); auth (v0.13)~~
    — done. Remaining: component/UI test harness (jsdom + testing-library).
 
@@ -235,6 +236,16 @@
   column (default `auth.uid()`) and replaces the shared-sandbox anon policies
   with per-user `authenticated` RLS. 107 tests; signed-out and signed-in states
   screenshot-verified (JWT bearer confirmed on the REST call).
+- **v0.14.0** — local→account trip migration. `migrateLocalTrips`
+  (`src/data/repository.ts`) moves browser-stored trips into the signed-in
+  user's account store, skipping any id already in the account (never
+  overwrites the account copy) and removing the rest from localStorage so each
+  trip lives in one place. On sign-in `WayforkApp` computes the trips still in
+  the browser and, when any exist, shows `MigrationBanner` ("N trips saved in
+  this browser — Import?"): Import runs the move and folds the results into the
+  account list; "Not now" dismisses. 110 tests (move + collision-skip +
+  no-op unit-tested); banner and the import round-trip screenshot-verified
+  (POST to the account, localStorage cleared).
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

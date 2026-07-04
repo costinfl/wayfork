@@ -27,7 +27,8 @@ GitHub Pages serves (*Settings → Pages → Source: Deploy from a branch, `gh-p
 - [Supabase](https://supabase.com/) (`wayfork-db` project) for per-user trip
   storage behind the `TripStore` repository interface: sign in with an email
   magic link and trips sync to your account under row-level security; signed
-  out, trips live in localStorage. Schema in `supabase/migrations/`
+  out, trips live in localStorage, and on sign-in you're offered to import
+  them into your account. Schema in `supabase/migrations/`
 
 ## Getting started
 

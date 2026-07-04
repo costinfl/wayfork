@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
-import { mergeWithBuiltins } from "../data/repository";
+import { mergeWithBuiltins, migrateLocalTrips } from "../data/repository";
 import type { TripStore } from "../data/repository";
 import { createAuthClient } from "../data/supabaseAuth";
 import type { Session } from "../data/supabaseAuth";
@@ -37,6 +37,7 @@ import { TripForm } from "./TripForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 import { AuthBar } from "./AuthBar";
+import { MigrationBanner } from "./MigrationBanner";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
@@ -59,6 +60,9 @@ export default function WayforkApp() {
   const [store, setStore] = useState<TripStore>(LOCAL_STORE);
   const [storeLabel, setStoreLabel] = useState("local browser");
   const [session, setSession] = useState<Session | null>(() => AUTH?.getSession() ?? null);
+  // Trips still in this browser that could be imported into the account.
+  const [migratable, setMigratable] = useState<Trip[]>([]);
+  const [migrating, setMigrating] = useState(false);
 
   // Complete a magic-link sign-in: exchange the tokens in the redirect
   // fragment for a session, then scrub them out of the URL.
@@ -87,14 +91,23 @@ export default function WayforkApp() {
         setStore(LOCAL_STORE);
         setStoreLabel("local browser");
         setStoredTrips(trips);
+        setMigratable([]);
       });
     active
       .list()
-      .then((trips) => {
+      .then(async (trips) => {
         if (cancelled) return;
         setStore(active);
         setStoreLabel(signedIn ? "Supabase (your account)" : "local browser");
         setStoredTrips(trips);
+        if (signedIn) {
+          // Offer to import any trips still sitting in this browser.
+          const accountIds = new Set(trips.map((t) => t.id));
+          const pending = (await LOCAL_STORE.list()).filter((t) => !accountIds.has(t.id));
+          if (!cancelled) setMigratable(pending);
+        } else {
+          setMigratable([]);
+        }
       })
       .catch(() => {
         if (!cancelled && active !== LOCAL_STORE) void useLocal(); // remote unreachable
@@ -103,6 +116,25 @@ export default function WayforkApp() {
       cancelled = true;
     };
   }, [session]);
+
+  const importLocalTrips = async () => {
+    if (!REMOTE_STORE) return;
+    setMigrating(true);
+    try {
+      const { imported } = await migrateLocalTrips(
+        LOCAL_STORE,
+        REMOTE_STORE,
+        storedTrips.map((t) => t.id)
+      );
+      const moved = migratable.filter((t) => imported.includes(t.id));
+      setStoredTrips((prev) => [...prev.filter((t) => !imported.includes(t.id)), ...moved]);
+    } catch (e) {
+      console.error("trip import failed:", e);
+    } finally {
+      setMigratable([]);
+      setMigrating(false);
+    }
+  };
 
   const signIn = async (email: string) => {
     if (!AUTH) throw new Error("Sign-in is not configured.");
@@ -175,6 +207,14 @@ export default function WayforkApp() {
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
       <div className="max-w-2xl mx-auto">
         {AUTH && <AuthBar session={session} onSignIn={signIn} onSignOut={signOut} />}
+        {migratable.length > 0 && (
+          <MigrationBanner
+            trips={migratable}
+            busy={migrating}
+            onImport={importLocalTrips}
+            onDismiss={() => setMigratable([])}
+          />
+        )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (
             <select
