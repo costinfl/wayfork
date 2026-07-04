@@ -584,7 +584,7 @@
         },
         {
           "id": "lx-slot-return",
-          "title": "Palace, return & farewell dinner",
+          "title": "Pena Palace, free afternoon & farewell dinner",
           "defaultVariantId": "lx-v-return",
           "checkpoint": null,
           "variants": [
@@ -614,9 +614,16 @@
                   "distanceKm": 27
                 },
                 {
+                  "id": "lx-ret-3b",
+                  "type": "wait",
+                  "label": "Free afternoon: Time Out Market & riverside",
+                  "durationMin": 360,
+                  "distanceKm": null
+                },
+                {
                   "id": "lx-ret-4",
                   "type": "wait",
-                  "label": "Dinner in Bairro Alto",
+                  "label": "Farewell dinner in Bairro Alto",
                   "durationMin": 100,
                   "distanceKm": null
                 }

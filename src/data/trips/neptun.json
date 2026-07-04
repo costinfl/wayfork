@@ -157,6 +157,31 @@
           ]
         },
         {
+          "id": "nep-d1-s2b",
+          "title": "Beach & pool afternoon",
+          "defaultVariantId": "nep-v-d1-s2b-free",
+          "checkpoint": null,
+          "variants": [
+            {
+              "id": "nep-v-d1-s2b-free",
+              "name": "Family free time",
+              "microSteps": [
+                {
+                  "id": "nep-ms-d1-s2b-1",
+                  "type": "wait",
+                  "label": "Beach, pool & baby nap",
+                  "durationMin": 360,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 0,
+                "currency": "RON"
+              }
+            }
+          ]
+        },
+        {
           "id": "nep-d1-s3",
           "title": "Sunset Stroller Walk",
           "defaultVariantId": "nep-v-d1-s3-walk",
@@ -312,6 +337,31 @@
               ],
               "cost": {
                 "amount": 210,
+                "currency": "RON"
+              }
+            }
+          ]
+        },
+        {
+          "id": "nep-d2-s2b",
+          "title": "Pool & nap afternoon",
+          "defaultVariantId": "nep-v-d2-s2b-free",
+          "checkpoint": null,
+          "variants": [
+            {
+              "id": "nep-v-d2-s2b-free",
+              "name": "Family free time",
+              "microSteps": [
+                {
+                  "id": "nep-ms-d2-s2b-1",
+                  "type": "wait",
+                  "label": "Hotel pool, shade & long baby nap",
+                  "durationMin": 300,
+                  "distanceKm": null
+                }
+              ],
+              "cost": {
+                "amount": 0,
                 "currency": "RON"
               }
             }

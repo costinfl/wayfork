@@ -57,21 +57,23 @@ src/
   index.css        Tailwind entry
   domain/          framework-free types + pure engines (schedule, ledger,
                    currency, time, parse, validate) with unit tests alongside
-  data/trips/      mock trips as JSON (Rome, Lisbon); register in data/index.ts
+  data/trips/      example trips as JSON (Rome, Lisbon, Neptun); register in data/index.ts
   ui/              React components (WayforkApp, VariantCard, …)
 docs/              product spec (PDF), living implementation log, and
-                   MOCK_TRIP_PROMPT.md — a prompt template for generating
-                   new mock trips with any AI assistant
+                   trip-prompt.md — the public trip-generation contract
+                   (also shown in-app under + Add trip)
 .github/workflows/ GitHub Pages deployment + tag-release
 ```
 
-## Generating more mock data
+## Generating a trip with AI
 
-`docs/MOCK_TRIP_PROMPT.md` is a fill-in prompt template (destination, start
-date, end date) that any AI assistant can use to generate a new, schema-valid
-mock trip as JSON. To test it, open the live app, click **+ Add trip**, and
-paste the JSON (or upload it as a `.json` file): it is validated in the
-browser — valid trips join the picker and are remembered in localStorage,
-invalid ones get a list of reasons. To ship a trip permanently, commit it
-under `src/data/trips/` and register it in `src/data/index.ts`; `npm test`
-validates every registered trip against the same invariants.
+Trips are generated from a fixed **prompt contract**, [`docs/trip-prompt.md`](docs/trip-prompt.md),
+shown copy-ready in the app under **+ Add trip** → "Generate a trip with any
+AI". Fill in destination and dates and run it in any AI assistant — one with
+web/API access fills it with real flights, stations and prices rather than mock
+data. Paste the returned JSON (or upload the `.json`): it is validated in the
+browser — valid trips join the picker and are remembered (in your account when
+signed in, else this browser), invalid ones get a list of reasons. To ship a
+trip as a built-in example, commit it under `src/data/trips/` and register it in
+`src/data/index.ts`; `npm test` validates every registered trip. See
+[`docs/MOCK_TRIP_PROMPT.md`](docs/MOCK_TRIP_PROMPT.md) for the full how-to.

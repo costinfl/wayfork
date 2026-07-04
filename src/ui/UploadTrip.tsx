@@ -2,9 +2,11 @@ import { useState } from "react";
 import { parseTrip } from "../domain/parse";
 import type { Trip } from "../domain/types";
 import { C, mono } from "./theme";
+import { TripPromptCard } from "./TripPromptCard";
 
-// Panel for loading an AI-generated trip (docs/MOCK_TRIP_PROMPT.md): pick a
-// .json file or paste the JSON. onLoaded returns a rejection message or null.
+// Panel for loading an AI-generated trip: copy the in-app prompt contract
+// (TripPromptCard), then pick a .json file or paste the JSON the assistant
+// returns. onLoaded returns a rejection message or null.
 export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => string | null }) {
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[] | null>(null);
@@ -35,9 +37,10 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => string | nu
     <div className="rounded-xl p-4 mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
       <div className="text-sm font-bold mb-1">Add a trip</div>
       <p className="text-xs mb-3" style={{ color: C.sub }}>
-        Load a trip generated with the prompt template (docs/MOCK_TRIP_PROMPT.md): choose a .json
-        file or paste the JSON below. It is validated before it appears in the picker.
+        Generate a trip with the prompt below, then choose its .json file or paste the JSON. It is
+        validated before it appears in the picker.
       </p>
+      <TripPromptCard />
       <input
         type="file"
         accept=".json,application/json"

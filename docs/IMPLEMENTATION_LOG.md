@@ -46,7 +46,7 @@
   (v0.13) and local→account trip migration (v0.14) are done. Possible
   follow-up: live multi-device sync (realtime channel).
 
-## Current state — v0.14
+## Current state — v0.15
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -54,12 +54,13 @@
 - Source layout:
   - `src/domain/` — framework-free types + pure engines (`time`, `currency`,
     `schedule`, `ledger`) with Vitest unit tests alongside (`*.test.ts`).
-  - `src/data/trips/` — mock trips as **JSON** (Rome 1-day, Lisbon 3-day),
-    registered in `src/data/index.ts`. New trips are AI-generated via
-    `docs/MOCK_TRIP_PROMPT.md` (JSON output) and can be loaded **in the app**
-    (`+ Add trip`: file upload or paste), validated by
-    `src/domain/parse.ts` (structural) + `src/domain/validate.ts` (semantic);
-    valid uploads persist in localStorage, invalid ones show the reasons.
+  - `src/data/trips/` — example trips as **JSON** (Rome, Lisbon, Neptun),
+    registered in `src/data/index.ts`. New trips are AI-generated from the
+    **public prompt contract** `docs/trip-prompt.md`, shown copy-ready in the
+    app (`+ Add trip` → "Generate a trip with any AI", v0.15) and loaded via
+    upload or paste, validated by `src/domain/parse.ts` (structural) +
+    `src/domain/validate.ts` (semantic); valid uploads persist, invalid ones
+    show the reasons.
   - `src/ui/` — React components (`WayforkApp`, `VariantCard`,
     `CheckpointBanner`, `Chip`, `theme`).
 - Full CRUD (expenses v0.6, itinerary v0.7, trips/days/participants v0.8);
@@ -91,6 +92,7 @@
 | Auth | Email magic-link sign-in (hand-rolled GoTrue client); session persisted + auto-refreshed | `src/data/supabaseAuth.ts`, `src/ui/AuthBar.tsx` |
 | Auth | Per-user trips: signed-in requests carry the user JWT; per-user RLS policies; signed-out → localStorage | `supabase/migrations/0002_auth_rls.sql`, `supabaseStore.ts` |
 | Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
+| Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
 
 ### 🟡 Partially implemented
 
@@ -246,6 +248,21 @@
   account list; "Not now" dismisses. 110 tests (move + collision-skip +
   no-op unit-tested); banner and the import round-trip screenshot-verified
   (POST to the account, localStorage cleared).
+- **v0.15.0** — public trip-generation contract in-app + dinner-timing fix.
+  The generator prompt is now `docs/trip-prompt.md`, reframed from "mock data"
+  to a real-data contract (use real flights/stations/prices when the assistant
+  can browse) and shown copy-ready in the app (`TripPromptCard`, imported
+  `?raw` so the in-app prompt and repo doc never drift) under `+ Add trip`.
+  **Dinner-at-noon investigation:** not a scheduler bug — slots chain
+  back-to-back advancing the clock only by micro-step durations, so trips that
+  don't model dwell/free time collapse into the morning and a "dinner" slot
+  lands at midday (worst in the contributed Neptun trip: 12:30 & 13:35). Fixed
+  at the content level: the contract now mandates realistic full-day pacing
+  (model dwell/free time with `wait` steps; anchor meals to wall-clock windows;
+  no "dinner" before 18:00), and the offending Neptun (×2) and Lisbon (×1)
+  trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
+  model/scheduler change. 110 tests; prompt card and fixed timeline
+  screenshot-verified (Neptun dinner now 18:30–20:00).
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions
