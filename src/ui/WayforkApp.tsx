@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
-import { mergeWithBuiltins, migrateLocalTrips } from "../data/repository";
+import { mergeWithBuiltins, migrateLocalTrips, tripsEqual } from "../data/repository";
 import type { TripStore } from "../data/repository";
 import { createAuthClient } from "../data/supabaseAuth";
 import type { Session } from "../data/supabaseAuth";
@@ -44,6 +44,13 @@ import { VariantForm } from "./VariantForm";
 import { WeatherBadge } from "./WeatherBadge";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
+
+// Background sync cadence: how often a signed-in session re-polls the account
+// store so edits made on another device appear here.
+const SYNC_INTERVAL_MS = 15000;
+// After a local write, ignore poll results briefly so an in-flight save's stale
+// read can't momentarily revert the optimistic update.
+const SYNC_WRITE_GRACE_MS = 4000;
 
 const LOCAL_STORE = createLocalStorageStore();
 // Auth + per-user remote store. Signed-in requests carry the user's JWT so
@@ -120,6 +127,7 @@ export default function WayforkApp() {
   const importLocalTrips = async () => {
     if (!REMOTE_STORE) return;
     setMigrating(true);
+    markLocalWrite();
     try {
       const { imported } = await migrateLocalTrips(
         LOCAL_STORE,
@@ -135,6 +143,54 @@ export default function WayforkApp() {
       setMigrating(false);
     }
   };
+
+  // Keep the trip list live: signed in, poll the account store on an interval
+  // (and immediately when the tab regains focus) so edits from another device
+  // appear; signed out, react to localStorage writes from other tabs. A poll
+  // only replaces state when the content actually changed (tripsEqual), and is
+  // skipped right after a local write so it can't revert an optimistic update.
+  const syncPausedUntil = useRef(0);
+  const markLocalWrite = () => {
+    syncPausedUntil.current = Date.now() + SYNC_WRITE_GRACE_MS;
+  };
+  useEffect(() => {
+    let cancelled = false;
+    const refreshFrom = (s: TripStore) =>
+      s
+        .list()
+        .then((trips) => {
+          if (!cancelled) setStoredTrips((prev) => (tripsEqual(prev, trips) ? prev : trips));
+        })
+        .catch(() => {
+          /* transient — try again next tick */
+        });
+
+    if (session && REMOTE_STORE) {
+      const tick = () => {
+        if (document.hidden || Date.now() < syncPausedUntil.current) return;
+        void refreshFrom(REMOTE_STORE);
+      };
+      const id = setInterval(tick, SYNC_INTERVAL_MS);
+      const onVisible = () => {
+        if (!document.hidden) tick();
+      };
+      document.addEventListener("visibilitychange", onVisible);
+      return () => {
+        cancelled = true;
+        clearInterval(id);
+        document.removeEventListener("visibilitychange", onVisible);
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === "wayfork.trips") void refreshFrom(LOCAL_STORE);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [session]);
 
   const signIn = async (email: string) => {
     if (!AUTH) throw new Error("Sign-in is not configured.");
@@ -174,6 +230,7 @@ export default function WayforkApp() {
   const isOverride = isStored && isBuiltin; // edited copy of a shipped trip
 
   const saveTrip = (next: Trip) => {
+    markLocalWrite();
     store.save(next).catch((e) => console.error("trip save failed:", e));
     setStoredTrips((prev) => [...prev.filter((t) => t.id !== next.id), next]);
   };
@@ -189,6 +246,7 @@ export default function WayforkApp() {
   };
 
   const removeCurrentTrip = () => {
+    markLocalWrite();
     store.remove(trip.id).catch((e) => console.error("trip remove failed:", e));
     setStoredTrips((prev) => prev.filter((t) => t.id !== trip.id));
     if (!isBuiltin) setTripId(TRIPS[0].id); // resetting an override keeps it selected

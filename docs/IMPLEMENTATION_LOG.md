@@ -43,10 +43,11 @@
   functions in `mutate.ts`; every edit is re-validated before it is saved.
 - **NEXT TASK:** component/UI tests (only the pure engines + data adapters are
   unit-tested; needs jsdom + @testing-library/react wired into Vitest). Auth
-  (v0.13) and local→account trip migration (v0.14) are done. Possible
-  follow-up: live multi-device sync (realtime channel).
+  (v0.13), local→account migration (v0.14), the public trip prompt + dinner
+  pacing fix (v0.15), and background multi-device sync (v0.16) are all done.
+  Possible follow-up: swap the sync poll for a Supabase Realtime WebSocket.
 
-## Current state — v0.15
+## Current state — v0.16
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -93,6 +94,7 @@
 | Auth | Per-user trips: signed-in requests carry the user JWT; per-user RLS policies; signed-out → localStorage | `supabase/migrations/0002_auth_rls.sql`, `supabaseStore.ts` |
 | Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
 | Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
+| Sync | Background multi-device sync: signed-in poll (visibility-aware) + signed-out cross-tab `storage` events; reconciled by `tripsEqual` | sync effect in `src/ui/WayforkApp.tsx`, `tripsEqual` (`repository.ts`) |
 
 ### 🟡 Partially implemented
 
@@ -113,8 +115,8 @@
 
 ### ❌ Not implemented yet
 
-- Live multi-device sync (a signed-in trip only reloads on refresh/sign-in, no
-  realtime channel yet).
+- Realtime push sync (v0.16 sync is poll-based every 15s / on tab focus, not a
+  Supabase Realtime WebSocket — near-real-time, not instant).
 - Component/UI tests (only the pure engines + data adapters are tested; needs
   jsdom + @testing-library/react wired into Vitest).
 
@@ -263,6 +265,18 @@
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.16.0** — background multi-device sync. A signed-in session keeps its
+  trip list fresh without a manual reload: a visibility-aware poll of the
+  account store every 15s (and immediately when the tab regains focus) pulls
+  edits made on another device; signed-out, a `storage` event listener syncs
+  changes across tabs in the same browser. Poll results are reconciled with
+  `tripsEqual` (`repository.ts`) — an order- and key-order-independent compare
+  (jsonb round-trips don't preserve key order) — so state (and re-renders) only
+  change when the content actually did. A short post-write grace window
+  (`markLocalWrite`) suppresses polls so an in-flight save's stale read can't
+  momentarily revert an optimistic update. Deliberately poll-based, not a
+  Supabase Realtime WebSocket, to stay library-free and testable. 113 tests;
+  E2E-verified (a remote rename appears on a focus tick with no reload).
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

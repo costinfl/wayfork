@@ -17,6 +17,33 @@ export function mergeWithBuiltins(builtins: Trip[], stored: Trip[]): Trip[] {
   return [...builtins.map((b) => stored.find((s) => s.id === b.id) ?? b), ...extras];
 }
 
+// Deterministic stringify (keys sorted at every level) so two trip documents
+// compare equal regardless of key order — jsonb round-trips through Postgres
+// do not preserve it.
+function stableStringify(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
+  if (v && typeof v === "object") {
+    const entries = Object.keys(v as Record<string, unknown>)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableStringify((v as Record<string, unknown>)[k])}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+
+// Two trip lists are equal when they hold the same ids with the same content,
+// irrespective of order or object key order. Used by the background sync to
+// skip a state update (and re-render) when a poll returns nothing new.
+export function tripsEqual(a: Trip[], b: Trip[]): boolean {
+  if (a.length !== b.length) return false;
+  const byId = (list: Trip[]) => new Map(list.map((t) => [t.id, stableStringify(t)]));
+  const ma = byId(a);
+  const mb = byId(b);
+  if (ma.size !== mb.size) return false;
+  for (const [id, s] of ma) if (mb.get(id) !== s) return false;
+  return true;
+}
+
 export interface MigrationResult {
   imported: string[]; // trip ids moved from the browser into the account
   skipped: string[]; // ids left in the browser because the account already has them

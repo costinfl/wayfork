@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TRIPS } from "./index";
 import { createLocalStorageStore } from "./localStorageStore";
-import { migrateLocalTrips } from "./repository";
+import { migrateLocalTrips, tripsEqual } from "./repository";
 import type { TripStore } from "./repository";
 import type { Trip } from "../domain/types";
 
@@ -80,5 +80,24 @@ describe("migrateLocalTrips", () => {
     const result = await migrateLocalTrips(local, account, ["acct-1"]);
     expect(result).toEqual({ imported: [], skipped: [] });
     expect((await account.list()).map((t) => t.id)).toEqual(["acct-1"]);
+  });
+});
+
+describe("tripsEqual", () => {
+  const a = clone(TRIPS[0], "t1", "One");
+  const b = clone(TRIPS[1], "t2", "Two");
+
+  it("ignores list order and object key order", () => {
+    const reordered = JSON.parse(JSON.stringify([b, a])); // different array order + fresh key order
+    expect(tripsEqual([a, b], reordered)).toBe(true);
+  });
+
+  it("detects a content change", () => {
+    expect(tripsEqual([a, b], [a, { ...b, name: "Two (edited)" }])).toBe(false);
+  });
+
+  it("detects added or removed trips", () => {
+    expect(tripsEqual([a, b], [a])).toBe(false);
+    expect(tripsEqual([a], [a, b])).toBe(false);
   });
 });
