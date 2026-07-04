@@ -5,7 +5,43 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.11
+## Resuming in a new session (read this first)
+
+- **Repo:** `costinfl/wayfork`. **Work branch:** `claude/wayfork-setup-github-pages-3pgqfw`
+  (also the default branch). Develop, commit, and push there. Live site:
+  https://costinfl.github.io/wayfork/
+- **To get oriented:** read this whole file (status matrix + session history),
+  then `src/domain/types.ts` (the model) and `src/ui/WayforkApp.tsx` (wires
+  everything). The original product spec is the PDF in this folder.
+- **Commands:** `npm install`, `npm test` (Vitest, must stay green — CI runs it
+  before deploy), `npm run build` (tsc + vite), `npm run preview` for a local
+  server on :4173.
+- **Deploy:** pushing to the work branch triggers `.github/workflows/deploy.yml`
+  (test → build → publish `dist/` to the `gh-pages` branch → GitHub Pages). No
+  manual step. The GitHub MCP tools observe runs (`actions_list` on
+  `deploy.yml`); their output is large — slice via python if it exceeds limits.
+- **Tagging:** direct tag pushes are blocked for the session token. Use the
+  `tag-release.yml` workflow via `actions_run_trigger` (`run_workflow`, inputs
+  `{tag, sha}`). Tag each shipped version `vX.Y.0` after CI is green.
+- **Persistence:** all trip edits go through the `TripStore` interface
+  (`src/data/repository.ts`). Live adapter is Supabase (`src/data/supabaseStore.ts`,
+  config in `src/data/supabaseConfig.ts`, schema in `supabase/migrations/`),
+  falling back to `localStorageStore` when unreachable. The DB is a **shared,
+  no-auth sandbox** — adding auth is the next task.
+- **Verification discipline:** every user-visible change is screenshot-verified
+  with Playwright against `npm run preview` (chromium at
+  `/opt/pw-browsers/chromium`). This sandbox blocks external APIs, so stub
+  Supabase/Open-Meteo/Frankfurter routes when driving the browser.
+- **Model conventions:** pure logic lives in `src/domain/` (framework-free,
+  unit-tested); React in `src/ui/`; trip data as JSON in `src/data/trips/`
+  registered in `src/data/index.ts`. Untrusted trip JSON is checked by
+  `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
+  functions in `mutate.ts`; every edit is re-validated before it is saved.
+- **NEXT TASK: auth** — Supabase Auth (email magic-link) + per-user RLS so trips
+  become per-account instead of a shared sandbox; keep anonymous/localStorage
+  working for signed-out users. Then optionally: component/UI tests.
+
+## Current state — v0.12
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -68,8 +104,8 @@
 
 - Auth / per-user trips (Supabase Auth + per-user RLS policies; the DB is a
   shared sandbox until then) / live multi-user sync.
-- Checkpoint types other than time (e.g., opening hours).
-- Component/UI tests (only the pure engines are tested).
+- Component/UI tests (only the pure engines are tested; needs jsdom +
+  @testing-library/react wired into Vitest).
 
 ## Key algorithms & decisions
 
@@ -172,6 +208,12 @@
   local zone. `fmtOffset` helper; parser/validator accept the field; Rome
   (−60) and Lisbon (−120) flights annotated; prompt template documents it.
   93 tests.
+- **v0.12.0** — opening-hours checkpoints: `Checkpoint.opensMin` (optional)
+  turns a deadline into a window [opensMin, timeMin]. Scheduler computes a
+  `waitMin` when you arrive before opening; the banner shows the window and a
+  "you'd wait Nm" note; SlotForm gains an optional "Opens" input; parser and
+  validator accept it (opensMin ≤ timeMin). Lisbon's Jerónimos slot is now a
+  window (11:00–11:30). 97 tests. Closes the "checkpoint types" roadmap item.
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

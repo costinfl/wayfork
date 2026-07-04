@@ -25,6 +25,7 @@ export function SlotForm({
   const [cpLabel, setCpLabel] = useState(cp?.label ?? "");
   const [cpTime, setCpTime] = useState(cp ? fmtTime(cp.timeMin) : "12:00");
   const [cpBuffer, setCpBuffer] = useState(cp ? String(cp.bufferMin) : "15");
+  const [cpOpens, setCpOpens] = useState(cp?.opensMin != null ? fmtTime(cp.opensMin) : "");
   const [errors, setErrors] = useState<string[]>([]);
 
   const submit = () => {
@@ -38,7 +39,13 @@ export function SlotForm({
       if (Number.isNaN(h) || Number.isNaN(m)) pre.push("checkpoint time is invalid");
       if (!Number.isFinite(bufferMin) || bufferMin < 0)
         pre.push("checkpoint buffer must be a non-negative number of minutes");
-      checkpoint = { label: cpLabel.trim(), timeMin: (h || 0) * 60 + (m || 0), bufferMin };
+      let opensMin: number | null = null;
+      if (cpOpens.trim()) {
+        const [oh, om] = cpOpens.split(":").map(Number);
+        if (Number.isNaN(oh) || Number.isNaN(om)) pre.push("opening time is invalid");
+        else opensMin = oh * 60 + om;
+      }
+      checkpoint = { label: cpLabel.trim(), timeMin: (h || 0) * 60 + (m || 0), bufferMin, opensMin };
     }
     if (pre.length) {
       setErrors(pre);
@@ -83,7 +90,17 @@ export function SlotForm({
             />
           </label>
           <label className="text-xs" style={{ color: C.sub }}>
-            Time
+            Opens <span style={{ opacity: 0.6 }}>(optional)</span>
+            <input
+              type="time"
+              value={cpOpens}
+              onChange={(e) => setCpOpens(e.target.value)}
+              className="block rounded px-2 py-1.5 text-sm mt-0.5"
+              style={{ ...inputStyle, ...mono }}
+            />
+          </label>
+          <label className="text-xs" style={{ color: C.sub }}>
+            {cpOpens.trim() ? "Closes" : "By"}
             <input
               type="time"
               value={cpTime}

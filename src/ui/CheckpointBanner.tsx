@@ -12,15 +12,26 @@ export function CheckpointBanner({ cp }: { cp: CheckpointResult }) {
     },
     red: { bg: C.redBg, fg: C.red, msg: `Arriving ${fmtDur(-cp.margin)} LATE — checkpoint breached` },
   }[cp.status];
+  const window = cp.opensMin != null;
   return (
     <div
-      className="rounded-md px-3 py-2 mb-2 text-sm font-medium flex items-center gap-2"
+      className="rounded-md px-3 py-2 mb-2 text-sm font-medium"
       style={{ background: map.bg, color: map.fg }}
     >
-      <span>⏱</span>
-      <span>
-        <span style={mono}>{fmtTime(cp.timeMin)}</span> · {cp.label} — {map.msg}
-      </span>
+      <div className="flex items-center gap-2">
+        <span>⏱</span>
+        <span>
+          <span style={mono}>
+            {window ? `${fmtTime(cp.opensMin!)}–${fmtTime(cp.timeMin)}` : fmtTime(cp.timeMin)}
+          </span>{" "}
+          · {cp.label} — {map.msg}
+        </span>
+      </div>
+      {cp.waitMin > 0 && (
+        <div className="text-xs mt-0.5" style={{ opacity: 0.85 }}>
+          Arriving before it opens — you'd wait {fmtDur(cp.waitMin)}.
+        </div>
+      )}
     </div>
   );
 }

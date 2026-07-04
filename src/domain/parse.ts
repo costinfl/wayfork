@@ -88,6 +88,9 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
           checkStr(s.checkpoint, "label", `${sw}.checkpoint`);
           checkNum(s.checkpoint, "timeMin", `${sw}.checkpoint`);
           checkNum(s.checkpoint, "bufferMin", `${sw}.checkpoint`);
+          if (s.checkpoint.opensMin !== undefined && s.checkpoint.opensMin !== null) {
+            checkNum(s.checkpoint, "opensMin", `${sw}.checkpoint`);
+          }
         }
       }
       for (const [k, v] of checkArr(s, "variants", sw).entries()) {

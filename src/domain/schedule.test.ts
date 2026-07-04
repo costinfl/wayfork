@@ -96,6 +96,41 @@ describe("computeSchedule (ripple engine)", () => {
     const rows = computeSchedule(day, { s1: "fast", s2: "only" });
     expect(rows.every((r) => r.tzOffsetMin === 0 && r.tzShiftMin === 0)).toBe(true);
   });
+
+  it("reports no wait for a plain deadline checkpoint", () => {
+    const rows = computeSchedule(day, { s1: "fast", s2: "only" });
+    expect(rows[1].checkpoint?.waitMin).toBe(0);
+  });
+});
+
+describe("computeSchedule (opening-hours window)", () => {
+  // s1 fast ends 08:30, so s2 (the window slot) starts at 08:30.
+  const withWindow = (opensMin: number, timeMin: number): Day => ({
+    ...day,
+    slots: [
+      day.slots[0],
+      { ...day.slots[1], checkpoint: { label: "Museum", opensMin, timeMin, bufferMin: 10 } },
+    ],
+  });
+
+  it("reports the wait when arriving before it opens", () => {
+    // arrive 08:30, opens 09:00 → wait 30, still on track for the 10:00 close
+    const cp = computeSchedule(withWindow(9 * 60, 10 * 60), { s1: "fast", s2: "only" })[1].checkpoint!;
+    expect(cp.waitMin).toBe(30);
+    expect(cp.status).toBe("ok");
+  });
+
+  it("reports no wait when arriving within the window", () => {
+    // arrive 08:30, opens 08:00, closes 09:00
+    const cp = computeSchedule(withWindow(8 * 60, 9 * 60), { s1: "fast", s2: "only" })[1].checkpoint!;
+    expect(cp.waitMin).toBe(0);
+  });
+
+  it("still flags red when arriving after the closing time", () => {
+    // arrive 08:30, window 06:00–08:00 → margin negative
+    const cp = computeSchedule(withWindow(6 * 60, 8 * 60), { s1: "fast", s2: "only" })[1].checkpoint!;
+    expect(cp.status).toBe("red");
+  });
 });
 
 describe("computeSchedule (timezones)", () => {

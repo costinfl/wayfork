@@ -75,6 +75,16 @@ export function validateTrip(trip: Trip): string[] {
           );
         }
         if (slot.checkpoint.bufferMin < 0) err(`slot ${slot.id}: checkpoint bufferMin must be >= 0`);
+        const opens = slot.checkpoint.opensMin;
+        if (opens != null) {
+          if (!Number.isInteger(opens) || opens < 0) {
+            err(`slot ${slot.id}: checkpoint opensMin must be a non-negative integer`);
+          } else if (opens > slot.checkpoint.timeMin) {
+            err(
+              `slot ${slot.id}: checkpoint opensMin ${opens} is after its closing timeMin ${slot.checkpoint.timeMin}`
+            );
+          }
+        }
       }
       for (const v of slot.variants) {
         if (v.microSteps.length === 0) err(`variant ${v.id} has no micro-steps`);

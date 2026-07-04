@@ -323,9 +323,10 @@
           "title": "Jerónimos Monastery",
           "defaultVariantId": "lx-v-jeronimos",
           "checkpoint": {
-            "label": "Timed entry 11:30",
+            "label": "Jerónimos opening hours",
             "timeMin": 690,
-            "bufferMin": 15
+            "bufferMin": 15,
+            "opensMin": 660
           },
           "variants": [
             {

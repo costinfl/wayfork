@@ -44,10 +44,14 @@ export interface VariantNode {
 }
 
 // Hard guardrail: absolute time milestone the active chain must respect.
+// timeMin is the deadline (boarding time / closing time). opensMin, when set,
+// makes it a window [opensMin, timeMin] — e.g. a museum's opening hours — so
+// arriving before it opens means waiting rather than being on time.
 export interface Checkpoint {
   label: string;
   timeMin: number;
   bufferMin: number;
+  opensMin?: number | null;
 }
 
 export interface ItinerarySlot {

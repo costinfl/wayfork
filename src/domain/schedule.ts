@@ -3,8 +3,9 @@ import type { Checkpoint, Day, ItinerarySlot, VariantNode } from "./types";
 export type CheckpointStatus = "ok" | "amber" | "red";
 
 export interface CheckpointResult extends Checkpoint {
-  margin: number;
+  margin: number; // minutes until the deadline (timeMin − arrival); negative = late
   status: CheckpointStatus;
+  waitMin: number; // minutes you'd wait if you arrive before opensMin (else 0)
 }
 
 export interface ScheduleRow {
@@ -48,10 +49,12 @@ export function computeSchedule(
     tzOffset += tzShiftMin;
     let checkpoint: CheckpointResult | null = null;
     if (slot.checkpoint) {
-      const margin = slot.checkpoint.timeMin - start;
+      const cp = slot.checkpoint;
+      const margin = cp.timeMin - start;
+      const waitMin = cp.opensMin != null && start < cp.opensMin ? cp.opensMin - start : 0;
       const status: CheckpointStatus =
-        margin >= slot.checkpoint.bufferMin ? "ok" : margin >= 0 ? "amber" : "red";
-      checkpoint = { ...slot.checkpoint, margin, status };
+        margin >= cp.bufferMin ? "ok" : margin >= 0 ? "amber" : "red";
+      checkpoint = { ...cp, margin, status, waitMin };
     }
     return { slot, variant, start, end, duration, tzOffsetMin, tzShiftMin, checkpoint };
   });
