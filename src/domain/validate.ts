@@ -84,6 +84,9 @@ export function validateTrip(trip: Trip): string[] {
           if (ms.durationMin <= 0 || !Number.isInteger(ms.durationMin)) {
             err(`micro-step ${ms.id}: durationMin ${ms.durationMin} must be a positive integer`);
           }
+          if (ms.tzShiftMin !== undefined && !Number.isInteger(ms.tzShiftMin)) {
+            err(`micro-step ${ms.id}: tzShiftMin ${ms.tzShiftMin} must be an integer number of minutes`);
+          }
         }
       }
     }

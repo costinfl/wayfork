@@ -54,8 +54,10 @@ interface MicroStep {
   id: string;
   type: StepType;
   label: string;
-  durationMin: number;        // positive integer
+  durationMin: number;        // positive integer (real elapsed minutes)
   distanceKm: number | null;  // only for walk/car/train legs where it makes sense
+  tzShiftMin?: number;        // clock change during this step (e.g. a flight that
+                              // crosses a timezone: destination 1h behind = -60)
 }
 
 interface VariantNode {
@@ -122,7 +124,14 @@ Every field shown is required. Use `null` (not omission) for absent
    day-trip destination's coordinates.
 4b. ALL times are absolute minutes since midnight — `checkpoint.timeMin` for
    10:00 AM is 600, NEVER an offset from the day start. A checkpoint must be
-   at or after its day's `startTimeMin`.
+   at or after its day's `startTimeMin`. Times are wall-clock in that day's
+   local zone.
+4c. If a flight (or other step) crosses a timezone, set `tzShiftMin` on that
+   step to the offset difference (destination minus origin, in minutes — e.g.
+   Bucharest→Rome is -60, Bucharest→Lisbon -120). Downstream slot times then
+   display in the arrival zone. Optionally set the day's `tz` to a short label
+   for its starting zone (e.g. "Bucharest"). Keep `durationMin` the real
+   elapsed flight time regardless of the shift.
 5. ONLY these currency codes anywhere: "RON", "EUR", "USD" (the app's cached
    rate matrix). Set currencies to { "home": "RON", "local": <the destination's
    currency if it is EUR or USD, otherwise "EUR">, "intl": "USD" }.

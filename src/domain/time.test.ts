@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtDur, fmtTime } from "./time";
+import { fmtDur, fmtOffset, fmtTime } from "./time";
 
 describe("fmtTime", () => {
   it("formats minutes since midnight as HH:MM", () => {
@@ -27,5 +27,14 @@ describe("fmtDur", () => {
   it("formats mixed durations", () => {
     expect(fmtDur(90)).toBe("1h 30m");
     expect(fmtDur(62)).toBe("1h 2m");
+  });
+});
+
+describe("fmtOffset", () => {
+  it("formats signed offsets", () => {
+    expect(fmtOffset(60)).toBe("+1h");
+    expect(fmtOffset(-60)).toBe("−1h");
+    expect(fmtOffset(-90)).toBe("−1h 30m");
+    expect(fmtOffset(30)).toBe("+30m");
   });
 });

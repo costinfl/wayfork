@@ -22,7 +22,7 @@ import {
 } from "../domain/mutate";
 import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
-import { fmtDur, fmtTime } from "../domain/time";
+import { fmtDur, fmtOffset, fmtTime } from "../domain/time";
 import { fetchDayWeather, RAIN_RISK_THRESHOLD } from "../domain/weather";
 import type { DayWeather } from "../domain/weather";
 import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
@@ -512,10 +512,24 @@ function TripView({
                 <span className="text-sm font-bold" style={{ ...mono, color: C.line }}>
                   {fmtTime(row.start)}–{fmtTime(row.end)}
                 </span>
+                {row.tzOffsetMin !== 0 && (
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: "#EEF2F6", color: C.sub, ...mono }}
+                    title={`Local time here is ${fmtOffset(row.tzOffsetMin)} from the day's start zone${day.tz ? ` (${day.tz})` : ""}`}
+                  >
+                    🕓 {fmtOffset(row.tzOffsetMin)}
+                  </span>
+                )}
                 <span className="font-semibold">{row.slot.title}</span>
                 <span className="text-xs" style={{ color: C.sub, ...mono }}>
                   {fmtDur(row.duration)}
                 </span>
+                {row.tzShiftMin !== 0 && (
+                  <span className="text-xs font-medium" style={{ color: C.line }}>
+                    🕓 clocks {fmtOffset(row.tzShiftMin)}
+                  </span>
+                )}
               </div>
 
               {row.checkpoint && <CheckpointBanner cp={row.checkpoint} />}

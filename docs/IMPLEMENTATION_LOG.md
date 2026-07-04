@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.10
+## Current state — v0.11
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -66,8 +66,6 @@
 
 ### ❌ Not implemented yet
 
-- Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
-  (Weather uses `timezone=auto` per location, so forecasts are already local.)
 - Auth / per-user trips (Supabase Auth + per-user RLS policies; the DB is a
   shared sandbox until then) / live multi-user sync.
 - Checkpoint types other than time (e.g., opening hours).
@@ -88,6 +86,12 @@
    yields the minimal transaction list.
 5. **Active variant** is UI state (`{slotId: variantId}`), not mutated into the
    data model — keeps mock data immutable and makes undo/URL-state trivial later.
+6. **Timezones**: a micro-step may carry `tzShiftMin` (clock change during that
+   step, e.g. a flight = -60). The ripple scheduler folds shifts into the
+   wall-clock — a slot's `end = start + duration + slotShift`, so downstream
+   times display in the arrival zone. `duration` stays real elapsed minutes;
+   checkpoints compare against the slot's local `start`, so they remain correct
+   on both sides of a crossing.
 
 ## Suggested next steps (priority order, simplest → complex)
 
@@ -100,8 +104,8 @@
 4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9)~~ —
    **complete**. Next tier: Supabase Auth + per-user row-level security
    (trips are currently a shared sandbox).
-5. ~~ECB rate fetch (v0.5); weather (v0.10)~~ — done. Remaining: timezones;
-   then auth (Supabase Auth + per-user RLS).
+5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11)~~ — done.
+   Remaining big item: auth (Supabase Auth + per-user RLS).
 
 ## Session history
 
@@ -160,6 +164,14 @@
   minutes) are flagged "☔ outdoors — rain likely" so weather informs the
   fork choice. Locations added to all built-in trips; DayForm edits them;
   prompt template updated. 89 tests.
+- **v0.11.0** — timezones: micro-steps carry an optional `tzShiftMin` (clock
+  change during the step); the ripple scheduler applies it so all times after a
+  flight display in the arrival zone (Rome day now reads 08:27→10:17 across the
+  −1h hop, elapsed still 2h50m). Timeline shows a "clocks −1h" badge on the
+  crossing and a local-offset badge on shifted slots; checkpoints stay in their
+  local zone. `fmtOffset` helper; parser/validator accept the field; Rome
+  (−60) and Lisbon (−120) flights annotated; prompt template documents it.
+  93 tests.
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

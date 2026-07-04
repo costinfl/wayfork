@@ -91,4 +91,79 @@ describe("computeSchedule (ripple engine)", () => {
     expect(at(8 * 60 + 10)).toBe("ok"); // margin 20 == buffer
     expect(at(8 * 60 + 30)).toBe("amber"); // margin 0
   });
+
+  it("reports zero timezone offset/shift when no step crosses zones", () => {
+    const rows = computeSchedule(day, { s1: "fast", s2: "only" });
+    expect(rows.every((r) => r.tzOffsetMin === 0 && r.tzShiftMin === 0)).toBe(true);
+  });
+});
+
+describe("computeSchedule (timezones)", () => {
+  const cross: Day = {
+    id: "d",
+    date: "2026-05-14",
+    startTimeMin: 8 * 60, // 08:00 in the start zone
+    slots: [
+      {
+        id: "flight",
+        title: "Flight",
+        defaultVariantId: "vf",
+        checkpoint: null,
+        variants: [
+          {
+            id: "vf",
+            name: "Booked",
+            cost: { amount: 0, currency: "EUR" },
+            microSteps: [
+              { id: "board", type: "wait", label: "Boarding", durationMin: 30, distanceKm: null },
+              { id: "fly", type: "flight", label: "A → B", durationMin: 120, distanceKm: null, tzShiftMin: -60 },
+            ],
+          },
+        ],
+      },
+      {
+        id: "arrive",
+        title: "To hotel",
+        defaultVariantId: "va",
+        checkpoint: null,
+        variants: [
+          {
+            id: "va",
+            name: "Taxi",
+            cost: { amount: 0, currency: "EUR" },
+            microSteps: [{ id: "ride", type: "car", label: "Ride", durationMin: 30, distanceKm: 20 }],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("applies the clock shift to the crossing slot's end and downstream", () => {
+    const [flight, arrive] = computeSchedule(cross, {});
+    // 08:00 + 150 elapsed - 60 tz = 09:30 local at destination
+    expect(flight.start).toBe(8 * 60);
+    expect(flight.duration).toBe(150);
+    expect(flight.tzShiftMin).toBe(-60);
+    expect(flight.end).toBe(9 * 60 + 30);
+    // downstream slot runs in the arrival zone
+    expect(arrive.tzOffsetMin).toBe(-60);
+    expect(arrive.start).toBe(9 * 60 + 30);
+    expect(arrive.end).toBe(10 * 60);
+  });
+
+  it("keeps a pre-crossing checkpoint in the departure zone", () => {
+    const withCp: Day = {
+      ...cross,
+      slots: [
+        {
+          ...cross.slots[0],
+          checkpoint: { label: "Boarding 08:20", timeMin: 8 * 60 + 20, bufferMin: 15 },
+        },
+        cross.slots[1],
+      ],
+    };
+    const [flight] = computeSchedule(withCp, {});
+    // margin measured against the slot's local start (08:00), not the shifted end
+    expect(flight.checkpoint).toMatchObject({ margin: 20, status: "ok" });
+  });
 });

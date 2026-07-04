@@ -150,7 +150,8 @@
                   "type": "flight",
                   "label": "OTP → FCO",
                   "durationMin": 145,
-                  "distanceKm": null
+                  "distanceKm": null,
+                  "tzShiftMin": -60
                 }
               ],
               "cost": {
@@ -228,7 +229,8 @@
         "name": "Rome",
         "lat": 41.9028,
         "lon": 12.4964
-      }
+      },
+      "tz": "Bucharest"
     }
   ],
   "expenses": [

@@ -7,3 +7,9 @@ export const fmtTime = (m: number): string => {
 
 export const fmtDur = (m: number): string =>
   m >= 60 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + "m" : ""}`.trim() : `${m}m`;
+
+// Signed timezone offset for display, e.g. +1h, −30m, −1h 30m.
+export const fmtOffset = (m: number): string => {
+  const sign = m < 0 ? "−" : "+";
+  return `${sign}${fmtDur(Math.abs(m))}`;
+};

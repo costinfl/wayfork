@@ -119,6 +119,13 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
           if (ms.distanceKm !== null && typeof ms.distanceKm !== "number") {
             err(`${mw}.distanceKm must be a number or null`);
           }
+          if (
+            ms.tzShiftMin !== undefined &&
+            ms.tzShiftMin !== null &&
+            typeof ms.tzShiftMin !== "number"
+          ) {
+            err(`${mw}.tzShiftMin must be a number (minutes) or absent`);
+          }
         }
       }
     }

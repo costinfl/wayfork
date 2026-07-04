@@ -31,6 +31,9 @@ export interface MicroStep {
   label: string;
   durationMin: number;
   distanceKm: number | null;
+  // Change in local-clock offset that occurs during this step, in minutes
+  // (e.g. a flight Bucharest→Rome loses an hour: -60). Absent/0 = no change.
+  tzShiftMin?: number;
 }
 
 export interface VariantNode {
@@ -66,9 +69,10 @@ export interface DayLocation {
 export interface Day {
   id: string;
   date: string; // ISO date anchor
-  startTimeMin: number; // minutes since midnight
+  startTimeMin: number; // minutes since midnight, in the day's starting local zone
   slots: ItinerarySlot[];
   location?: DayLocation | null;
+  tz?: string | null; // optional label for the starting local zone, e.g. "Bucharest"
 }
 
 export interface Participant {
