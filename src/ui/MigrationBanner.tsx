@@ -7,20 +7,23 @@ import { C } from "./theme";
 export function MigrationBanner({
   trips,
   busy,
+  error,
   onImport,
   onDismiss,
 }: {
   trips: Trip[];
   busy: boolean;
+  error?: string | null;
   onImport: () => void;
   onDismiss: () => void;
 }) {
   const n = trips.length;
   return (
     <div
-      className="rounded-xl p-3 mb-4 text-sm flex items-center justify-between gap-3 flex-wrap"
+      className="rounded-xl p-3 mb-4 text-sm flex flex-col gap-2"
       style={{ background: C.lineSoft, border: `1px solid ${C.line}`, color: C.ink }}
     >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
       <span>
         {n} trip{n > 1 ? "s" : ""} saved in this browser
         {n <= 3 && <> — {trips.map((t) => t.name).join(", ")}</>}. Import{" "}
@@ -44,6 +47,12 @@ export function MigrationBanner({
           Not now
         </button>
       </div>
+      </div>
+      {error && (
+        <div className="text-xs" style={{ color: C.red }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

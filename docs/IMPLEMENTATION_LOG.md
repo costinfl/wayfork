@@ -47,7 +47,7 @@
   pacing fix (v0.15), and background multi-device sync (v0.16) are all done.
   Possible follow-up: swap the sync poll for a Supabase Realtime WebSocket.
 
-## Current state — v0.16
+## Current state — v0.17
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -117,6 +117,12 @@
 
 - Realtime push sync (v0.16 sync is poll-based every 15s / on tab focus, not a
   Supabase Realtime WebSocket — near-real-time, not instant).
+- Per-user trip identity: `public.trips` still has a **global** `id text
+  primary key`, so two accounts editing the same built-in id would collide on
+  the PK (the second's upsert hits the other's row and RLS blocks it). Harmless
+  while there's effectively one user; the correct fix is a composite PK
+  `(owner, id)`. v0.17 removed the pre-auth orphan rows that were tripping this
+  for a single user; the schema change is deferred.
 - Component/UI tests (only the pure engines + data adapters are tested; needs
   jsdom + @testing-library/react wired into Vitest).
 
@@ -265,6 +271,19 @@
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.17.0** — fix silent import failures. On sign-in the migration banner
+  offers to import trips still in the browser (v0.14); a save rejected by
+  row-level security (an id colliding with a row the user can't write) was
+  thrown away and the banner hidden, so Import looked like a no-op and the
+  trip reappeared on refresh. Now `migrateLocalTrips` handles each trip
+  independently — a rejected save is recorded in `failed` and leaves that trip
+  in the browser without aborting the batch — and `MigrationBanner` shows the
+  reason and keeps the un-imported trips. The concrete trigger was a pre-auth
+  shared-sandbox row (`owner IS NULL`) with the same id as a browser trip;
+  those orphan rows were deleted from `wayfork-db` (invisible under per-user
+  RLS and only good for blocking imports). 114 tests; the failure path
+  (403 → error shown, trip preserved) screenshot-verified. See the global-PK
+  limitation above for the underlying collision class.
 - **v0.16.0** — background multi-device sync. A signed-in session keeps its
   trip list fresh without a manual reload: a visibility-aware poll of the
   account store every 15s (and immediately when the tab regains focus) pulls

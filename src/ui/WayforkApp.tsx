@@ -70,6 +70,7 @@ export default function WayforkApp() {
   // Trips still in this browser that could be imported into the account.
   const [migratable, setMigratable] = useState<Trip[]>([]);
   const [migrating, setMigrating] = useState(false);
+  const [migrateError, setMigrateError] = useState<string | null>(null);
 
   // Complete a magic-link sign-in: exchange the tokens in the redirect
   // fragment for a session, then scrub them out of the URL.
@@ -127,19 +128,28 @@ export default function WayforkApp() {
   const importLocalTrips = async () => {
     if (!REMOTE_STORE) return;
     setMigrating(true);
+    setMigrateError(null);
     markLocalWrite();
     try {
-      const { imported } = await migrateLocalTrips(
+      const { imported, failed } = await migrateLocalTrips(
         LOCAL_STORE,
         REMOTE_STORE,
         storedTrips.map((t) => t.id)
       );
       const moved = migratable.filter((t) => imported.includes(t.id));
-      setStoredTrips((prev) => [...prev.filter((t) => !imported.includes(t.id)), ...moved]);
+      if (moved.length) {
+        setStoredTrips((prev) => [...prev.filter((t) => !imported.includes(t.id)), ...moved]);
+      }
+      // Keep only trips that failed to import in the banner, and say why.
+      setMigratable((prev) => prev.filter((t) => failed.some((f) => f.id === t.id)));
+      if (failed.length) {
+        setMigrateError(
+          `Couldn't import ${failed.length} trip${failed.length > 1 ? "s" : ""} — ${failed[0].error}. They're still saved in this browser.`
+        );
+      }
     } catch (e) {
-      console.error("trip import failed:", e);
+      setMigrateError(e instanceof Error ? e.message : "Import failed.");
     } finally {
-      setMigratable([]);
       setMigrating(false);
     }
   };
@@ -269,8 +279,12 @@ export default function WayforkApp() {
           <MigrationBanner
             trips={migratable}
             busy={migrating}
+            error={migrateError}
             onImport={importLocalTrips}
-            onDismiss={() => setMigratable([])}
+            onDismiss={() => {
+              setMigratable([]);
+              setMigrateError(null);
+            }}
           />
         )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">

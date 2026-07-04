@@ -51,8 +51,37 @@ describe("migrateLocalTrips", () => {
 
     expect(result.imported.sort()).toEqual(["local-a", "local-b"]);
     expect(result.skipped).toEqual([]);
+    expect(result.failed).toEqual([]);
     expect((await account.list()).map((t) => t.id).sort()).toEqual(["local-a", "local-b"]);
     expect(await local.list()).toEqual([]); // moved, not copied
+  });
+
+  it("records a rejected save and leaves that trip in the browser, without aborting the rest", async () => {
+    const a = clone(TRIPS[0], "local-a", "Local A");
+    const b = clone(TRIPS[1], "local-b", "Local B");
+    const local = await seedLocal([a, b]);
+    // Account store that refuses to save local-a but accepts local-b.
+    let data: Trip[] = [];
+    const account: TripStore = {
+      async list() {
+        return [...data];
+      },
+      async save(t) {
+        if (t.id === "local-a") throw new Error("HTTP 403");
+        data = [...data.filter((x) => x.id !== t.id), t];
+      },
+      async remove(id) {
+        data = data.filter((x) => x.id !== id);
+      },
+    };
+
+    const result = await migrateLocalTrips(local, account, []);
+
+    expect(result.imported).toEqual(["local-b"]);
+    expect(result.failed).toEqual([{ id: "local-a", error: "HTTP 403" }]);
+    expect((await account.list()).map((t) => t.id)).toEqual(["local-b"]);
+    // The failed trip stays local; the imported one is gone.
+    expect((await local.list()).map((t) => t.id)).toEqual(["local-a"]);
   });
 
   it("skips trips whose id already exists in the account, leaving them local", async () => {
@@ -66,6 +95,7 @@ describe("migrateLocalTrips", () => {
 
     expect(result.imported).toEqual(["local-b"]);
     expect(result.skipped).toEqual(["local-a"]);
+    expect(result.failed).toEqual([]);
     // The account's own copy of local-a is untouched; only local-b was added.
     const acct = await account.list();
     expect(acct.find((t) => t.id === "local-a")?.name).toBe("Account A");
@@ -78,7 +108,7 @@ describe("migrateLocalTrips", () => {
     const local = await seedLocal([]);
     const account = memStore([clone(TRIPS[0], "acct-1", "Acct 1")]);
     const result = await migrateLocalTrips(local, account, ["acct-1"]);
-    expect(result).toEqual({ imported: [], skipped: [] });
+    expect(result).toEqual({ imported: [], skipped: [], failed: [] });
     expect((await account.list()).map((t) => t.id)).toEqual(["acct-1"]);
   });
 });

@@ -47,6 +47,7 @@ export function tripsEqual(a: Trip[], b: Trip[]): boolean {
 export interface MigrationResult {
   imported: string[]; // trip ids moved from the browser into the account
   skipped: string[]; // ids left in the browser because the account already has them
+  failed: { id: string; error: string }[]; // ids whose save was rejected
 }
 
 // Move browser-stored trips into the signed-in user's account store. A trip
@@ -54,6 +55,10 @@ export interface MigrationResult {
 // overwrites the account copy); the rest are saved to the account and removed
 // from the local store, so each trip lives in exactly one place. Used once on
 // sign-in to offer importing trips created while signed out.
+//
+// Each trip is handled independently: a rejected save (e.g. an id that collides
+// with a row the user cannot write under row-level security) is recorded in
+// `failed` and leaves that trip in the browser, without aborting the rest.
 export async function migrateLocalTrips(
   local: TripStore,
   account: TripStore,
@@ -62,14 +67,19 @@ export async function migrateLocalTrips(
   const existing = new Set(accountIds);
   const imported: string[] = [];
   const skipped: string[] = [];
+  const failed: { id: string; error: string }[] = [];
   for (const trip of await local.list()) {
     if (existing.has(trip.id)) {
       skipped.push(trip.id);
       continue;
     }
-    await account.save(trip);
-    await local.remove(trip.id);
-    imported.push(trip.id);
+    try {
+      await account.save(trip);
+      await local.remove(trip.id);
+      imported.push(trip.id);
+    } catch (e) {
+      failed.push({ id: trip.id, error: e instanceof Error ? e.message : String(e) });
+    }
   }
-  return { imported, skipped };
+  return { imported, skipped, failed };
 }
