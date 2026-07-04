@@ -10,8 +10,14 @@ import type {
 
 // Immutable trip mutations — return a new Trip, never touch the input.
 
+// Monotonic per-session counter so ids never collide even when many are minted
+// in the same millisecond (Date.now + a short random suffix alone collide at a
+// few-percent rate over ~50 rapid calls — enough to corrupt a trip and to make
+// the uniqueness test flaky). The counter guarantees uniqueness within the
+// session; Date.now keeps ids distinct across sessions.
+let idSeq = 0;
 export const newId = (prefix: string): string =>
-  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  `${prefix}-${Date.now().toString(36)}-${(idSeq++).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 export const newExpenseId = (): string => newId("e");
 
