@@ -55,11 +55,20 @@ export interface ItinerarySlot {
   checkpoint: Checkpoint | null;
 }
 
+// Where the day happens, for weather lookups. Optional — days without a
+// location simply show no forecast.
+export interface DayLocation {
+  name: string; // e.g. "Rome"
+  lat: number;
+  lon: number;
+}
+
 export interface Day {
   id: string;
   date: string; // ISO date anchor
   startTimeMin: number; // minutes since midnight
   slots: ItinerarySlot[];
+  location?: DayLocation | null;
 }
 
 export interface Participant {

@@ -213,7 +213,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Neptun",
+        "lat": 43.8125,
+        "lon": 28.59
+      }
     },
     {
       "id": "nep-day-2",
@@ -386,7 +391,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Neptun",
+        "lat": 43.8125,
+        "lon": 28.59
+      }
     },
     {
       "id": "nep-day-3",
@@ -566,7 +576,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Mangalia",
+        "lat": 43.8167,
+        "lon": 28.5833
+      }
     },
     {
       "id": "nep-day-4",
@@ -665,7 +680,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Neptun",
+        "lat": 43.8125,
+        "lon": 28.59
+      }
     }
   ],
   "expenses": [

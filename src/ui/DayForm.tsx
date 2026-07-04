@@ -23,6 +23,9 @@ export function DayForm({
 }) {
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [start, setStart] = useState(fmtTime(initial?.startTimeMin ?? 9 * 60));
+  const [place, setPlace] = useState(initial?.location?.name ?? "");
+  const [lat, setLat] = useState(initial?.location ? String(initial.location.lat) : "");
+  const [lon, setLon] = useState(initial?.location ? String(initial.location.lon) : "");
   const [errors, setErrors] = useState<string[]>([]);
 
   const submit = () => {
@@ -30,16 +33,28 @@ export function DayForm({
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) pre.push("date is required");
     const [h, m] = start.split(":").map(Number);
     if (Number.isNaN(h) || Number.isNaN(m)) pre.push("departure time is invalid");
+    let location = initial?.location ?? null;
+    if (place.trim() || lat || lon) {
+      const latN = parseFloat(lat);
+      const lonN = parseFloat(lon);
+      if (!place.trim()) pre.push("location needs a place name");
+      if (!Number.isFinite(latN) || !Number.isFinite(lonN))
+        pre.push("location needs numeric lat and lon (leave all three blank for no weather)");
+      location = { name: place.trim(), lat: latN, lon: lonN };
+    } else {
+      location = null;
+    }
     if (pre.length) {
       setErrors(pre);
       return;
     }
     const day: Day = initial
-      ? { ...initial, date, startTimeMin: h * 60 + m }
+      ? { ...initial, date, startTimeMin: h * 60 + m, location }
       : {
           id: newId("day"),
           date,
           startTimeMin: h * 60 + m,
+          location,
           slots: [starterSlot(trip.currencies.local)],
         };
     setErrors(onSave(day));
@@ -65,6 +80,38 @@ export function DayForm({
             value={start}
             onChange={(e) => setStart(e.target.value)}
             className="block rounded px-2 py-1.5 text-sm mt-0.5"
+            style={{ ...inputStyle, ...mono }}
+          />
+        </label>
+        <label className="text-xs" style={{ color: C.sub }}>
+          Place <span style={{ opacity: 0.6 }}>(weather)</span>
+          <input
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            placeholder="e.g. Rome"
+            className="w-28 block rounded px-2 py-1.5 text-sm mt-0.5"
+            style={inputStyle}
+          />
+        </label>
+        <label className="text-xs" style={{ color: C.sub }}>
+          Lat
+          <input
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            inputMode="decimal"
+            placeholder="41.9"
+            className="w-20 block rounded px-2 py-1.5 text-sm mt-0.5"
+            style={{ ...inputStyle, ...mono }}
+          />
+        </label>
+        <label className="text-xs" style={{ color: C.sub }}>
+          Lon
+          <input
+            value={lon}
+            onChange={(e) => setLon(e.target.value)}
+            inputMode="decimal"
+            placeholder="12.5"
+            className="w-20 block rounded px-2 py-1.5 text-sm mt-0.5"
             style={{ ...inputStyle, ...mono }}
           />
         </label>

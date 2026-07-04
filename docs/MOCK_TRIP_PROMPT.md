@@ -78,6 +78,7 @@ interface Day {
   date: string;                // ISO date; strictly increasing across days
   startTimeMin: number;        // minutes since midnight, integer in [0, 1440)
   slots: ItinerarySlot[];
+  location?: { name: string; lat: number; lon: number } | null; // for weather
 }
 
 type SplitDef =
@@ -115,7 +116,10 @@ Every field shown is required. Use `null` (not omission) for absent
 2. `defaultVariantId` exists among that slot's variants.
 3. Every variant has >= 1 micro-step; every `durationMin` is a positive integer.
 4. `startTimeMin` is an integer in [0, 1440); day dates are strictly increasing,
-   one Day per calendar date from start to end inclusive.
+   one Day per calendar date from start to end inclusive. Give each day a
+   `location` with the real `lat`/`lon` (WGS84, degrees) of where that day is
+   spent — the app fetches a forecast per day from it. Day-trip days use the
+   day-trip destination's coordinates.
 4b. ALL times are absolute minutes since midnight — `checkpoint.timeMin` for
    10:00 AM is 600, NEVER an offset from the day start. A checkpoint must be
    at or after its day's `startTimeMin`.

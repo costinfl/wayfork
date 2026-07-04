@@ -5,7 +5,7 @@
 > `Wayfork_Product_Specification_AI_Engineering_Blueprint.pdf` (in this folder).
 > The original v0.1 log (pre-repo, PDF export) is `IMPLEMENTATION_LOG.pdf`.
 
-## Current state — v0.9
+## Current state — v0.10
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -57,8 +57,9 @@
   (they have no payer yet). Spec was ambiguous here — revisit.
 - ~~Micro-step model: has `distanceKm` but distance is not rendered~~ —
   **done in v0.5** (shown on step chips).
-- **Weather state on VariantNode**: field exists in spec, omitted from the
-  domain types to stay lean. Add `weather` to `VariantNode` next.
+- ~~Weather state~~ — **done in v0.10**: `Day.location` drives an Open-Meteo
+  forecast per day (badge in the day header); variants are flagged for rain
+  exposure by their outdoor (walking) minutes.
 - ~~Multi-day: model supports `trip.days[]` but UI renders `days[0]` only~~ —
   **done in v0.3** (day tabs; per-day departure time; projection sums active
   variants across all days).
@@ -66,6 +67,7 @@
 ### ❌ Not implemented yet
 
 - Timezones (OTP→FCO day is computed in one clock; real flight crosses TZ).
+  (Weather uses `timezone=auto` per location, so forecasts are already local.)
 - Auth / per-user trips (Supabase Auth + per-user RLS policies; the DB is a
   shared sandbox until then) / live multi-user sync.
 - Checkpoint types other than time (e.g., opening hours).
@@ -98,8 +100,8 @@
 4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9)~~ —
    **complete**. Next tier: Supabase Auth + per-user row-level security
    (trips are currently a shared sandbox).
-5. ~~ECB rate fetch with cached fallback~~ (**done in v0.5**); then weather
-   per variant; then timezones.
+5. ~~ECB rate fetch (v0.5); weather (v0.10)~~ — done. Remaining: timezones;
+   then auth (Supabase Auth + per-user RLS).
 
 ## Session history
 
@@ -150,6 +152,14 @@
   RLS policies, see `supabase/migrations/0001_trips.sql`). The app prefers
   the remote store at startup and degrades to localStorage when unreachable;
   storage source shown in the ledger footnote. 83 tests.
+- **v0.10.0** — weather per day: added optional `Day.location`
+  (name/lat/lon) to the model, parser, and validator; `fetchDayWeather`
+  (`src/domain/weather.ts`) pulls a daily forecast from the free Open-Meteo
+  API (no key), null on out-of-range dates or errors. Day header shows a
+  forecast badge (amber when rain risk >= 40%); exposed variants (by walking
+  minutes) are flagged "☔ outdoors — rain likely" so weather informs the
+  fork choice. Locations added to all built-in trips; DayForm edits them;
+  prompt template updated. 89 tests.
 - **v0.5.0** — live ECB exchange rates via the Frankfurter API, fetched once
   at load with the built-in matrix as offline fallback (`src/domain/rates.ts`,
   unit-tested with a stubbed fetch); rates threaded through all conversions

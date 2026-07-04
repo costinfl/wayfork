@@ -3,6 +3,7 @@ import type { RateMatrix } from "../domain/currency";
 import { variantDuration } from "../domain/schedule";
 import { fmtDur } from "../domain/time";
 import type { CurrencyView, TripCurrencies, VariantNode } from "../domain/types";
+import { exposedMinutes } from "../domain/weather";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 
@@ -13,6 +14,7 @@ export function VariantCard({
   ccyView,
   tripCcy,
   rates,
+  rainRisk = false,
 }: {
   variant: VariantNode;
   active: boolean;
@@ -20,9 +22,11 @@ export function VariantCard({
   ccyView: CurrencyView;
   tripCcy: TripCurrencies;
   rates: RateMatrix;
+  rainRisk?: boolean;
 }) {
   const dur = variantDuration(variant);
   const cost = convert(variant.cost.amount, variant.cost.currency, tripCcy[ccyView], rates);
+  const exposed = exposedMinutes(variant);
   return (
     <button
       onClick={onSelect}
@@ -55,6 +59,11 @@ export function VariantCard({
         <span style={mono}>{fmtDur(dur)}</span>
         <span style={mono}>{variant.cost.amount === 0 ? "—" : money(cost, tripCcy[ccyView])}</span>
       </div>
+      {rainRisk && exposed > 0 && (
+        <div className="mt-1.5 text-xs font-medium" style={{ color: C.amber }}>
+          ☔ {fmtDur(exposed)} outdoors — rain likely
+        </div>
+      )}
     </button>
   );
 }

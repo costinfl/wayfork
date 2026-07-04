@@ -234,7 +234,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Lisbon",
+        "lat": 38.7223,
+        "lon": -9.1393
+      }
     },
     {
       "id": "lx-day-2",
@@ -428,7 +433,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Lisbon",
+        "lat": 38.7223,
+        "lon": -9.1393
+      }
     },
     {
       "id": "lx-day-3",
@@ -615,7 +625,12 @@
             }
           ]
         }
-      ]
+      ],
+      "location": {
+        "name": "Sintra",
+        "lat": 38.7975,
+        "lon": -9.3904
+      }
     }
   ],
   "expenses": [

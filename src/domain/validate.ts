@@ -50,6 +50,11 @@ export function validateTrip(trip: Trip): string[] {
     if (day.startTimeMin < 0 || day.startTimeMin >= 1440 || !Number.isInteger(day.startTimeMin)) {
       err(`day ${day.id}: startTimeMin ${day.startTimeMin} must be an integer in [0, 1440)`);
     }
+    if (day.location) {
+      const { lat, lon } = day.location;
+      if (!(lat >= -90 && lat <= 90)) err(`day ${day.id}: location lat ${lat} must be in [-90, 90]`);
+      if (!(lon >= -180 && lon <= 180)) err(`day ${day.id}: location lon ${lon} must be in [-180, 180]`);
+    }
     if (day.slots.length === 0) err(`day ${day.id} has no slots`);
 
     for (const slot of day.slots) {

@@ -63,6 +63,15 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
     checkStr(d, "id", dw);
     checkStr(d, "date", dw);
     checkNum(d, "startTimeMin", dw);
+    if (d.location !== undefined && d.location !== null) {
+      if (!isObj(d.location)) {
+        err(`${dw}.location must be null or an object with name/lat/lon`);
+      } else {
+        checkStr(d.location, "name", `${dw}.location`);
+        checkNum(d.location, "lat", `${dw}.location`);
+        checkNum(d.location, "lon", `${dw}.location`);
+      }
+    }
     for (const [j, s] of checkArr(d, "slots", dw).entries()) {
       const sw = `${dw}.slots[${j}]`;
       if (!isObj(s)) {

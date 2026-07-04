@@ -23,6 +23,8 @@ import {
 import { fetchRatesEUR } from "../domain/rates";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtTime } from "../domain/time";
+import { fetchDayWeather, RAIN_RISK_THRESHOLD } from "../domain/weather";
+import type { DayWeather } from "../domain/weather";
 import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
@@ -35,6 +37,7 @@ import { C, mono } from "./theme";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
+import { WeatherBadge } from "./WeatherBadge";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
@@ -246,6 +249,21 @@ function TripView({
   );
   const [ccyView, setCcyView] = useState<CurrencyView>("local");
 
+  // Per-day forecast, fetched once per day (null = no forecast available).
+  const [weather, setWeather] = useState<Record<string, DayWeather | null>>({});
+  useEffect(() => {
+    const loc = day.location;
+    if (!loc || weather[day.id] !== undefined) return;
+    let cancelled = false;
+    fetchDayWeather(loc, day.date).then((w) => {
+      if (!cancelled) setWeather((prev) => ({ ...prev, [day.id]: w }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [day.id, day.date, day.location, weather]);
+  const dayWeather = day.location ? weather[day.id] : undefined;
+
   const viewCcy = trip.currencies[ccyView];
   const dayStart = dayStarts[day.id] ?? day.startTimeMin;
 
@@ -438,8 +456,9 @@ function TripView({
       {/* Timeline */}
       <section className="rounded-xl p-4 mb-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="font-bold">
+          <h2 className="font-bold flex items-center gap-2 flex-wrap">
             Day {dayIdx + 1} — {day.date}
+            {dayWeather && <WeatherBadge weather={dayWeather} place={day.location!.name} />}
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -511,6 +530,7 @@ function TripView({
                       ccyView={ccyView}
                       tripCcy={trip.currencies}
                       rates={rates}
+                      rainRisk={!!dayWeather && dayWeather.precipProb >= RAIN_RISK_THRESHOLD}
                       onSelect={() => setActiveVariants((s) => ({ ...s, [row.slot.id]: v.id }))}
                     />
                   ))}
