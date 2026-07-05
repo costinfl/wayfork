@@ -1,4 +1,3 @@
-import { newUid } from "./mutate";
 import { STEP_TYPES } from "./types";
 import type { Trip } from "./types";
 import { validateTrip } from "./validate";
@@ -175,6 +174,8 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
   const trip = input as unknown as Trip;
   const semantic = validateTrip(trip);
   if (semantic.length) return { trip: null, errors: semantic };
-  // Every trip that leaves the parser carries a surrogate uid (see Trip.uid).
-  return { trip: trip.uid ? trip : { ...trip, uid: newUid() }, errors: [] };
+  // Preserve uid as-is: a present one is kept, an absent one stays absent so a
+  // read never mints a new (unstable) uid. The client falls back to the logical
+  // id via uidOf(); a persisted uid is stamped at creation/upload instead.
+  return { trip, errors: [] };
 }

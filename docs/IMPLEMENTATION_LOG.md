@@ -47,7 +47,7 @@
   to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
   WebSocket.
 
-## Current state — v0.21
+## Current state — v0.22
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -355,6 +355,15 @@ part of the collaboration phases.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.22.0** — fix: selecting an uploaded trip snapped back to the first
+  trip. v0.20's `parseTrip` minted a *random* uid whenever a stored trip had
+  none, so a trip uploaded before v0.20 got a different uid on every read; the
+  15s background-sync poll then saw a "change", replaced `storedTrips`, and the
+  selected `tripUid` no longer matched → fell back to `TRIPS[0]` (Rome).
+  `parseTrip` no longer invents a uid on read (absent stays absent; the client
+  falls back to the logical id via `uidOf`); a stable uid is stamped only at
+  creation (`newTrip`) and upload (`addTrip`). Selection now survives repeated
+  polls (screenshot-verified). 126 tests.
 - **v0.21.0** — trip collaboration Phase 2: membership + invites + RLS
   (`supabase/migrations/0004_trip_collaboration.sql`). `trip_members`
   (owner/editor/viewer) and `trip_invites` (in-app inbox matched by email, no

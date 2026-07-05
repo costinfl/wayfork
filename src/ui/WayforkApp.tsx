@@ -12,6 +12,7 @@ import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
 import {
   moveSlot,
+  newUid,
   nextDate,
   removeDay,
   removeExpense,
@@ -262,8 +263,11 @@ export default function WayforkApp() {
     if (TRIPS.some((b) => b.id === t.id)) {
       return `A built-in trip already uses the id "${t.id}" — give the trip a different id.`;
     }
-    saveTrip(t);
-    setTripUid(uidOf(t));
+    // Stamp a stable uid now (uploaded JSON usually has none) so the trip keeps
+    // one identity across reads and can later be shared.
+    const trip = t.uid ? t : { ...t, uid: newUid() };
+    saveTrip(trip);
+    setTripUid(uidOf(trip));
     setUploadOpen(false);
     return null;
   };

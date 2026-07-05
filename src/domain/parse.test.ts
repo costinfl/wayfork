@@ -19,10 +19,10 @@ describe("parseTrip — accepts", () => {
 });
 
 describe("parseTrip — surrogate uid", () => {
-  it("backfills a uid when the document has none", () => {
-    const { trip } = roundTrip((t) => delete t.uid);
-    expect(typeof trip?.uid).toBe("string");
-    expect(trip?.uid).toBeTruthy();
+  it("leaves uid absent when the document has none (no unstable mint on read)", () => {
+    const { trip, errors } = roundTrip((t) => delete t.uid);
+    expect(errors).toEqual([]);
+    expect(trip?.uid).toBeUndefined();
   });
 
   it("preserves an existing uid", () => {
