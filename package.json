@@ -1,7 +1,7 @@
 {
   "name": "wayfork",
   "private": true,
-  "version": "0.18.0",
+  "version": "0.19.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,9 +17,14 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.4.0",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4.1.0",
     "typescript": "^6.0.3",
     "vite": "^6.3.0",

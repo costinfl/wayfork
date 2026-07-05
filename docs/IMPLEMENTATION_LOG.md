@@ -41,11 +41,11 @@
   registered in `src/data/index.ts`. Untrusted trip JSON is checked by
   `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
   functions in `mutate.ts`; every edit is re-validated before it is saved.
-- **NEXT TASK:** component/UI tests (only the pure engines + data adapters are
-  unit-tested; needs jsdom + @testing-library/react wired into Vitest). Auth
-  (v0.13), local→account migration (v0.14), the public trip prompt + dinner
-  pacing fix (v0.15), and background multi-device sync (v0.16) are all done.
-  Possible follow-up: swap the sync poll for a Supabase Realtime WebSocket.
+- **NEXT TASK:** trip collaboration — invite/join so family & friends can plan
+  a trip together (design in "Trip collaboration — design" below). Also open:
+  broaden the component/UI test harness (v0.19 covers AuthBar + MigrationBanner)
+  to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
+  WebSocket.
 
 ## Current state — v0.18
 
@@ -95,6 +95,7 @@
 | Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
 | Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
 | Sync | Background multi-device sync: signed-in poll (visibility-aware) + signed-out cross-tab `storage` events; reconciled by `tripsEqual` | sync effect in `src/ui/WayforkApp.tsx`, `tripsEqual` (`repository.ts`) |
+| — | Component/UI test harness (jsdom + @testing-library/react), with AuthBar + MigrationBanner covered | `src/test/setup-dom.ts`, `src/ui/*.test.tsx` |
 
 ### 🟡 Partially implemented
 
@@ -117,8 +118,11 @@
 
 - Realtime push sync (v0.16 sync is poll-based every 15s / on tab focus, not a
   Supabase Realtime WebSocket — near-real-time, not instant).
-- Component/UI tests (only the pure engines + data adapters are tested; needs
-  jsdom + @testing-library/react wired into Vitest).
+- Broader component/UI coverage: the harness exists (v0.19, jsdom +
+  @testing-library) with `AuthBar` and `MigrationBanner` covered; the larger
+  components (`WayforkApp`, the CRUD forms, `TripView`) are not tested yet.
+- Trip collaboration: trips are single-owner; no way to invite/share a trip
+  with family or friends to plan together (design drafted — see below).
 
 ## Key algorithms & decisions
 
@@ -153,8 +157,64 @@
 4. ~~Persistence: localStorage adapter (v0.6); Supabase adapter (v0.9);
    Supabase Auth + per-user row-level security (v0.13); local→account trip
    migration (v0.14)~~ — **complete**. Next tier: realtime multi-device sync.
-5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11); auth (v0.13)~~
-   — done. Remaining: component/UI test harness (jsdom + testing-library).
+5. ~~ECB rate fetch (v0.5); weather (v0.10); timezones (v0.11); auth (v0.13);
+   component/UI test harness (v0.19)~~ — done. Next big feature: trip
+   collaboration (below).
+
+## Trip collaboration — design (proposed, not built)
+
+Goal: family & friends plan a trip together — several signed-in users can view
+and edit the same trip. Today a trip is one `public.trips` row keyed
+`(owner, id)` and RLS scopes everything to `owner = auth.uid()`.
+
+**1. Membership + invites (new tables).**
+- `trip_members(trip_owner, trip_id, user_id, role)` — role ∈ owner/editor/
+  viewer; FK → `trips(owner, id)` on delete cascade; the trip's creator is the
+  `owner` member. This is the source of truth for "who can touch this trip".
+- `trip_invites(id, trip_owner, trip_id, email, role, token, invited_by,
+  status, expires_at)` — an owner invites by email; the invitee accepts and a
+  `trip_members` row is created.
+
+**2. RLS (needs care to avoid recursion).**
+- `trips`: SELECT/UPDATE if the caller is a member; INSERT/DELETE owner-only.
+  The "is a member" check must go through a `security definer` helper
+  (`is_trip_member(owner, id)`) so the `trips` ↔ `trip_members` policies don't
+  recurse.
+- `trip_members`: a member may read the roster; only the owner may add/remove.
+- `trip_invites`: the invitee (email match) reads their own invites; the owner
+  creates them; acceptance goes through a `security definer` RPC
+  `accept_invite(token)` that inserts the membership.
+
+**3. The crux — client trip identity.** The app currently assumes `trip.id` is
+unique within a user's view (it keys `mergeWithBuiltins`, `storedTrips`, the
+picker, and `tripId` state by `id`). A shared trip belongs to another owner, so
+two users could both have id `rome`, and a viewer would then hold two trips with
+the same `id`. Fix by identifying trips client-side by a globally-unique key,
+not the logical id. Two options:
+- (a) Add a surrogate `trip_uid uuid` to `trips` as the shareable/canonical key
+  and thread it through the client (bigger refactor, cleanest long-term).
+- (b) Key the client by `owner:id` composite (smaller change, leaks owner into
+  the client). Recommend (a).
+
+**4. Store changes.** `list()` returns owned **and** shared trips. `save()` can
+no longer assume `owner = me`: a member editing someone else's trip must upsert
+against the trip's real owner (RLS permits it via membership); `remove()` stays
+owner-only. So the row's owner travels with the trip rather than being taken
+from the session.
+
+**5. UI.** A "Share" panel per trip (roster, invite-by-email + role, remove
+member); an invites inbox ("X invited you to <trip>" → Accept); viewers get the
+existing read-only view (no Edit). Email delivery of invites is optional (needs
+SMTP / an Edge Function); the in-app inbox works without it.
+
+**6. Concurrency.** Saves are whole-document last-write-wins, so simultaneous
+co-editors can clobber each other (the 15s sync only *surfaces* the loss). Add
+an optimistic-concurrency guard (reject a write whose `updated_at`/version is
+stale, then re-merge) before promoting this beyond a small trusted group.
+
+**Suggested phasing:** (1) tables + RLS helpers; (2) client identity refactor +
+store; (3) Share UI + invites inbox; (4) viewer role; (5) concurrency guard.
+The identity refactor (3) is the gating decision.
 
 ## Session history
 
@@ -265,6 +325,13 @@
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.19.0** — component/UI test harness. jsdom + @testing-library/react +
+  jest-dom wired into Vitest as a per-file opt-in: `*.test.tsx` declare
+  `@vitest-environment jsdom` and import `src/test/setup-dom.ts` (matchers +
+  auto-cleanup), so the framework-free domain/data tests keep running in the
+  fast node env untouched — no global config change. First component tests
+  cover `AuthBar` (send-link → check-email, error, signed-in/sign-out) and
+  `MigrationBanner` (counts/names, import/dismiss, error, busy). 122 tests.
 - **v0.18.0** — per-user trip identity (composite primary key). `public.trips`
   moved from a global `id text primary key` to `primary key (owner, id)`
   (`supabase/migrations/0003_per_user_trip_pk.sql`), so two accounts can each
