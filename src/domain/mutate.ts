@@ -19,6 +19,13 @@ let idSeq = 0;
 export const newId = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${(idSeq++).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+// A trip's globally-unique surrogate identity (see Trip.uid). Prefer a real
+// UUID; fall back to newId where crypto.randomUUID is unavailable.
+export const newUid = (): string =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : newId("uid");
+
 export const newExpenseId = (): string => newId("e");
 
 export const upsertExpense = (trip: Trip, expense: ExpenseItem): Trip => ({
@@ -137,6 +144,7 @@ export const newTrip = (
   participants: Participant[],
   currencies: TripCurrencies
 ): Trip => ({
+  uid: newUid(),
   id: newId("trip"),
   name,
   participants,

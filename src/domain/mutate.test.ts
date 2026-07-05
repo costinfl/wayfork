@@ -63,6 +63,23 @@ describe("newExpenseId", () => {
   });
 });
 
+describe("newTrip", () => {
+  it("stamps a fresh surrogate uid", () => {
+    const a = newTrip("A", "2026-09-10", [{ id: "p1", name: "Ana" }], {
+      home: "RON",
+      local: "EUR",
+      intl: "USD",
+    });
+    const b = newTrip("B", "2026-09-10", [{ id: "p1", name: "Ana" }], {
+      home: "RON",
+      local: "EUR",
+      intl: "USD",
+    });
+    expect(a.uid).toBeTruthy();
+    expect(a.uid).not.toBe(b.uid);
+  });
+});
+
 const day = trip.days[0];
 const slot = day.slots[0]; // "slot-otp", 2 variants
 

@@ -18,6 +18,25 @@ describe("parseTrip — accepts", () => {
   }
 });
 
+describe("parseTrip — surrogate uid", () => {
+  it("backfills a uid when the document has none", () => {
+    const { trip } = roundTrip((t) => delete t.uid);
+    expect(typeof trip?.uid).toBe("string");
+    expect(trip?.uid).toBeTruthy();
+  });
+
+  it("preserves an existing uid", () => {
+    const { trip } = roundTrip((t) => (t.uid = "keep-me-123"));
+    expect(trip?.uid).toBe("keep-me-123");
+  });
+
+  it("rejects a present-but-empty uid", () => {
+    const { trip, errors } = roundTrip((t) => (t.uid = ""));
+    expect(trip).toBeNull();
+    expect(errors.some((e) => e.includes("uid"))).toBe(true);
+  });
+});
+
 describe("parseTrip — structural rejections", () => {
   it("rejects non-objects", () => {
     expect(parseTrip("hello").errors[0]).toContain("expected a JSON object");

@@ -110,6 +110,12 @@ export interface TripCurrencies {
 export type CurrencyView = keyof TripCurrencies;
 
 export interface Trip {
+  // Globally-unique surrogate identity, threaded through the client so trips
+  // never collide even when shared across accounts (a shared trip belongs to
+  // another owner and may reuse a logical `id`). Ensured by parseTrip/newTrip;
+  // `id` stays a human/slug label. Optional in the type only so hand-built test
+  // fixtures need not set it — every trip that reaches the app carries one.
+  uid?: string;
   id: string;
   name: string;
   participants: Participant[];

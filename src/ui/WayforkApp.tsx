@@ -45,6 +45,12 @@ import { WeatherBadge } from "./WeatherBadge";
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
+// A trip's client identity: its surrogate uid, falling back to the logical id
+// for any fixture predating it (production trips always carry a uid). Keying
+// selection by uid keeps trips distinct even once they can be shared across
+// accounts, where logical ids may repeat.
+const uidOf = (t: Trip): string => t.uid ?? t.id;
+
 // Background sync cadence: how often a signed-in session re-polls the account
 // store so edits made on another device appear here.
 const SYNC_INTERVAL_MS = 15000;
@@ -68,7 +74,7 @@ const REMOTE_STORE = AUTH
 
 export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
-  const [tripId, setTripId] = useState(TRIPS[0].id);
+  const [tripUid, setTripUid] = useState(uidOf(TRIPS[0]));
   const [uploadOpen, setUploadOpen] = useState(false);
   const [tripForm, setTripForm] = useState<"new" | "settings" | null>(null);
   const [store, setStore] = useState<TripStore>(LOCAL_STORE);
@@ -241,7 +247,7 @@ export default function WayforkApp() {
   }, []);
 
   const allTrips = mergeWithBuiltins(TRIPS, storedTrips);
-  const trip = allTrips.find((t) => t.id === tripId) ?? TRIPS[0];
+  const trip = allTrips.find((t) => uidOf(t) === tripUid) ?? TRIPS[0];
   const isStored = storedTrips.some((t) => t.id === trip.id);
   const isBuiltin = TRIPS.some((b) => b.id === trip.id);
   const isOverride = isStored && isBuiltin; // edited copy of a shipped trip
@@ -257,7 +263,7 @@ export default function WayforkApp() {
       return `A built-in trip already uses the id "${t.id}" — give the trip a different id.`;
     }
     saveTrip(t);
-    setTripId(t.id);
+    setTripUid(uidOf(t));
     setUploadOpen(false);
     return null;
   };
@@ -266,14 +272,14 @@ export default function WayforkApp() {
     markLocalWrite();
     store.remove(trip.id).catch((e) => console.error("trip remove failed:", e));
     setStoredTrips((prev) => prev.filter((t) => t.id !== trip.id));
-    if (!isBuiltin) setTripId(TRIPS[0].id); // resetting an override keeps it selected
+    if (!isBuiltin) setTripUid(uidOf(TRIPS[0])); // resetting an override keeps it selected
   };
 
   const saveTripForm = (t: Trip): string[] => {
     const errors = validateTrip(t);
     if (errors.length) return errors;
     saveTrip(t);
-    setTripId(t.id);
+    setTripUid(uidOf(t));
     setTripForm(null);
     return [];
   };
@@ -297,8 +303,8 @@ export default function WayforkApp() {
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (
             <select
-              value={trip.id}
-              onChange={(e) => setTripId(e.target.value)}
+              value={uidOf(trip)}
+              onChange={(e) => setTripUid(e.target.value)}
               className="rounded-lg px-3 py-1.5 text-sm font-semibold"
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
             >
@@ -306,7 +312,7 @@ export default function WayforkApp() {
                 const stored = storedTrips.some((s) => s.id === t.id);
                 const builtin = TRIPS.some((b) => b.id === t.id);
                 return (
-                  <option key={t.id} value={t.id}>
+                  <option key={uidOf(t)} value={uidOf(t)}>
                     {t.name}
                     {stored ? (builtin ? " (edited)" : " (uploaded)") : ""}
                   </option>
@@ -362,14 +368,14 @@ export default function WayforkApp() {
         {uploadOpen && <UploadTrip onLoaded={addTrip} />}
         {tripForm !== null && (
           <TripForm
-            key={`${tripForm}-${trip.id}`}
+            key={`${tripForm}-${uidOf(trip)}`}
             initial={tripForm === "settings" ? trip : null}
             onSave={saveTripForm}
             onCancel={() => setTripForm(null)}
           />
         )}
         <TripView
-          key={trip.id}
+          key={uidOf(trip)}
           trip={trip}
           rates={rates}
           ratesLabel={ratesLabel}

@@ -47,7 +47,7 @@
   to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
   WebSocket.
 
-## Current state — v0.18
+## Current state — v0.20
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -122,7 +122,9 @@
   @testing-library) with `AuthBar` and `MigrationBanner` covered; the larger
   components (`WayforkApp`, the CRUD forms, `TripView`) are not tested yet.
 - Trip collaboration: trips are single-owner; no way to invite/share a trip
-  with family or friends to plan together (design drafted — see below).
+  with family or friends to plan together. **Phase 1 (surrogate `uid` identity)
+  shipped in v0.20**; membership + RLS, the store, and the Share UI + invites
+  inbox are still to build (design + phasing below).
 
 ## Key algorithms & decisions
 
@@ -212,9 +214,18 @@ co-editors can clobber each other (the 15s sync only *surfaces* the loss). Add
 an optimistic-concurrency guard (reject a write whose `updated_at`/version is
 stale, then re-merge) before promoting this beyond a small trusted group.
 
-**Suggested phasing:** (1) tables + RLS helpers; (2) client identity refactor +
-store; (3) Share UI + invites inbox; (4) viewer role; (5) concurrency guard.
-The identity refactor (3) is the gating decision.
+**Phasing / progress:**
+- ✅ **Phase 1 (v0.20) — surrogate `uid` identity.** `Trip.uid` (optional in the
+  type, ensured by `parseTrip`/`newTrip`); built-ins carry stable `builtin-*`
+  uids; the client selects/keys trips by `uidOf(t) = t.uid ?? t.id`. Trips are
+  now uniquely identified regardless of logical `id`, so a shared trip can't
+  collide with a local one. No DB change yet.
+- ⬜ Phase 2 — membership + invites tables + RLS helpers (owner keeps full
+  access; members gain read/write).
+- ⬜ Phase 3 — store: `list()` returns owned **+ shared**; `save()` targets the
+  trip's real owner (carried on the trip); `remove()` owner-only.
+- ⬜ Phase 4 — Share UI (roster, invite-by-email + role) + invites inbox.
+- ⬜ Phase 5 — viewer read-only role; then the concurrency guard.
 
 ## Session history
 
@@ -325,6 +336,16 @@ The identity refactor (3) is the gating decision.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.20.0** — surrogate `uid` trip identity (collaboration Phase 1). Added
+  `Trip.uid` (optional in the type so fixtures need not set it; ensured by
+  `parseTrip` — backfilled when absent, validated when present — and stamped by
+  `newTrip` via `newUid()`/`crypto.randomUUID`). Built-in trips carry stable
+  `builtin-*` uids. The client now selects and keys trips by
+  `uidOf(t) = t.uid ?? t.id` (picker value/option keys, selected-trip state,
+  TripView/TripForm remount keys), so trips stay distinct even once shared
+  across accounts where logical `id`s may repeat. id-based override/label logic
+  is unchanged (still correct within one account). 126 tests; picker
+  switching by uid screenshot-verified. Foundation for the sharing phases.
 - **v0.19.0** — component/UI test harness. jsdom + @testing-library/react +
   jest-dom wired into Vitest as a per-file opt-in: `*.test.tsx` declare
   `@vitest-environment jsdom` and import `src/test/setup-dom.ts` (matchers +

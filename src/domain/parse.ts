@@ -1,3 +1,4 @@
+import { newUid } from "./mutate";
 import { STEP_TYPES } from "./types";
 import type { Trip } from "./types";
 import { validateTrip } from "./validate";
@@ -36,6 +37,9 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
 
   checkStr(input, "id", "trip");
   checkStr(input, "name", "trip");
+  if (input.uid !== undefined && (typeof input.uid !== "string" || input.uid === "")) {
+    err("trip.uid, when present, must be a non-empty string");
+  }
 
   for (const [i, p] of checkArr(input, "participants", "trip").entries()) {
     const where = `participants[${i}]`;
@@ -170,5 +174,7 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
 
   const trip = input as unknown as Trip;
   const semantic = validateTrip(trip);
-  return semantic.length ? { trip: null, errors: semantic } : { trip, errors: [] };
+  if (semantic.length) return { trip: null, errors: semantic };
+  // Every trip that leaves the parser carries a surrogate uid (see Trip.uid).
+  return { trip: trip.uid ? trip : { ...trip, uid: newUid() }, errors: [] };
 }
