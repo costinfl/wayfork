@@ -47,7 +47,7 @@
   to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
   WebSocket.
 
-## Current state — v0.20
+## Current state — v0.21
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -220,12 +220,31 @@ stale, then re-merge) before promoting this beyond a small trusted group.
   uids; the client selects/keys trips by `uidOf(t) = t.uid ?? t.id`. Trips are
   now uniquely identified regardless of logical `id`, so a shared trip can't
   collide with a local one. No DB change yet.
-- ⬜ Phase 2 — membership + invites tables + RLS helpers (owner keeps full
-  access; members gain read/write).
+- ✅ **Phase 2 (v0.21) — membership + invites + RLS.**
+  `supabase/migrations/0004_trip_collaboration.sql`: `trip_members`
+  (owner/editor/viewer) and `trip_invites` (in-app inbox, matched by email —
+  no SMTP). `trips` RLS opened so the owner keeps full access, members read,
+  editors update; insert/delete stay owner-only. Recursion avoided with
+  `security definer` `is_trip_member`/`is_trip_editor`; acceptance via a
+  `security definer` `accept_invite(uuid)` RPC (validates the caller's email,
+  inserts the membership, marks accepted). Functions revoked from `anon`.
+  Verified against the live DB (owner keeps access, stranger sees nothing,
+  invite→accept creates the membership). Remaining advisor warnings
+  (`authenticated` may call the definer helpers) are inherent to the pattern
+  and leak nothing — the predicates only reveal the caller's own membership.
 - ⬜ Phase 3 — store: `list()` returns owned **+ shared**; `save()` targets the
   trip's real owner (carried on the trip); `remove()` owner-only.
 - ⬜ Phase 4 — Share UI (roster, invite-by-email + role) + invites inbox.
 - ⬜ Phase 5 — viewer read-only role; then the concurrency guard.
+
+## Future feature idea — trip export / share as PDF
+
+Envisioned as its own feature (post-collaboration): export a trip to a rich PDF
+(itinerary, ledger, settle-up) and share it with all participants by email — a
+"send everyone the plan" artifact. Would introduce media the app doesn't handle
+yet: point-of-interest photos and static map thumbnails for directions, so it is
+scoped as a distinct workstream (asset handling + a PDF/render pipeline), not
+part of the collaboration phases.
 
 ## Session history
 
@@ -336,6 +355,15 @@ stale, then re-merge) before promoting this beyond a small trusted group.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.21.0** — trip collaboration Phase 2: membership + invites + RLS
+  (`supabase/migrations/0004_trip_collaboration.sql`). `trip_members`
+  (owner/editor/viewer) and `trip_invites` (in-app inbox matched by email, no
+  SMTP). `trips` RLS opened to members via `security definer`
+  `is_trip_member`/`is_trip_editor` (recursion-safe); `accept_invite(uuid)` RPC
+  creates the membership for the caller's own invite. Owner access preserved,
+  strangers excluded, anon locked out — all verified against the live DB in a
+  rolled-back transaction. Backend only; the store (list shared / owner
+  routing) and Share UI + invites inbox are the next phases. 126 tests.
 - **v0.20.0** — surrogate `uid` trip identity (collaboration Phase 1). Added
   `Trip.uid` (optional in the type so fixtures need not set it; ensured by
   `parseTrip` — backfilled when absent, validated when present — and stamped by
