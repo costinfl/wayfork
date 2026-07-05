@@ -62,6 +62,16 @@ describe("createSupabaseStore", () => {
     expect((calls[0].init?.headers as Record<string, string>).Authorization).toBe("Bearer anon-key");
   });
 
+  it("sends the owner and upserts on (owner, id) when signed in", async () => {
+    const { calls, fetchFn } = stub(201, null);
+    const store = createSupabaseStore(config, fetchFn, async () => "user-jwt", async () => "user-1");
+    await store.save(TRIPS[0]);
+    expect(calls[0].url).toContain("on_conflict=owner,id");
+    const body = JSON.parse(String(calls[0].init?.body));
+    expect(body[0].owner).toBe("user-1");
+    expect(body[0].id).toBe(TRIPS[0].id);
+  });
+
   it("removes by id filter", async () => {
     const { calls, fetchFn } = stub(204, null);
     await createSupabaseStore(config, fetchFn).remove("trip x/1");

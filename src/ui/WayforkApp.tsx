@@ -57,7 +57,14 @@ const LOCAL_STORE = createLocalStorageStore();
 // row-level security scopes trips to their account; signed-out users stay on
 // localStorage and never consult the remote store.
 const AUTH = SUPABASE_CONFIG.url ? createAuthClient(SUPABASE_CONFIG) : null;
-const REMOTE_STORE = AUTH ? createSupabaseStore(SUPABASE_CONFIG, fetch, () => AUTH.getAccessToken()) : null;
+const REMOTE_STORE = AUTH
+  ? createSupabaseStore(
+      SUPABASE_CONFIG,
+      fetch,
+      () => AUTH.getAccessToken(),
+      async () => AUTH.getSession()?.user.id ?? null
+    )
+  : null;
 
 export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);

@@ -47,7 +47,7 @@
   pacing fix (v0.15), and background multi-device sync (v0.16) are all done.
   Possible follow-up: swap the sync poll for a Supabase Realtime WebSocket.
 
-## Current state — v0.17
+## Current state — v0.18
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -117,12 +117,6 @@
 
 - Realtime push sync (v0.16 sync is poll-based every 15s / on tab focus, not a
   Supabase Realtime WebSocket — near-real-time, not instant).
-- Per-user trip identity: `public.trips` still has a **global** `id text
-  primary key`, so two accounts editing the same built-in id would collide on
-  the PK (the second's upsert hits the other's row and RLS blocks it). Harmless
-  while there's effectively one user; the correct fix is a composite PK
-  `(owner, id)`. v0.17 removed the pre-auth orphan rows that were tripping this
-  for a single user; the schema change is deferred.
 - Component/UI tests (only the pure engines + data adapters are tested; needs
   jsdom + @testing-library/react wired into Vitest).
 
@@ -271,6 +265,15 @@
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.18.0** — per-user trip identity (composite primary key). `public.trips`
+  moved from a global `id text primary key` to `primary key (owner, id)`
+  (`supabase/migrations/0003_per_user_trip_pk.sql`), so two accounts can each
+  hold their own copy/override of the same logical id without colliding — the
+  latent bug behind v0.17's import failure. The Supabase store now sends the
+  `owner` on writes and upserts with `on_conflict=owner,id`; the owner comes
+  from the session (`getOwner` provider threaded from `WayforkApp`). Verified
+  the authenticated composite upsert (insert + update paths) against the live
+  DB. 115 tests.
 - **v0.17.0** — fix silent import failures. On sign-in the migration banner
   offers to import trips still in the browser (v0.14); a save rejected by
   row-level security (an id colliding with a row the user can't write) was
