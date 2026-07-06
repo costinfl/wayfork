@@ -30,9 +30,23 @@ describe("createSupabaseStore", () => {
     expect(trips).toHaveLength(1);
     expect(trips[0].id).toBe(TRIPS[0].id);
     expect(calls[0].url).toBe(
-      "https://example.supabase.co/rest/v1/trips?select=data&order=updated_at.asc"
+      "https://example.supabase.co/rest/v1/trips?select=owner,data&order=updated_at.asc"
     );
     expect((calls[0].init?.headers as Record<string, string>).apikey).toBe("anon-key");
+  });
+
+  it("injects the row owner onto the trip and routes a shared save to it", async () => {
+    const shared = JSON.parse(JSON.stringify(TRIPS[0]));
+    const listStub = stub(200, [{ owner: "other-owner", data: shared }]);
+    const store = createSupabaseStore(config, listStub.fetchFn, async () => "jwt", async () => "me");
+    const [trip] = await store.list();
+    expect(trip.owner).toBe("other-owner"); // injected from the column
+
+    // Saving that shared trip upserts against its real owner, not the session user.
+    const saveStub = stub(201, null);
+    const store2 = createSupabaseStore(config, saveStub.fetchFn, async () => "jwt", async () => "me");
+    await store2.save(trip);
+    expect(JSON.parse(String(saveStub.calls[0].init?.body))[0].owner).toBe("other-owner");
   });
 
   it("saves via an upsert POST", async () => {

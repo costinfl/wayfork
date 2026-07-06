@@ -37,7 +37,11 @@ import { SlotForm } from "./SlotForm";
 import { TripForm } from "./TripForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
+import { createCollabClient } from "../data/collab";
+import type { TripInvite } from "../data/collab";
 import { AuthBar } from "./AuthBar";
+import { InvitesInbox } from "./InvitesInbox";
+import { SharePanel } from "./SharePanel";
 import { MigrationBanner } from "./MigrationBanner";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
@@ -72,6 +76,8 @@ const REMOTE_STORE = AUTH
       async () => AUTH.getSession()?.user.id ?? null
     )
   : null;
+// Collaboration API (invites + membership); shares the auth token with the store.
+const COLLAB = AUTH ? createCollabClient(SUPABASE_CONFIG, fetch, () => AUTH.getAccessToken()) : null;
 
 export default function WayforkApp() {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
@@ -85,6 +91,16 @@ export default function WayforkApp() {
   const [migratable, setMigratable] = useState<Trip[]>([]);
   const [migrating, setMigrating] = useState(false);
   const [migrateError, setMigrateError] = useState<string | null>(null);
+  // Collaboration: invites addressed to me (inbox) and the share panel for the
+  // current trip. reloadKey re-runs the trip load after accepting an invite.
+  const [reloadKey, setReloadKey] = useState(0);
+  const [myInvites, setMyInvites] = useState<TripInvite[]>([]);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [inboxError, setInboxError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [tripInvites, setTripInvites] = useState<TripInvite[]>([]);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Complete a magic-link sign-in: exchange the tokens in the redirect
   // fragment for a session, then scrub them out of the URL.
@@ -137,7 +153,26 @@ export default function WayforkApp() {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, reloadKey]);
+
+  // Load pending invitations addressed to the signed-in user (the inbox).
+  useEffect(() => {
+    if (!COLLAB || !session?.user.email) {
+      setMyInvites([]);
+      return;
+    }
+    let cancelled = false;
+    COLLAB.listMyInvites(session.user.email)
+      .then((invites) => {
+        if (!cancelled) setMyInvites(invites);
+      })
+      .catch(() => {
+        /* offline or blocked — leave the inbox empty */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, reloadKey]);
 
   const importLocalTrips = async () => {
     if (!REMOTE_STORE) return;
@@ -253,6 +288,78 @@ export default function WayforkApp() {
   const isBuiltin = TRIPS.some((b) => b.id === trip.id);
   const isOverride = isStored && isBuiltin; // edited copy of a shipped trip
 
+  // Collaboration derived state. A trip is "shared with me" when its row is
+  // owned by someone else; I can share a trip that lives in my account and
+  // isn't itself shared in. tripOwnerId is the row owner to address invites to.
+  const myId = session?.user.id ?? null;
+  const isSharedWithMe = !!(myId && trip.owner && trip.owner !== myId);
+  const canShare = !!(session && isStored && !isSharedWithMe);
+  const tripOwnerId = trip.owner ?? myId;
+
+  // Close the share panel when switching trips.
+  useEffect(() => {
+    setShareOpen(false);
+    setShareError(null);
+  }, [tripUid]);
+
+  const refreshTripInvites = () => {
+    if (!COLLAB || !tripOwnerId) return;
+    COLLAB.listTripInvites(tripOwnerId, trip.id)
+      .then(setTripInvites)
+      .catch(() => setTripInvites([]));
+  };
+
+  const openShare = () => {
+    setShareError(null);
+    setTripInvites([]);
+    setShareOpen(true);
+    refreshTripInvites();
+  };
+
+  const inviteToTrip = async (email: string) => {
+    if (!COLLAB || !session?.user.email || !tripOwnerId) return;
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      await COLLAB.createInvite({
+        tripOwner: tripOwnerId,
+        tripId: trip.id,
+        tripName: trip.name,
+        email,
+        role: "editor",
+        invitedBy: session.user.id,
+        invitedByEmail: session.user.email,
+      });
+      refreshTripInvites();
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : "Could not send the invite.");
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const revokeInvite = (id: string) => {
+    if (!COLLAB) return;
+    COLLAB.revokeInvite(id)
+      .then(refreshTripInvites)
+      .catch((e) => setShareError(e instanceof Error ? e.message : "Could not revoke the invite."));
+  };
+
+  const acceptInvite = async (id: string) => {
+    if (!COLLAB) return;
+    setAcceptingId(id);
+    setInboxError(null);
+    try {
+      await COLLAB.acceptInvite(id);
+      setMyInvites((prev) => prev.filter((i) => i.id !== id));
+      setReloadKey((k) => k + 1); // pull in the newly-shared trip
+    } catch (e) {
+      setInboxError(e instanceof Error ? e.message : "Could not accept the invite.");
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
   const saveTrip = (next: Trip) => {
     markLocalWrite();
     store.save(next).catch((e) => console.error("trip save failed:", e));
@@ -304,6 +411,9 @@ export default function WayforkApp() {
             }}
           />
         )}
+        {myInvites.length > 0 && (
+          <InvitesInbox invites={myInvites} busyId={acceptingId} error={inboxError} onAccept={acceptInvite} />
+        )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (
             <select
@@ -332,6 +442,20 @@ export default function WayforkApp() {
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.red }}
             >
               {isOverride ? "↺" : "✕"}
+            </button>
+          )}
+          {canShare && (
+            <button
+              onClick={() => (shareOpen ? setShareOpen(false) : openShare())}
+              title="Invite people to plan this trip with you"
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+              style={{
+                border: `1px solid ${shareOpen ? C.line : C.border}`,
+                background: shareOpen ? C.lineSoft : C.card,
+                color: C.line,
+              }}
+            >
+              Share
             </button>
           )}
           <button
@@ -369,6 +493,17 @@ export default function WayforkApp() {
             + Add trip
           </button>
         </div>
+        {shareOpen && canShare && (
+          <SharePanel
+            tripName={trip.name}
+            invites={tripInvites}
+            busy={shareBusy}
+            error={shareError}
+            onInvite={inviteToTrip}
+            onRevoke={revokeInvite}
+            onClose={() => setShareOpen(false)}
+          />
+        )}
         {uploadOpen && <UploadTrip onLoaded={addTrip} />}
         {tripForm !== null && (
           <TripForm

@@ -116,6 +116,11 @@ export interface Trip {
   // `id` stays a human/slug label. Optional in the type only so hand-built test
   // fixtures need not set it — every trip that reaches the app carries one.
   uid?: string;
+  // The account that owns this trip's row (auth user id), injected by the
+  // remote store on read. Absent for local/built-in trips and for a brand-new
+  // trip until first saved. Writes route to this owner so a member editing a
+  // shared trip updates the owner's row rather than forking a copy of their own.
+  owner?: string;
   id: string;
   name: string;
   participants: Participant[];

@@ -47,7 +47,7 @@
   to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
   WebSocket.
 
-## Current state — v0.22
+## Current state — v0.23
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -95,6 +95,7 @@
 | Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
 | Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
 | Sync | Background multi-device sync: signed-in poll (visibility-aware) + signed-out cross-tab `storage` events; reconciled by `tripsEqual` | sync effect in `src/ui/WayforkApp.tsx`, `tripsEqual` (`repository.ts`) |
+| Collab | Share a trip: invite by email, in-app invites inbox → accept, co-edit; per-user identity `(owner, id)` + surrogate `uid`; membership/invites RLS | `supabase/migrations/0004`–`0005`, `src/data/collab.ts`, `SharePanel`/`InvitesInbox`, `Trip.owner`/`uid` |
 | — | Component/UI test harness (jsdom + @testing-library/react), with AuthBar + MigrationBanner covered | `src/test/setup-dom.ts`, `src/ui/*.test.tsx` |
 
 ### 🟡 Partially implemented
@@ -121,10 +122,10 @@
 - Broader component/UI coverage: the harness exists (v0.19, jsdom +
   @testing-library) with `AuthBar` and `MigrationBanner` covered; the larger
   components (`WayforkApp`, the CRUD forms, `TripView`) are not tested yet.
-- Trip collaboration: trips are single-owner; no way to invite/share a trip
-  with family or friends to plan together. **Phase 1 (surrogate `uid` identity)
-  shipped in v0.20**; membership + RLS, the store, and the Share UI + invites
-  inbox are still to build (design + phasing below).
+- Trip collaboration — **shipped as an MVP** (Phases 1–4, v0.20–v0.23): invite
+  by email, accept from an in-app inbox, co-edit a shared trip. Remaining
+  (Phase 5): viewer read-only enforcement, roster display / remove-member /
+  leave-trip, and a concurrency guard for simultaneous edits (see phasing).
 
 ## Key algorithms & decisions
 
@@ -232,10 +233,21 @@ stale, then re-merge) before promoting this beyond a small trusted group.
   invite→accept creates the membership). Remaining advisor warnings
   (`authenticated` may call the definer helpers) are inherent to the pattern
   and leak nothing — the predicates only reveal the caller's own membership.
-- ⬜ Phase 3 — store: `list()` returns owned **+ shared**; `save()` targets the
-  trip's real owner (carried on the trip); `remove()` owner-only.
-- ⬜ Phase 4 — Share UI (roster, invite-by-email + role) + invites inbox.
-- ⬜ Phase 5 — viewer read-only role; then the concurrency guard.
+- ✅ **Phase 3 (v0.23) — store & model.** `Trip.owner` (injected by the remote
+  store from the row's `owner` column on read); `list()` returns owned **+
+  shared** (RLS); `save()` upserts against `trip.owner ?? sessionUser` so an
+  editor's save lands on the owner's row; `remove()` stays owner-only.
+- ✅ **Phase 4 (v0.23) — sharing UI (MVP).** `src/data/collab.ts` (createInvite
+  / listMyInvites / acceptInvite / listTripInvites / revokeInvite / listMembers
+  over PostgREST + the `accept_invite` RPC). `SharePanel` (invite-by-email +
+  pending list + revoke) behind a **Share** button on trips you own;
+  `InvitesInbox` atop the app ("X invited you to <trip>" → Accept), which pulls
+  the newly-shared trip into the picker. `0005_invite_display_fields`
+  denormalizes `trip_name`/`invited_by_email` so the inbox reads before the
+  invitee has trip access.
+- ⬜ Phase 5 — viewer read-only enforcement (schema has the role; the MVP
+  invites as editor and doesn't yet render a read-only view), roster display /
+  remove-member / leave-trip, then the concurrency guard.
 
 ## Future feature idea — trip export / share as PDF
 
@@ -355,6 +367,18 @@ part of the collaboration phases.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.23.0** — trip collaboration MVP (Phases 3 + 4): sharing is usable
+  end-to-end. Store & model: `Trip.owner` injected from the row on read;
+  `list()` returns owned + shared (RLS); `save()` upserts against the trip's
+  real owner so an editor edits the owner's row; `remove()` owner-only.
+  `src/data/collab.ts` wraps the invites/members tables + `accept_invite` RPC.
+  UI: a **Share** button on owned trips opens `SharePanel` (invite by email +
+  pending list + revoke); `InvitesInbox` lets an invitee accept, which pulls
+  the shared trip into their picker. Migration `0005` denormalizes
+  `trip_name`/`invited_by_email` for the inbox. Both flows (owner invites,
+  invitee accepts) screenshot-verified against a stubbed Supabase; collab +
+  store-owner-routing + inbox unit-tested. 135 tests. Remaining: viewer
+  read-only, roster management, concurrency guard (Phase 5).
 - **v0.22.0** — fix: selecting an uploaded trip snapped back to the first
   trip. v0.20's `parseTrip` minted a *random* uid whenever a stored trip had
   none, so a trip uploaded before v0.20 got a different uid on every read; the
