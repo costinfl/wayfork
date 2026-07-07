@@ -9,7 +9,7 @@ departure time ripples through every downstream slot and re-checks hard checkpoi
 minimal settle-up transaction list.
 
 This first iteration is in-memory only (no persistence, no backend). See `docs/` for the
-product specification and the implementation log of this iteration.
+product specification and `docs/CHANGELOG.md` for the implementation history.
 
 ## Live demo
 
@@ -59,7 +59,7 @@ src/
                    currency, time, parse, validate) with unit tests alongside
   data/trips/      example trips as JSON (Rome, Lisbon, Neptun); register in data/index.ts
   ui/              React components (WayforkApp, VariantCard, …)
-docs/              product spec (PDF), living implementation log, and
+docs/              product spec (PDF), STATUS.md + CHANGELOG.md, and
                    trip-prompt.md — the public trip-generation contract
                    (also shown in-app under + Add trip)
 .github/workflows/ GitHub Pages deployment + tag-release
