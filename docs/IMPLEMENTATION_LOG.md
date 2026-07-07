@@ -47,7 +47,7 @@
   to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
   WebSocket.
 
-## Current state — v0.23
+## Current state — v0.24
 
 - Vite + React 19 + Tailwind CSS v4 + **TypeScript**, deployed to GitHub Pages
   (https://costinfl.github.io/wayfork/) via `.github/workflows/deploy.yml`
@@ -95,7 +95,7 @@
 | Auth | Local→account migration: on sign-in, browser trips are offered for import (moved, skipping id collisions) | `migrateLocalTrips` (`repository.ts`), `src/ui/MigrationBanner.tsx` |
 | Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
 | Sync | Background multi-device sync: signed-in poll (visibility-aware) + signed-out cross-tab `storage` events; reconciled by `tripsEqual` | sync effect in `src/ui/WayforkApp.tsx`, `tripsEqual` (`repository.ts`) |
-| Collab | Share a trip: invite by email, in-app invites inbox → accept, co-edit; per-user identity `(owner, id)` + surrogate `uid`; membership/invites RLS | `supabase/migrations/0004`–`0005`, `src/data/collab.ts`, `SharePanel`/`InvitesInbox`, `Trip.owner`/`uid` |
+| Collab | Share a trip: invite by email as editor/viewer, in-app inbox → accept, co-edit; viewer read-only; owner roster + remove; member leave; per-user `(owner, id)` + surrogate `uid`; membership/invites RLS | `supabase/migrations/0004`–`0006`, `src/data/collab.ts`, `SharePanel`/`InvitesInbox`, `Trip.owner`/`uid` |
 | — | Component/UI test harness (jsdom + @testing-library/react), with AuthBar + MigrationBanner covered | `src/test/setup-dom.ts`, `src/ui/*.test.tsx` |
 
 ### 🟡 Partially implemented
@@ -122,10 +122,10 @@
 - Broader component/UI coverage: the harness exists (v0.19, jsdom +
   @testing-library) with `AuthBar` and `MigrationBanner` covered; the larger
   components (`WayforkApp`, the CRUD forms, `TripView`) are not tested yet.
-- Trip collaboration — **shipped as an MVP** (Phases 1–4, v0.20–v0.23): invite
-  by email, accept from an in-app inbox, co-edit a shared trip. Remaining
-  (Phase 5): viewer read-only enforcement, roster display / remove-member /
-  leave-trip, and a concurrency guard for simultaneous edits (see phasing).
+- Trip collaboration — **shipped** (Phases 1–5, v0.20–v0.24): invite by email
+  as editor/viewer, accept from an in-app inbox, co-edit a shared trip, viewer
+  read-only, owner roster + remove-member, member leave. Remaining (Phase 6):
+  a concurrency guard for simultaneous edits (saves are last-write-wins).
 
 ## Key algorithms & decisions
 
@@ -245,9 +245,15 @@ stale, then re-merge) before promoting this beyond a small trusted group.
   the newly-shared trip into the picker. `0005_invite_display_fields`
   denormalizes `trip_name`/`invited_by_email` so the inbox reads before the
   invitee has trip access.
-- ⬜ Phase 5 — viewer read-only enforcement (schema has the role; the MVP
-  invites as editor and doesn't yet render a read-only view), roster display /
-  remove-member / leave-trip, then the concurrency guard.
+- ✅ **Phase 5 (v0.24) — roles, roster, leave.** Invite as editor **or viewer**
+  (`SharePanel` role select); viewers get a read-only view (`canEdit` from
+  `myRole`, computed via `listMyMemberships` — hides Edit / + Add expense /
+  expense ✎✕ / ⚙ / Share). Owner roster ("People with access", email + role +
+  remove) via `listMembers`; a member can **Leave** a shared trip
+  (`leaveTrip`). Migration `0006_member_roster` adds `trip_members.email` (set
+  by `accept_invite`) and a "member leaves" self-delete policy.
+- ⬜ Phase 6 — concurrency guard for simultaneous edits (whole-document saves
+  are last-write-wins; add an optimistic version check + re-merge).
 
 ## Future feature idea — trip export / share as PDF
 
@@ -367,6 +373,16 @@ part of the collaboration phases.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.24.0** — collaboration Phase 5: roles, roster, leave. Invite as editor
+  **or viewer** (role select in `SharePanel`); a viewer gets a read-only view —
+  `WayforkApp` derives `myRole` from `listMyMemberships` and passes `canEdit`
+  to `TripView`, hiding Edit / + Add expense / per-expense ✎✕ / ⚙ / Share. The
+  owner sees a "People with access" roster (email + role, with remove) via
+  `listMembers`; a shared member can **Leave** (`leaveTrip`). Migration
+  `0006_member_roster` adds `trip_members.email` (populated by `accept_invite`)
+  and a "member leaves" self-delete RLS policy. 142 tests (collab + SharePanel
+  cases); viewer read-only, owner roster, and leave screenshot-verified.
+  Remaining: the concurrency guard (Phase 6).
 - **v0.23.0** — trip collaboration MVP (Phases 3 + 4): sharing is usable
   end-to-end. Store & model: `Trip.owner` injected from the row on read;
   `list()` returns owned + shared (RLS); `save()` upserts against the trip's

@@ -38,7 +38,7 @@ import { TripForm } from "./TripForm";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 import { createCollabClient } from "../data/collab";
-import type { TripInvite } from "../data/collab";
+import type { MyMembership, TripInvite, TripMember, TripRole } from "../data/collab";
 import { AuthBar } from "./AuthBar";
 import { InvitesInbox } from "./InvitesInbox";
 import { SharePanel } from "./SharePanel";
@@ -99,8 +99,11 @@ export default function WayforkApp() {
   const [inboxError, setInboxError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [tripInvites, setTripInvites] = useState<TripInvite[]>([]);
+  const [members, setMembers] = useState<TripMember[]>([]);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  // My role on each trip I can access (owner rows are implicit — not stored here).
+  const [myMemberships, setMyMemberships] = useState<MyMembership[]>([]);
 
   // Complete a magic-link sign-in: exchange the tokens in the redirect
   // fragment for a session, then scrub them out of the URL.
@@ -155,20 +158,23 @@ export default function WayforkApp() {
     };
   }, [session, reloadKey]);
 
-  // Load pending invitations addressed to the signed-in user (the inbox).
+  // Load pending invitations addressed to the signed-in user (the inbox) and my
+  // role on each shared trip (to enforce viewer read-only).
   useEffect(() => {
-    if (!COLLAB || !session?.user.email) {
+    if (!COLLAB || !session) {
       setMyInvites([]);
+      setMyMemberships([]);
       return;
     }
     let cancelled = false;
-    COLLAB.listMyInvites(session.user.email)
-      .then((invites) => {
-        if (!cancelled) setMyInvites(invites);
-      })
-      .catch(() => {
-        /* offline or blocked — leave the inbox empty */
-      });
+    if (session.user.email) {
+      COLLAB.listMyInvites(session.user.email)
+        .then((invites) => !cancelled && setMyInvites(invites))
+        .catch(() => {});
+    }
+    COLLAB.listMyMemberships(session.user.id)
+      .then((m) => !cancelled && setMyMemberships(m))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -296,27 +302,39 @@ export default function WayforkApp() {
   const canShare = !!(session && isStored && !isSharedWithMe);
   const tripOwnerId = trip.owner ?? myId;
 
+  // My role on the current trip: owner for my own/local trips, else my
+  // membership role (default viewer). Viewers get a read-only view.
+  const membershipRole = myMemberships.find(
+    (m) => m.trip_owner === trip.owner && m.trip_id === trip.id
+  )?.role;
+  const myRole = !session || !trip.owner || trip.owner === myId ? "owner" : membershipRole ?? "viewer";
+  const canEdit = myRole !== "viewer";
+
   // Close the share panel when switching trips.
   useEffect(() => {
     setShareOpen(false);
     setShareError(null);
   }, [tripUid]);
 
-  const refreshTripInvites = () => {
+  const refreshShare = () => {
     if (!COLLAB || !tripOwnerId) return;
     COLLAB.listTripInvites(tripOwnerId, trip.id)
       .then(setTripInvites)
       .catch(() => setTripInvites([]));
+    COLLAB.listMembers(tripOwnerId, trip.id)
+      .then(setMembers)
+      .catch(() => setMembers([]));
   };
 
   const openShare = () => {
     setShareError(null);
     setTripInvites([]);
+    setMembers([]);
     setShareOpen(true);
-    refreshTripInvites();
+    refreshShare();
   };
 
-  const inviteToTrip = async (email: string) => {
+  const inviteToTrip = async (email: string, role: TripRole) => {
     if (!COLLAB || !session?.user.email || !tripOwnerId) return;
     setShareBusy(true);
     setShareError(null);
@@ -326,11 +344,11 @@ export default function WayforkApp() {
         tripId: trip.id,
         tripName: trip.name,
         email,
-        role: "editor",
+        role,
         invitedBy: session.user.id,
         invitedByEmail: session.user.email,
       });
-      refreshTripInvites();
+      refreshShare();
     } catch (e) {
       setShareError(e instanceof Error ? e.message : "Could not send the invite.");
     } finally {
@@ -341,8 +359,25 @@ export default function WayforkApp() {
   const revokeInvite = (id: string) => {
     if (!COLLAB) return;
     COLLAB.revokeInvite(id)
-      .then(refreshTripInvites)
+      .then(refreshShare)
       .catch((e) => setShareError(e instanceof Error ? e.message : "Could not revoke the invite."));
+  };
+
+  const removeMember = (userId: string) => {
+    if (!COLLAB || !tripOwnerId) return;
+    COLLAB.removeMember(tripOwnerId, trip.id, userId)
+      .then(refreshShare)
+      .catch((e) => setShareError(e instanceof Error ? e.message : "Could not remove the member."));
+  };
+
+  const leaveTrip = () => {
+    if (!COLLAB || !trip.owner || !myId) return;
+    COLLAB.leaveTrip(trip.owner, trip.id, myId)
+      .then(() => {
+        setTripUid(uidOf(TRIPS[0]));
+        setReloadKey((k) => k + 1);
+      })
+      .catch((e) => console.error("leave trip failed:", e));
   };
 
   const acceptInvite = async (id: string) => {
@@ -434,7 +469,7 @@ export default function WayforkApp() {
               })}
             </select>
           )}
-          {isStored && (
+          {isStored && !isSharedWithMe && (
             <button
               onClick={removeCurrentTrip}
               title={isOverride ? "Reset to the built-in version" : "Remove this uploaded trip"}
@@ -442,6 +477,16 @@ export default function WayforkApp() {
               style={{ border: `1px solid ${C.border}`, background: C.card, color: C.red }}
             >
               {isOverride ? "↺" : "✕"}
+            </button>
+          )}
+          {isSharedWithMe && (
+            <button
+              onClick={leaveTrip}
+              title="Leave this shared trip"
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+              style={{ border: `1px solid ${C.border}`, background: C.card, color: C.red }}
+            >
+              Leave
             </button>
           )}
           {canShare && (
@@ -458,18 +503,20 @@ export default function WayforkApp() {
               Share
             </button>
           )}
-          <button
-            onClick={() => setTripForm(tripForm === "settings" ? null : "settings")}
-            title="Trip settings (name, currencies, participants)"
-            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-            style={{
-              border: `1px solid ${tripForm === "settings" ? C.line : C.border}`,
-              background: tripForm === "settings" ? C.lineSoft : C.card,
-              color: C.sub,
-            }}
-          >
-            ⚙
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setTripForm(tripForm === "settings" ? null : "settings")}
+              title="Trip settings (name, currencies, participants)"
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+              style={{
+                border: `1px solid ${tripForm === "settings" ? C.line : C.border}`,
+                background: tripForm === "settings" ? C.lineSoft : C.card,
+                color: C.sub,
+              }}
+            >
+              ⚙
+            </button>
+          )}
           <button
             onClick={() => setTripForm(tripForm === "new" ? null : "new")}
             className="px-3 py-1.5 rounded-lg text-sm font-semibold"
@@ -497,10 +544,12 @@ export default function WayforkApp() {
           <SharePanel
             tripName={trip.name}
             invites={tripInvites}
+            members={members}
             busy={shareBusy}
             error={shareError}
             onInvite={inviteToTrip}
             onRevoke={revokeInvite}
+            onRemoveMember={removeMember}
             onClose={() => setShareOpen(false)}
           />
         )}
@@ -519,6 +568,7 @@ export default function WayforkApp() {
           rates={rates}
           ratesLabel={ratesLabel}
           storeLabel={storeLabel}
+          canEdit={canEdit}
           onTripChange={saveTrip}
         />
       </div>
@@ -531,12 +581,14 @@ function TripView({
   rates,
   ratesLabel,
   storeLabel,
+  canEdit,
   onTripChange,
 }: {
   trip: Trip;
   rates: RateMatrix;
   ratesLabel: string;
   storeLabel: string;
+  canEdit: boolean;
   onTripChange: (next: Trip) => void;
 }) {
   const [dayIdx, setDayIdx] = useState(0);
@@ -762,22 +814,24 @@ function TripView({
             {dayWeather && <WeatherBadge weather={dayWeather} place={day.location!.name} />}
           </h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setEditMode((e) => !e);
-                setSlotForm(null);
-                setVariantForm(null);
-                setEditError([]);
-              }}
-              className="px-3 py-1 rounded-lg text-sm font-semibold"
-              style={{
-                border: `1px solid ${editMode ? C.line : C.border}`,
-                background: editMode ? C.lineSoft : C.card,
-                color: C.line,
-              }}
-            >
-              {editMode ? "Done" : "Edit"}
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setEditMode((e) => !e);
+                  setSlotForm(null);
+                  setVariantForm(null);
+                  setEditError([]);
+                }}
+                className="px-3 py-1 rounded-lg text-sm font-semibold"
+                style={{
+                  border: `1px solid ${editMode ? C.line : C.border}`,
+                  background: editMode ? C.lineSoft : C.card,
+                  color: C.line,
+                }}
+              >
+                {editMode ? "Done" : "Edit"}
+              </button>
+            )}
           <label className="flex items-center gap-2 text-sm" style={{ color: C.sub }}>
             Depart
             <input
@@ -963,13 +1017,15 @@ function TripView({
       <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold">Shared ledger</h2>
-          <button
-            onClick={() => setExpenseForm(expenseForm === "new" ? null : "new")}
-            className="px-3 py-1 rounded-lg text-sm font-semibold"
-            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.line }}
-          >
-            + Add expense
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setExpenseForm(expenseForm === "new" ? null : "new")}
+              className="px-3 py-1 rounded-lg text-sm font-semibold"
+              style={{ border: `1px solid ${C.border}`, background: C.card, color: C.line }}
+            >
+              + Add expense
+            </button>
+          )}
         </div>
         {expenseForm === "new" && (
           <ExpenseForm trip={trip} initial={null} onSave={saveExpense} onCancel={() => setExpenseForm(null)} />
@@ -1020,22 +1076,26 @@ function TripView({
                     </div>
                     <div className="flex items-center gap-2">
                       <span style={mono}>{money(convert(e.amount, e.currency, viewCcy, rates), viewCcy)}</span>
-                      <button
-                        onClick={() => setExpenseForm(e)}
-                        title="Edit expense"
-                        className="text-xs px-1.5 py-0.5 rounded"
-                        style={{ border: `1px solid ${C.border}`, color: C.sub }}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        onClick={() => onTripChange(removeExpense(trip, e.id))}
-                        title="Delete expense"
-                        className="text-xs px-1.5 py-0.5 rounded"
-                        style={{ border: `1px solid ${C.border}`, color: C.red }}
-                      >
-                        ✕
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button
+                            onClick={() => setExpenseForm(e)}
+                            title="Edit expense"
+                            className="text-xs px-1.5 py-0.5 rounded"
+                            style={{ border: `1px solid ${C.border}`, color: C.sub }}
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => onTripChange(removeExpense(trip, e.id))}
+                            title="Delete expense"
+                            className="text-xs px-1.5 py-0.5 rounded"
+                            style={{ border: `1px solid ${C.border}`, color: C.red }}
+                          >
+                            ✕
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

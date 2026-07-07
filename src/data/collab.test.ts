@@ -67,6 +67,43 @@ describe("createCollabClient", () => {
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ status: "revoked" });
   });
 
+  it("invites a viewer with the chosen role", async () => {
+    const { calls, fetchFn } = stub(201, null);
+    await createCollabClient(config, fetchFn).createInvite({
+      tripOwner: "o",
+      tripId: "t",
+      tripName: "Rome",
+      email: "v@example.com",
+      role: "viewer",
+      invitedBy: "o",
+      invitedByEmail: "me@example.com",
+    });
+    expect(JSON.parse(String(calls[0].init?.body))[0].role).toBe("viewer");
+  });
+
+  it("lists my memberships filtered to my user id", async () => {
+    const { calls, fetchFn } = stub(200, []);
+    await createCollabClient(config, fetchFn).listMyMemberships("user-1");
+    expect(calls[0].url).toContain("user_id=eq.user-1");
+    expect(calls[0].url).toContain("select=trip_owner,trip_id,role");
+  });
+
+  it("leaves a trip by deleting my own membership row", async () => {
+    const { calls, fetchFn } = stub(204, null);
+    await createCollabClient(config, fetchFn).leaveTrip("owner-1", "trip-x", "me");
+    expect(calls[0].init?.method).toBe("DELETE");
+    expect(calls[0].url).toContain("trip_owner=eq.owner-1");
+    expect(calls[0].url).toContain("trip_id=eq.trip-x");
+    expect(calls[0].url).toContain("user_id=eq.me");
+  });
+
+  it("removes a member (owner action)", async () => {
+    const { calls, fetchFn } = stub(204, null);
+    await createCollabClient(config, fetchFn).removeMember("owner-1", "trip-x", "them");
+    expect(calls[0].init?.method).toBe("DELETE");
+    expect(calls[0].url).toContain("user_id=eq.them");
+  });
+
   it("throws on HTTP errors", async () => {
     const { fetchFn } = stub(403, null);
     const collab = createCollabClient(config, fetchFn, async () => "jwt");

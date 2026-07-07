@@ -23,8 +23,15 @@ export interface TripMember {
   trip_owner: string;
   trip_id: string;
   user_id: string;
+  email: string | null;
   role: string;
   added_at: string;
+}
+
+export interface MyMembership {
+  trip_owner: string;
+  trip_id: string;
+  role: string;
 }
 
 export interface NewInvite {
@@ -44,6 +51,9 @@ export interface CollabClient {
   listMyInvites(myEmail: string): Promise<TripInvite[]>;
   acceptInvite(id: string): Promise<void>;
   listMembers(tripOwner: string, tripId: string): Promise<TripMember[]>;
+  removeMember(tripOwner: string, tripId: string, userId: string): Promise<void>;
+  listMyMemberships(myId: string): Promise<MyMembership[]>;
+  leaveTrip(tripOwner: string, tripId: string, myId: string): Promise<void>;
 }
 
 export function createCollabClient(
@@ -116,6 +126,25 @@ export function createCollabClient(
       return getJson<TripMember>(
         `/trip_members?trip_owner=eq.${q(tripOwner)}&trip_id=eq.${q(tripId)}&select=*&order=added_at.asc`
       );
+    },
+    async removeMember(tripOwner, tripId, userId) {
+      const res = await fetchFn(
+        `${rest}/trip_members?trip_owner=eq.${q(tripOwner)}&trip_id=eq.${q(tripId)}&user_id=eq.${q(userId)}`,
+        { method: "DELETE", headers: await headers() }
+      );
+      if (!res.ok) throw new Error(`Could not remove the member: HTTP ${res.status}`);
+    },
+    listMyMemberships(myId) {
+      return getJson<MyMembership>(
+        `/trip_members?user_id=eq.${q(myId)}&select=trip_owner,trip_id,role`
+      );
+    },
+    async leaveTrip(tripOwner, tripId, myId) {
+      const res = await fetchFn(
+        `${rest}/trip_members?trip_owner=eq.${q(tripOwner)}&trip_id=eq.${q(tripId)}&user_id=eq.${q(myId)}`,
+        { method: "DELETE", headers: await headers() }
+      );
+      if (!res.ok) throw new Error(`Could not leave the trip: HTTP ${res.status}`);
     },
   };
 }
