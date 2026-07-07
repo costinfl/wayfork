@@ -143,6 +143,17 @@ part of the collaboration phases.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.26.0** — fix: the trip picker snapped back to the first built-in (and
+  the open day reset) a few seconds after selecting a trip. The 15s background
+  sync poll wholesale-replaces `storedTrips`; when a signed-in poll came back
+  empty — almost always a lapsed access token answered as anon, so RLS yields
+  nothing — the selected trip's `uid` vanished from the list and the derived
+  `trip = allTrips.find(...) ?? TRIPS[0]` fell back to Rome, which also
+  remounts `TripView` (keyed by uid) and resets the day. Fix: the poll now
+  skips when the signed-in access token can't be refreshed (rather than
+  fetching as anon), and ignores an empty poll result while trips are still
+  held (a reload or the next non-empty poll reconciles). Browser-verified: an
+  empty poll no longer disturbs the selection or the open day. 156 tests.
 - **v0.25.0** — collaboration Phase 6: concurrency guard for simultaneous
   edits. Whole-document saves were last-write-wins, so two co-editors could
   silently clobber each other. Added a monotonic `version` token per `trips`

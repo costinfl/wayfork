@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v0.25 — 156 tests green
+## Current version: v0.26 — 156 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -33,6 +33,11 @@ throws `TripConflictError`), then the forms and `TripView`.
   no payer yet; spec ambiguous, revisit).
 - Optional: swap the sync poll for Supabase Realtime WebSocket (would make the
   concurrency guard's re-merge fire near-instantly instead of after the 15s poll).
+- Invites are in-app only: `createInvite` inserts a `trip_invites` row that the
+  recipient sees in the inbox after signing in with that email — no email is
+  ever sent (the only email the app sends is the magic-link sign-in). Delivering
+  invites by email would need a Supabase Edge Function (or trigger→SMTP) on
+  invite insert, plus a sending domain — not verifiable in this sandbox.
 - Future feature: trip export/share as PDF (own workstream — POI photos, map
   thumbnails, render pipeline).
 

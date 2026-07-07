@@ -242,11 +242,18 @@ export default function WayforkApp() {
   };
   useEffect(() => {
     let cancelled = false;
-    const refreshFrom = (s: TripStore) =>
+    const refreshFrom = (s: TripStore, guardEmpty = false) =>
       s
         .list()
         .then((trips) => {
           if (cancelled) return;
+          // A background poll that suddenly returns nothing is almost always a
+          // transient blip (a lapsed access token answered as anon, RLS yielding
+          // an empty set), not a real "every trip was deleted". Replacing state
+          // with [] would drop the selected trip and snap the picker back to a
+          // built-in — so ignore an empty poll while we still hold trips. The
+          // next non-empty poll (or a reload) reconciles.
+          if (guardEmpty && trips.length === 0) return;
           rememberSynced(trips); // these are the merge bases for later saves
           setStoredTrips((prev) => (tripsEqual(prev, trips) ? prev : trips));
         })
@@ -255,13 +262,16 @@ export default function WayforkApp() {
         });
 
     if (session && REMOTE_STORE) {
-      const tick = () => {
+      const tick = async () => {
         if (document.hidden || Date.now() < syncPausedUntil.current) return;
-        void refreshFrom(REMOTE_STORE);
+        // Signed in but the token has lapsed and can't refresh: skip this poll
+        // rather than fetch as anon (which RLS answers with an empty list).
+        if (AUTH && !(await AUTH.getAccessToken())) return;
+        void refreshFrom(REMOTE_STORE, true);
       };
       const id = setInterval(tick, SYNC_INTERVAL_MS);
       const onVisible = () => {
-        if (!document.hidden) tick();
+        if (!document.hidden) void tick();
       };
       document.addEventListener("visibilitychange", onVisible);
       return () => {
