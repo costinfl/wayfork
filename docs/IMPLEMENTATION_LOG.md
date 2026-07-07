@@ -41,13 +41,12 @@
   registered in `src/data/index.ts`. Untrusted trip JSON is checked by
   `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
   functions in `mutate.ts`; every edit is re-validated before it is saved.
-- **NEXT TASK:** trip collaboration is shipped through Phase 5 (v0.20–v0.24:
+- **NEXT TASK:** trip collaboration is shipped through Phase 6 (v0.20–v0.25:
   invite editor/viewer, in-app inbox, co-edit, viewer read-only, roster +
-  remove, leave). Remaining — **Phase 6: a concurrency guard** for simultaneous
-  edits (saves are whole-document last-write-wins; add an optimistic version
-  check + re-merge). Also open: broaden the component/UI test harness to
-  `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
-  WebSocket; the PDF-export/share feature idea (see below).
+  remove, leave, and now a concurrency guard). Open: broaden the component/UI
+  test harness to `WayforkApp`/forms (the `saveTrip` conflict path is now
+  browser-verified but not unit-tested); optionally swap the sync poll for a
+  Supabase Realtime WebSocket; the PDF-export/share feature idea (see below).
 
 ## Current state — v0.24
 
@@ -98,6 +97,7 @@
 | Trip gen | Public AI prompt contract shown copy-ready in-app; real-data framing + full-day pacing rules | `docs/trip-prompt.md`, `src/ui/TripPromptCard.tsx` |
 | Sync | Background multi-device sync: signed-in poll (visibility-aware) + signed-out cross-tab `storage` events; reconciled by `tripsEqual` | sync effect in `src/ui/WayforkApp.tsx`, `tripsEqual` (`repository.ts`) |
 | Collab | Share a trip: invite by email as editor/viewer, in-app inbox → accept, co-edit; viewer read-only; owner roster + remove; member leave; per-user `(owner, id)` + surrogate `uid`; membership/invites RLS | `supabase/migrations/0004`–`0006`, `src/data/collab.ts`, `SharePanel`/`InvitesInbox`, `Trip.owner`/`uid` |
+| Collab | Concurrency guard (v0.25): optimistic `version` token per trip row; `save` is version-guarded (conditional PATCH / insert) and returns the bumped version or throws `TripConflictError`; on conflict the client 3-way-merges the local edit onto the latest remote over their common ancestor and retries, surfacing a merge banner | `supabase/migrations/0007`, `src/domain/merge.ts`, `Trip.version`, `supabaseStore.ts`/`localStorageStore.ts`, `saveTrip` + `SyncNotice` in `WayforkApp` |
 | — | Component/UI test harness (jsdom + @testing-library/react), with AuthBar + MigrationBanner covered | `src/test/setup-dom.ts`, `src/ui/*.test.tsx` |
 
 ### 🟡 Partially implemented
@@ -124,10 +124,11 @@
 - Broader component/UI coverage: the harness exists (v0.19, jsdom +
   @testing-library) with `AuthBar` and `MigrationBanner` covered; the larger
   components (`WayforkApp`, the CRUD forms, `TripView`) are not tested yet.
-- Trip collaboration — **shipped** (Phases 1–5, v0.20–v0.24): invite by email
+- Trip collaboration — **shipped** (Phases 1–6, v0.20–v0.25): invite by email
   as editor/viewer, accept from an in-app inbox, co-edit a shared trip, viewer
-  read-only, owner roster + remove-member, member leave. Remaining (Phase 6):
-  a concurrency guard for simultaneous edits (saves are last-write-wins).
+  read-only, owner roster + remove-member, member leave, and a concurrency
+  guard (optimistic version check + 3-way re-merge) so simultaneous co-editors
+  no longer clobber each other.
 
 ## Key algorithms & decisions
 
@@ -212,10 +213,20 @@ member); an invites inbox ("X invited you to <trip>" → Accept); viewers get th
 existing read-only view (no Edit). Email delivery of invites is optional (needs
 SMTP / an Edge Function); the in-app inbox works without it.
 
-**6. Concurrency.** Saves are whole-document last-write-wins, so simultaneous
-co-editors can clobber each other (the 15s sync only *surfaces* the loss). Add
-an optimistic-concurrency guard (reject a write whose `updated_at`/version is
-stale, then re-merge) before promoting this beyond a small trusted group.
+**6. Concurrency.** ✅ **Done (v0.25).** Each `trips` row carries a monotonic
+`version` (migration `0007`; bumped server-side by the `set_updated_at` trigger)
+that the client reads on load and injects onto `Trip.version` the same way
+`owner` is. `TripStore.save` returns the saved trip with its new version, and a
+stale write is rejected instead of overwriting: the Supabase adapter does a
+conditional `PATCH … &version=eq.<expected>` (a new trip inserts; a matched row
+comes back with the bumped version; no match ⇒ `TripConflictError` carrying the
+current remote row), and `localStorageStore` mirrors the contract for cross-tab
+parity. On conflict `WayforkApp.saveTrip` runs the pure `mergeTrip(base, local,
+remote)` (`src/domain/merge.ts`) — a 3-way merge of the top-level collections by
+id over the last-synced ancestor — re-validates, and retries against the fresh
+version, then shows a `SyncNotice` banner. Non-overlapping co-edits both survive;
+a same-item clash resolves local-wins and is flagged; an unmergeable result (or a
+remote delete) reloads the latest and warns.
 
 **Phasing / progress:**
 - ✅ **Phase 1 (v0.20) — surrogate `uid` identity.** `Trip.uid` (optional in the
@@ -254,8 +265,16 @@ stale, then re-merge) before promoting this beyond a small trusted group.
   remove) via `listMembers`; a member can **Leave** a shared trip
   (`leaveTrip`). Migration `0006_member_roster` adds `trip_members.email` (set
   by `accept_invite`) and a "member leaves" self-delete policy.
-- ⬜ Phase 6 — concurrency guard for simultaneous edits (whole-document saves
-  are last-write-wins; add an optimistic version check + re-merge).
+- ✅ **Phase 6 (v0.25) — concurrency guard.** Optimistic `version` token per
+  `trips` row (migration `0007`, trigger-bumped); `Trip.version` injected on read
+  like `owner`; `TripStore.save` returns the saved trip with its new version or
+  throws `TripConflictError`. Supabase adapter: conditional version-guarded
+  `PATCH` (new trips insert; empty result ⇒ conflict via a follow-up read);
+  `localStorageStore` mirrors it for cross-tab parity. On conflict `saveTrip`
+  3-way-merges (`src/domain/merge.ts`) the local intent onto the latest remote
+  over the last-synced ancestor, re-validates, retries against the fresh version,
+  and shows a `SyncNotice`. Non-overlapping co-edits both survive; same-item
+  clashes resolve local-wins and are flagged; unmergeable/deleted reloads + warns.
 
 ## Future feature idea — trip export / share as PDF
 
@@ -375,6 +394,24 @@ part of the collaboration phases.
   trips gained free-afternoon `wait` slots so dinners land ~18:30–19:00. No
   model/scheduler change. 110 tests; prompt card and fixed timeline
   screenshot-verified (Neptun dinner now 18:30–20:00).
+- **v0.25.0** — collaboration Phase 6: concurrency guard for simultaneous
+  edits. Whole-document saves were last-write-wins, so two co-editors could
+  silently clobber each other. Added a monotonic `version` token per `trips`
+  row (migration `0007`, bumped by the existing `set_updated_at` trigger;
+  applied live) injected onto `Trip.version` like `owner`. `TripStore.save` now
+  returns the persisted trip with its new version or throws `TripConflictError`:
+  the Supabase adapter inserts a brand-new trip and does a conditional
+  version-guarded `PATCH` for an existing one (empty result ⇒ a follow-up read
+  yields the conflict), and `localStorageStore` mirrors the contract for
+  cross-tab parity. On conflict `WayforkApp.saveTrip` runs the pure
+  `mergeTrip(base, local, remote)` (`src/domain/merge.ts`) — a 3-way merge of
+  the top-level collections by id over the last-synced ancestor — re-validates,
+  retries against the fresh version, and shows a `SyncNotice` banner
+  (info: merged / warn: reloaded). Non-overlapping co-edits both survive; a
+  same-item clash resolves local-wins and is flagged. 156 tests (new
+  `merge.test.ts`; store conflict + localStorage version cases); the full
+  conflict → 3-way-merge → banner flow browser-verified with a stubbed remote
+  (remote rename and local expense-delete both survive).
 - **v0.24.0** — collaboration Phase 5: roles, roster, leave. Invite as editor
   **or viewer** (role select in `SharePanel`); a viewer gets a read-only view —
   `WayforkApp` derives `myRole` from `listMyMemberships` and passes `canEdit`

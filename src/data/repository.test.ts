@@ -23,6 +23,7 @@ const memStore = (init: Trip[] = []): TripStore => {
     },
     async save(t) {
       data = [...data.filter((x) => x.id !== t.id), t];
+      return t;
     },
     async remove(id) {
       data = data.filter((x) => x.id !== id);
@@ -69,6 +70,7 @@ describe("migrateLocalTrips", () => {
       async save(t) {
         if (t.id === "local-a") throw new Error("HTTP 403");
         data = [...data.filter((x) => x.id !== t.id), t];
+        return t;
       },
       async remove(id) {
         data = data.filter((x) => x.id !== id);

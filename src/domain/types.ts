@@ -121,6 +121,12 @@ export interface Trip {
   // trip until first saved. Writes route to this owner so a member editing a
   // shared trip updates the owner's row rather than forking a copy of their own.
   owner?: string;
+  // Optimistic-concurrency token: the row's monotonic version, injected by the
+  // store on read and echoed back on write so a stale save (one whose expected
+  // version has moved under it, e.g. a co-editor saved first) is rejected rather
+  // than silently clobbering. The server increments it on every update. Absent
+  // for a brand-new trip until first saved (its first save creates version 0).
+  version?: number;
   id: string;
   name: string;
   participants: Participant[];

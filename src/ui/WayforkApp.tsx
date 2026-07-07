@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
-import { mergeWithBuiltins, migrateLocalTrips, tripsEqual } from "../data/repository";
+import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } from "../data/repository";
 import type { TripStore } from "../data/repository";
+import { mergeTrip } from "../domain/merge";
 import { createAuthClient } from "../data/supabaseAuth";
 import type { Session } from "../data/supabaseAuth";
 import { SUPABASE_CONFIG } from "../data/supabaseConfig";
@@ -43,6 +44,7 @@ import { AuthBar } from "./AuthBar";
 import { InvitesInbox } from "./InvitesInbox";
 import { SharePanel } from "./SharePanel";
 import { MigrationBanner } from "./MigrationBanner";
+import { SyncNotice } from "./SyncNotice";
 import { UploadTrip } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
@@ -91,6 +93,17 @@ export default function WayforkApp() {
   const [migratable, setMigratable] = useState<Trip[]>([]);
   const [migrating, setMigrating] = useState(false);
   const [migrateError, setMigrateError] = useState<string | null>(null);
+  // Transient banner about background reconciliation (a co-editor's change was
+  // auto-merged, or an unmergeable edit was reloaded to the latest).
+  const [syncNote, setSyncNote] = useState<{ message: string; tone: "info" | "warn" } | null>(null);
+  // Last server-confirmed snapshot per uid — the common ancestor a re-merge
+  // builds on when a save is rejected. Fed by every store read (initial load and
+  // background poll) and by successful saves, never the optimistic local edit,
+  // so it holds exactly the version the pending edit descended from.
+  const lastSyncedRef = useRef<Map<string, Trip>>(new Map());
+  const rememberSynced = (trips: Trip[]) => {
+    for (const t of trips) lastSyncedRef.current.set(uidOf(t), t);
+  };
   // Collaboration: invites addressed to me (inbox) and the share panel for the
   // current trip. reloadKey re-runs the trip load after accepting an invite.
   const [reloadKey, setReloadKey] = useState(0);
@@ -131,6 +144,7 @@ export default function WayforkApp() {
         if (cancelled) return;
         setStore(LOCAL_STORE);
         setStoreLabel("local browser");
+        rememberSynced(trips);
         setStoredTrips(trips);
         setMigratable([]);
       });
@@ -140,6 +154,7 @@ export default function WayforkApp() {
         if (cancelled) return;
         setStore(active);
         setStoreLabel(signedIn ? "Supabase (your account)" : "local browser");
+        rememberSynced(trips);
         setStoredTrips(trips);
         if (signedIn) {
           // Offer to import any trips still sitting in this browser.
@@ -214,6 +229,13 @@ export default function WayforkApp() {
   // appear; signed out, react to localStorage writes from other tabs. A poll
   // only replaces state when the content actually changed (tripsEqual), and is
   // skipped right after a local write so it can't revert an optimistic update.
+  // An informational merge note clears itself; a warning stays until dismissed.
+  useEffect(() => {
+    if (syncNote?.tone !== "info") return;
+    const id = setTimeout(() => setSyncNote(null), 6000);
+    return () => clearTimeout(id);
+  }, [syncNote]);
+
   const syncPausedUntil = useRef(0);
   const markLocalWrite = () => {
     syncPausedUntil.current = Date.now() + SYNC_WRITE_GRACE_MS;
@@ -224,7 +246,9 @@ export default function WayforkApp() {
       s
         .list()
         .then((trips) => {
-          if (!cancelled) setStoredTrips((prev) => (tripsEqual(prev, trips) ? prev : trips));
+          if (cancelled) return;
+          rememberSynced(trips); // these are the merge bases for later saves
+          setStoredTrips((prev) => (tripsEqual(prev, trips) ? prev : trips));
         })
         .catch(() => {
           /* transient — try again next tick */
@@ -395,10 +419,57 @@ export default function WayforkApp() {
     }
   };
 
+  // Persist an edit with the optimistic-concurrency guard. On a rejected save
+  // (a co-editor saved first) re-merge the local intent onto the latest remote
+  // over their common ancestor and retry against the fresh version. Bails to the
+  // caller's reload path if the merge can't be validated or the trip is gone.
+  const persist = async (next: Trip): Promise<{ saved: Trip; merged: boolean }> => {
+    let attempt = next;
+    let merged = false;
+    for (let i = 0; i < 3; i++) {
+      try {
+        return { saved: await store.save(attempt), merged };
+      } catch (e) {
+        if (!(e instanceof TripConflictError) || !e.remote) throw e;
+        const base = lastSyncedRef.current.get(uidOf(next)) ?? e.remote;
+        const result = mergeTrip(base, next, e.remote);
+        if (validateTrip(result.merged).length) throw e;
+        attempt = { ...result.merged, version: e.remote.version };
+        merged = true;
+      }
+    }
+    throw new TripConflictError(null); // retries exhausted (rapid third-party writes)
+  };
+
   const saveTrip = (next: Trip) => {
     markLocalWrite();
-    store.save(next).catch((e) => console.error("trip save failed:", e));
-    setStoredTrips((prev) => [...prev.filter((t) => t.id !== next.id), next]);
+    setStoredTrips((prev) => [...prev.filter((t) => t.id !== next.id), next]); // optimistic
+    void persist(next)
+      .then(({ saved, merged }) => {
+        markLocalWrite(); // the merge round-trip may have outlasted the first grace
+        lastSyncedRef.current.set(uidOf(saved), saved);
+        setStoredTrips((prev) => [...prev.filter((t) => t.id !== saved.id), saved]);
+        if (merged) setSyncNote({ message: "Merged an update from another editor.", tone: "info" });
+      })
+      .catch(async (e) => {
+        if (!(e instanceof TripConflictError)) {
+          console.error("trip save failed:", e);
+          return;
+        }
+        // Unmergeable (invalid merge or deleted remotely): reload the latest so
+        // the user is editing real state, and say what happened.
+        try {
+          const trips = await store.list();
+          rememberSynced(trips);
+          setStoredTrips(trips);
+        } catch {
+          /* transient — the poll will reconcile */
+        }
+        setSyncNote({
+          message: "This trip changed elsewhere and couldn't be auto-merged — reloaded to the latest.",
+          tone: "warn",
+        });
+      });
   };
 
   const addTrip = (t: Trip): string | null => {
@@ -448,6 +519,13 @@ export default function WayforkApp() {
         )}
         {myInvites.length > 0 && (
           <InvitesInbox invites={myInvites} busyId={acceptingId} error={inboxError} onAccept={acceptInvite} />
+        )}
+        {syncNote && (
+          <SyncNotice
+            message={syncNote.message}
+            tone={syncNote.tone}
+            onDismiss={() => setSyncNote(null)}
+          />
         )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (

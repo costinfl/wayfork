@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { removeExpense } from "../domain/mutate";
 import type { Trip } from "../domain/types";
 import { createLocalStorageStore } from "./localStorageStore";
-import { mergeWithBuiltins } from "./repository";
+import { mergeWithBuiltins, TripConflictError } from "./repository";
 import { TRIPS } from "./index";
 
 const fakeStorage = () => {
@@ -17,24 +17,35 @@ const fakeStorage = () => {
 const clone = (t: Trip): Trip => structuredClone(t);
 
 describe("createLocalStorageStore", () => {
-  it("round-trips save/list/remove", async () => {
+  it("round-trips save/list/remove, stamping version 0 on a new trip", async () => {
     const store = createLocalStorageStore(fakeStorage());
     expect(await store.list()).toEqual([]);
-    const trip = clone(TRIPS[0]);
-    await store.save(trip);
-    expect(await store.list()).toEqual([trip]);
-    await store.remove(trip.id);
+    const saved = await store.save(clone(TRIPS[0]));
+    expect(saved.version).toBe(0);
+    expect(await store.list()).toEqual([saved]);
+    await store.remove(saved.id);
     expect(await store.list()).toEqual([]);
   });
 
-  it("save replaces an existing trip with the same id", async () => {
+  it("save replaces an existing trip and bumps its version", async () => {
     const store = createLocalStorageStore(fakeStorage());
-    const trip = clone(TRIPS[0]);
-    await store.save(trip);
-    await store.save(removeExpense(trip, trip.expenses[0].id));
+    const saved = await store.save(clone(TRIPS[0]));
+    const edited = await store.save(removeExpense(saved, saved.expenses[0].id));
+    expect(edited.version).toBe(1); // bumped from the matched version
     const listed = await store.list();
     expect(listed).toHaveLength(1);
-    expect(listed[0].expenses).toHaveLength(trip.expenses.length - 1);
+    expect(listed[0].expenses).toHaveLength(saved.expenses.length - 1);
+    expect(listed[0].version).toBe(1);
+  });
+
+  it("rejects a stale save with a TripConflictError carrying the current trip", async () => {
+    const store = createLocalStorageStore(fakeStorage());
+    const base = await store.save(clone(TRIPS[0])); // version 0
+    await store.save({ ...base, name: "First edit" }); // version 1 wins
+    const err = await store.save({ ...base, name: "Stale edit" }).catch((e) => e); // still version 0
+    expect(err).toBeInstanceOf(TripConflictError);
+    expect((err as TripConflictError).remote?.name).toBe("First edit");
+    expect((err as TripConflictError).remote?.version).toBe(1);
   });
 
   it("drops invalid entries instead of crashing", async () => {

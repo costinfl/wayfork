@@ -4,10 +4,26 @@ import type { Trip } from "../domain/types";
 // localStorage for a REST/database-backed adapter later means implementing
 // these three methods and changing nothing else. Methods are async for that
 // reason even though the current adapter is synchronous underneath.
+//
+// `save` returns the persisted trip carrying its new authoritative `version`
+// (the optimistic-concurrency token, bumped on every write) so the caller can
+// keep saving without going stale. A save whose expected `trip.version` no
+// longer matches the stored row is rejected with a TripConflictError rather than
+// clobbering the newer write — the caller re-merges and retries.
 export interface TripStore {
   list(): Promise<Trip[]>;
-  save(trip: Trip): Promise<void>;
+  save(trip: Trip): Promise<Trip>;
   remove(id: string): Promise<void>;
+}
+
+// Thrown by save() when the write was rejected because the row moved under it
+// (a co-editor saved first). `remote` is the current stored trip to re-merge
+// against, or null if the row was deleted remotely.
+export class TripConflictError extends Error {
+  constructor(public readonly remote: Trip | null) {
+    super("trip changed since it was loaded");
+    this.name = "TripConflictError";
+  }
 }
 
 // Stored trips override built-ins with the same id (copy-on-write edits of

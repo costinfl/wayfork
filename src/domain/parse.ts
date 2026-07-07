@@ -39,6 +39,12 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
   if (input.uid !== undefined && (typeof input.uid !== "string" || input.uid === "")) {
     err("trip.uid, when present, must be a non-empty string");
   }
+  if (
+    input.version !== undefined &&
+    (typeof input.version !== "number" || !Number.isInteger(input.version) || input.version < 0)
+  ) {
+    err("trip.version, when present, must be a non-negative integer");
+  }
 
   for (const [i, p] of checkArr(input, "participants", "trip").entries()) {
     const where = `participants[${i}]`;
