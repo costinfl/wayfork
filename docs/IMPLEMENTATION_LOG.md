@@ -41,11 +41,13 @@
   registered in `src/data/index.ts`. Untrusted trip JSON is checked by
   `parse.ts` (structure) then `validate.ts` (semantics); mutations are pure
   functions in `mutate.ts`; every edit is re-validated before it is saved.
-- **NEXT TASK:** trip collaboration — invite/join so family & friends can plan
-  a trip together (design in "Trip collaboration — design" below). Also open:
-  broaden the component/UI test harness (v0.19 covers AuthBar + MigrationBanner)
-  to `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
-  WebSocket.
+- **NEXT TASK:** trip collaboration is shipped through Phase 5 (v0.20–v0.24:
+  invite editor/viewer, in-app inbox, co-edit, viewer read-only, roster +
+  remove, leave). Remaining — **Phase 6: a concurrency guard** for simultaneous
+  edits (saves are whole-document last-write-wins; add an optimistic version
+  check + re-merge). Also open: broaden the component/UI test harness to
+  `WayforkApp`/forms; optionally swap the sync poll for a Supabase Realtime
+  WebSocket; the PDF-export/share feature idea (see below).
 
 ## Current state — v0.24
 
