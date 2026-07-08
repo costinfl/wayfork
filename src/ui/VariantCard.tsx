@@ -4,6 +4,7 @@ import { variantDuration } from "../domain/schedule";
 import { fmtDur } from "../domain/time";
 import type { CurrencyView, TripCurrencies, VariantNode } from "../domain/types";
 import { exposedMinutes } from "../domain/weather";
+import { EstBadge } from "./EstBadge";
 import { StepChip } from "./StepChip";
 import { C, mono } from "./theme";
 
@@ -57,7 +58,10 @@ export function VariantCard({
       </div>
       <div className="flex justify-between text-sm" style={{ color: C.ink }}>
         <span style={mono}>{fmtDur(dur)}</span>
-        <span style={mono}>{variant.cost.amount === 0 ? "—" : money(cost, tripCcy[ccyView])}</span>
+        <span className="flex items-center gap-1.5">
+          {variant.estimated && <EstBadge />}
+          <span style={mono}>{variant.cost.amount === 0 ? "—" : money(cost, tripCcy[ccyView])}</span>
+        </span>
       </div>
       {rainRisk && exposed > 0 && (
         <div className="mt-1.5 text-xs font-medium" style={{ color: C.amber }}>

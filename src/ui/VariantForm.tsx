@@ -38,6 +38,7 @@ export function VariantForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [amount, setAmount] = useState(initial ? String(initial.cost.amount) : "0");
   const [currency, setCurrency] = useState(initial?.cost.currency ?? defaultCurrency);
+  const [estimated, setEstimated] = useState(initial?.estimated ?? false);
   const [steps, setSteps] = useState<StepDraft[]>(() =>
     initial
       ? initial.microSteps.map((ms) => ({
@@ -79,6 +80,7 @@ export function VariantForm({
         name: name.trim(),
         microSteps,
         cost: { amount: cost, currency },
+        ...(estimated ? { estimated: true } : {}),
       })
     );
   };
@@ -118,6 +120,14 @@ export function VariantForm({
               <option key={c}>{c}</option>
             ))}
           </select>
+        </label>
+        <label className="text-xs flex items-center gap-1.5 self-end pb-1.5" style={{ color: C.sub }}>
+          <input
+            type="checkbox"
+            checked={estimated}
+            onChange={(e) => setEstimated(e.target.checked)}
+          />
+          Estimated
         </label>
       </div>
 

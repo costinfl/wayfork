@@ -37,6 +37,34 @@ describe("parseTrip — surrogate uid", () => {
   });
 });
 
+describe("parseTrip — estimated provenance flag", () => {
+  it("preserves an estimated flag on a variant and an expense", () => {
+    const { trip, errors } = roundTrip((t) => {
+      t.days[0].slots[0].variants[0].estimated = true;
+      t.expenses[0].estimated = true;
+    });
+    expect(errors).toEqual([]);
+    expect(trip?.days[0].slots[0].variants[0].estimated).toBe(true);
+    expect(trip?.expenses[0].estimated).toBe(true);
+  });
+
+  it("leaves the flag absent when the document has none", () => {
+    const { trip, errors } = roundTrip();
+    expect(errors).toEqual([]);
+    expect(trip?.days[0].slots[0].variants[0].estimated).toBeUndefined();
+    expect(trip?.expenses[0].estimated).toBeUndefined();
+  });
+
+  it("rejects a non-boolean estimated flag", () => {
+    expect(
+      roundTrip((t) => (t.days[0].slots[0].variants[0].estimated = "yes")).errors.join("\n")
+    ).toContain("estimated, when present, must be a boolean");
+    expect(
+      roundTrip((t) => (t.expenses[0].estimated = 1)).errors.join("\n")
+    ).toContain("estimated, when present, must be a boolean");
+  });
+});
+
 describe("parseTrip — structural rejections", () => {
   it("rejects non-objects", () => {
     expect(parseTrip("hello").errors[0]).toContain("expected a JSON object");

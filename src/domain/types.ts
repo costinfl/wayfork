@@ -41,6 +41,10 @@ export interface VariantNode {
   name: string;
   microSteps: MicroStep[]; // ordered — durations sum to variant duration
   cost: Money; // estimated, injected into projection
+  // Provenance: true marks data that is a placeholder or approximation (e.g. a
+  // scaffold slot the user has not yet verified). Absent = not claimed either
+  // way, so this stays backward compatible with existing trips.
+  estimated?: boolean;
 }
 
 // Hard guardrail: absolute time milestone the active chain must respect.
@@ -99,6 +103,9 @@ export interface ExpenseItem {
   amount: number;
   currency: CurrencyCode; // stored natively in input currency
   split: SplitDef;
+  // Provenance: true marks an approximated/placeholder amount the user has not
+  // yet verified. Absent = not claimed either way (backward compatible).
+  estimated?: boolean;
 }
 
 export interface TripCurrencies {

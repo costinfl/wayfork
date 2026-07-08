@@ -239,3 +239,18 @@
   vs "built-in snapshot"). Micro-step distances now render on step chips.
 
 ## docs migration — split IMPLEMENTATION_LOG into CLAUDE.md / STATUS.md / CHANGELOG.md (token-efficiency restructure)
+- **v0.27.0** — Plan-a-trip wizard. `+ Add trip` leads with a `PlanTripForm`:
+  starting point + ordered destinations via a debounced Open-Meteo place
+  autocomplete (`domain/geocode.ts`, keyless; keyboard/click select, lat/lon
+  confirmation), ↑/↓ reorder, ✕ remove, start date, number of days, live
+  "return to {start}" toggle. Submitting builds a validated **scaffold trip**
+  (`domain/scaffold.ts` — days distributed across destinations with
+  floor+remainder, per-day locations for weather, `estimated` placeholder slots,
+  optional return day) that is persisted and opened, plus a **scaffold-bound AI
+  prompt** (`domain/prompt.ts` from a rewritten `docs/trip-prompt.md`) embedding
+  the day table and forbidding date/location edits. `UploadTrip` now replaces a
+  scaffold in place on id match, flagging day/date/location drift as non-blocking
+  warnings; the static `TripPromptCard` is retired. New optional `estimated`
+  provenance flag on `VariantNode`/`ExpenseItem` (parser + muted "est." badge +
+  form checkbox). 184 tests; E2E-verified (Rome→Florence, return, geocoding
+  stubbed): autocomplete dropdown, 6-day scaffold timeline, copy-ready prompt.

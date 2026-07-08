@@ -2,16 +2,22 @@ import { useState } from "react";
 import { parseTrip } from "../domain/parse";
 import type { Trip } from "../domain/types";
 import { C, mono } from "./theme";
-import { TripPromptCard } from "./TripPromptCard";
 
-// Panel for loading an AI-generated trip: copy the in-app prompt contract
-// (TripPromptCard), then pick a .json file or paste the JSON the assistant
-// returns. onLoaded returns a rejection message or null.
-export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => string | null }) {
+// Loading a trip either creates it or, when its id matches an existing scaffold,
+// replaces that scaffold in place — in which case any drift from the scaffold's
+// verbatim days/dates/locations comes back as non-blocking warnings.
+export type AddTripResult = { error: string } | { warnings?: string[] };
+
+// Panel for loading an AI-generated trip: pick a .json file or paste the JSON
+// the assistant returns (the prompt itself now comes from PlanTripForm).
+// onLoaded reports a hard rejection or soft warnings.
+export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => AddTripResult }) {
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[] | null>(null);
+  const [warnings, setWarnings] = useState<string[] | null>(null);
 
   const handleRaw = (raw: string) => {
+    setWarnings(null);
     let data: unknown;
     try {
       data = JSON.parse(raw);
@@ -24,23 +30,24 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => string | nu
       setErrors(parseErrors.slice(0, 8));
       return;
     }
-    const rejection = onLoaded(trip);
-    if (rejection) {
-      setErrors([rejection]);
+    const result = onLoaded(trip);
+    if ("error" in result) {
+      setErrors([result.error]);
       return;
     }
     setErrors(null);
     setText("");
+    setWarnings(result.warnings?.length ? result.warnings : null);
   };
 
   return (
     <div className="rounded-xl p-4 mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-      <div className="text-sm font-bold mb-1">Add a trip</div>
+      <div className="text-sm font-bold mb-1">Load a generated trip</div>
       <p className="text-xs mb-3" style={{ color: C.sub }}>
-        Generate a trip with the prompt below, then choose its .json file or paste the JSON. It is
-        validated before it appears in the picker.
+        Already ran the prompt from “Plan a trip” above (or have a trip .json)? Choose the file or
+        paste the JSON — it is validated before it appears in the picker, and replaces its scaffold
+        in place when the ids match.
       </p>
-      <TripPromptCard />
       <input
         type="file"
         accept=".json,application/json"
@@ -74,6 +81,18 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => string | nu
           <ul className="list-disc ml-5 text-xs">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {warnings && (
+        <div className="rounded-md px-3 py-2 mt-3 text-sm" style={{ background: C.amberBg, color: C.amber }}>
+          <div className="font-semibold mb-1">
+            Scaffold replaced — but the pasted trip drifted from it:
+          </div>
+          <ul className="list-disc ml-5 text-xs">
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
             ))}
           </ul>
         </div>
