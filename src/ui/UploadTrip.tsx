@@ -2,16 +2,15 @@ import { useState } from "react";
 import { parseTrip } from "../domain/parse";
 import type { Trip } from "../domain/types";
 import { C, mono } from "./theme";
-import { TripPromptCard } from "./TripPromptCard";
 
 // Loading a trip either creates it or, when its id matches an existing scaffold,
 // replaces that scaffold in place — in which case any drift from the scaffold's
 // verbatim days/dates/locations comes back as non-blocking warnings.
 export type AddTripResult = { error: string } | { warnings?: string[] };
 
-// Panel for loading an AI-generated trip: copy the in-app prompt contract
-// (TripPromptCard), then pick a .json file or paste the JSON the assistant
-// returns. onLoaded reports a hard rejection or soft warnings.
+// Panel for loading an AI-generated trip: pick a .json file or paste the JSON
+// the assistant returns (the prompt itself now comes from PlanTripForm).
+// onLoaded reports a hard rejection or soft warnings.
 export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => AddTripResult }) {
   const [text, setText] = useState("");
   const [errors, setErrors] = useState<string[] | null>(null);
@@ -43,12 +42,12 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => AddTripResu
 
   return (
     <div className="rounded-xl p-4 mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-      <div className="text-sm font-bold mb-1">Add a trip</div>
+      <div className="text-sm font-bold mb-1">Load a generated trip</div>
       <p className="text-xs mb-3" style={{ color: C.sub }}>
-        Generate a trip with the prompt below, then choose its .json file or paste the JSON. It is
-        validated before it appears in the picker.
+        Already ran the prompt from “Plan a trip” above (or have a trip .json)? Choose the file or
+        paste the JSON — it is validated before it appears in the picker, and replaces its scaffold
+        in place when the ids match.
       </p>
-      <TripPromptCard />
       <input
         type="file"
         accept=".json,application/json"

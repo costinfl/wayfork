@@ -46,6 +46,7 @@ import { AuthBar } from "./AuthBar";
 import { InvitesInbox } from "./InvitesInbox";
 import { SharePanel } from "./SharePanel";
 import { MigrationBanner } from "./MigrationBanner";
+import { PlanTripForm } from "./PlanTripForm";
 import { SyncNotice } from "./SyncNotice";
 import { UploadTrip } from "./UploadTrip";
 import type { AddTripResult } from "./UploadTrip";
@@ -510,6 +511,13 @@ export default function WayforkApp() {
     return { warnings };
   };
 
+  // A freshly planned scaffold: persist it and open it (its id is newly minted,
+  // so there is no collision or replacement to worry about).
+  const createScaffold = (t: Trip) => {
+    saveTrip(t);
+    setTripUid(uidOf(t));
+  };
+
   const removeCurrentTrip = () => {
     markLocalWrite();
     store.remove(trip.id).catch((e) => console.error("trip remove failed:", e));
@@ -656,7 +664,12 @@ export default function WayforkApp() {
             onClose={() => setShareOpen(false)}
           />
         )}
-        {uploadOpen && <UploadTrip onLoaded={addTrip} />}
+        {uploadOpen && (
+          <>
+            <PlanTripForm onCreate={createScaffold} />
+            <UploadTrip onLoaded={addTrip} />
+          </>
+        )}
         {tripForm !== null && (
           <TripForm
             key={`${tripForm}-${uidOf(trip)}`}
