@@ -3,6 +3,7 @@ import type { Trip } from "../domain/types";
 import lisbonJson from "./trips/lisbon.json";
 import neptunJson from "./trips/neptun.json";
 import romeJson from "./trips/rome.json";
+import sicilyJson from "./trips/sicily_to_puglia_inland_connection.json";
 
 // Built-in trips ship as JSON — the same format the in-app "Add trip" upload
 // accepts (see docs/MOCK_TRIP_PROMPT.md). Register new committed trips here;
@@ -17,4 +18,5 @@ export const TRIPS: Trip[] = [
   load(romeJson, "rome"),
   load(lisbonJson, "lisbon"),
   load(neptunJson, "neptun"),
+  load(sicilyJson, "sicily"),
 ];
