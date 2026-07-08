@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scaffoldTrip, type Place, type PlanInput } from "./scaffold";
+import { scaffoldMismatches, scaffoldTrip, type Place, type PlanInput } from "./scaffold";
 import { validateTrip } from "./validate";
 
 const place = (name: string, lat: number, lon: number): Place => ({ name, lat, lon });
@@ -107,5 +107,32 @@ describe("scaffoldTrip", () => {
     expect(() =>
       scaffoldTrip(plan({ destinations: [ROME, VENICE], numDays: 2, returnToStart: true }))
     ).toThrow(/at least 3/i);
+  });
+});
+
+describe("scaffoldMismatches", () => {
+  const base = scaffoldTrip(plan({ destinations: [ROME, VENICE], numDays: 4 }));
+
+  it("reports no warnings when days/dates/locations are preserved", () => {
+    // An enrichment keeps every day, date and location, only filling slots.
+    const enriched = { ...base, days: base.days.map((d) => ({ ...d, slots: [...d.slots] })) };
+    expect(scaffoldMismatches(base, enriched)).toEqual([]);
+  });
+
+  it("flags a changed date, a moved location, and a dropped day", () => {
+    const drifted = {
+      ...base,
+      days: base.days.slice(0, 3).map((d, i) =>
+        i === 0
+          ? { ...d, date: "2099-01-01" }
+          : i === 1
+            ? { ...d, location: { name: "Milan", lat: 45.46, lon: 9.19 } }
+            : d
+      ),
+    };
+    const warns = scaffoldMismatches(base, drifted);
+    expect(warns.some((w) => /Day 1: date changed/.test(w))).toBe(true);
+    expect(warns.some((w) => /Day 2: location name changed/.test(w))).toBe(true);
+    expect(warns.some((w) => /Day count changed/.test(w))).toBe(true);
   });
 });

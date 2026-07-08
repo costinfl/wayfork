@@ -25,6 +25,7 @@ import {
   upsertVariant,
 } from "../domain/mutate";
 import { fetchRatesEUR } from "../domain/rates";
+import { scaffoldMismatches } from "../domain/scaffold";
 import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtOffset, fmtTime } from "../domain/time";
 import { fetchDayWeather, RAIN_RISK_THRESHOLD } from "../domain/weather";
@@ -47,6 +48,7 @@ import { SharePanel } from "./SharePanel";
 import { MigrationBanner } from "./MigrationBanner";
 import { SyncNotice } from "./SyncNotice";
 import { UploadTrip } from "./UploadTrip";
+import type { AddTripResult } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
 import { WeatherBadge } from "./WeatherBadge";
@@ -483,17 +485,29 @@ export default function WayforkApp() {
       });
   };
 
-  const addTrip = (t: Trip): string | null => {
+  const addTrip = (t: Trip): AddTripResult => {
     if (TRIPS.some((b) => b.id === t.id)) {
-      return `A built-in trip already uses the id "${t.id}" — give the trip a different id.`;
+      return { error: `A built-in trip already uses the id "${t.id}" — give the trip a different id.` };
     }
-    // Stamp a stable uid now (uploaded JSON usually has none) so the trip keeps
-    // one identity across reads and can later be shared.
-    const trip = t.uid ? t : { ...t, uid: newUid() };
+    // A pasted trip whose id matches an existing (non-built-in) trip is an AI
+    // enrichment of that scaffold: overwrite the same row in place (reuse its
+    // uid/owner/version) instead of creating a duplicate, and soft-compare the
+    // days/dates/locations that were meant to be copied verbatim.
+    const scaffold = storedTrips.find((x) => x.id === t.id);
+    let warnings: string[] | undefined;
+    let trip: Trip;
+    if (scaffold) {
+      warnings = scaffoldMismatches(scaffold, t);
+      trip = { ...t, uid: scaffold.uid ?? newUid(), owner: scaffold.owner, version: scaffold.version };
+    } else {
+      // Stamp a stable uid now (uploaded JSON usually has none) so the trip keeps
+      // one identity across reads and can later be shared.
+      trip = t.uid ? t : { ...t, uid: newUid() };
+    }
     saveTrip(trip);
     setTripUid(uidOf(trip));
-    setUploadOpen(false);
-    return null;
+    if (!warnings?.length) setUploadOpen(false);
+    return { warnings };
   };
 
   const removeCurrentTrip = () => {

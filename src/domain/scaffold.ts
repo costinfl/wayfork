@@ -170,3 +170,35 @@ export function scaffoldTrip(input: PlanInput): Trip {
     expenses: [],
   };
 }
+
+// Soft comparison used when an AI-enriched trip replaces its scaffold: the days,
+// dates and locations are supposed to be copied verbatim, so any drift is worth
+// flagging (but not blocking — the user chose to replace). Returns human-readable
+// warnings; empty = the enrichment kept the scaffold's contract.
+export function scaffoldMismatches(prev: Trip, next: Trip): string[] {
+  const warns: string[] = [];
+  if (prev.days.length !== next.days.length) {
+    warns.push(
+      `Day count changed: the scaffold had ${prev.days.length}, the pasted trip has ${next.days.length}.`
+    );
+  }
+  const n = Math.min(prev.days.length, next.days.length);
+  for (let i = 0; i < n; i++) {
+    const a = prev.days[i];
+    const b = next.days[i];
+    if (a.date !== b.date) warns.push(`Day ${i + 1}: date changed (${a.date} → ${b.date}).`);
+    const la = a.location;
+    const lb = b.location;
+    if (!!la !== !!lb) {
+      warns.push(`Day ${i + 1}: location was ${la ? "removed" : "added"} versus the scaffold.`);
+    } else if (la && lb) {
+      if (la.name !== lb.name) {
+        warns.push(`Day ${i + 1}: location name changed (${la.name} → ${lb.name}).`);
+      }
+      if (Math.abs(la.lat - lb.lat) > 1e-4 || Math.abs(la.lon - lb.lon) > 1e-4) {
+        warns.push(`Day ${i + 1}: coordinates for ${lb.name} differ from the scaffold.`);
+      }
+    }
+  }
+  return warns;
+}
