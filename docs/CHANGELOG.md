@@ -3,37 +3,6 @@
 > Historical record only. Do not read during normal sessions — resume from
 > `docs/STATUS.md`. Consult this file only when debugging a regression.
 
-## Key algorithms & decisions
-
-1. **Time** = integer minutes since midnight. `fmtTime`/`fmtDur` for display.
-2. **Ripple**: fold over slots; slot duration = Σ active variant micro-step
-   durations; checkpoint `margin = checkpoint.time − slot.start`;
-   status: `ok` if margin ≥ buffer, `amber` if 0 ≤ margin < buffer, `red` if late.
-3. **Currency**: EUR-pivot matrix; `convert(a,from,to) = a / rate[from] *
-   rate[to]`. Live ECB rates fetched once at app load (Frankfurter API,
-   `src/domain/rates.ts`); the hardcoded `{EUR:1, RON:4.97, USD:1.08}`
-   snapshot is the offline fallback. The ledger footnote shows which is active.
-4. **Balances**: all expenses converted to EUR; payer credited full amount,
-   every participant debited their share; greedy debtor↔creditor matching
-   yields the minimal transaction list.
-5. **Active variant** is UI state (`{slotId: variantId}`), not mutated into the
-   data model — keeps mock data immutable and makes undo/URL-state trivial later.
-6. **Timezones**: a micro-step may carry `tzShiftMin` (clock change during that
-   step, e.g. a flight = -60). The ripple scheduler folds shifts into the
-   wall-clock — a slot's `end = start + duration + slotShift`, so downstream
-   times display in the arrival zone. `duration` stays real elapsed minutes;
-   checkpoints compare against the slot's local `start`, so they remain correct
-   on both sides of a crossing.
-
-## Future feature idea — trip export / share as PDF
-
-Envisioned as its own feature (post-collaboration): export a trip to a rich PDF
-(itinerary, ledger, settle-up) and share it with all participants by email — a
-"send everyone the plan" artifact. Would introduce media the app doesn't handle
-yet: point-of-interest photos and static map thumbnails for directions, so it is
-scoped as a distinct workstream (asset handling + a PDF/render pipeline), not
-part of the collaboration phases.
-
 ## Session history
 
 - **v0.1.0** (tag) — single-file prototype (`wayforkprototype1.jsx`) wrapped in
