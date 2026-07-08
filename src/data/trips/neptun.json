@@ -95,7 +95,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d1-s2",
@@ -155,7 +160,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d1-s2b",
@@ -180,7 +190,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun Beach",
+            "lat": 43.811,
+            "lon": 28.5885
+          }
         },
         {
           "id": "nep-d1-s3",
@@ -205,7 +220,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d1-s4",
@@ -237,7 +257,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         }
       ],
       "location": {
@@ -309,7 +334,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d2-s2",
@@ -341,7 +371,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d2-s2b",
@@ -366,7 +401,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d2-s3",
@@ -415,7 +455,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Comorova Forest",
+            "lat": 43.822,
+            "lon": 28.576
+          }
         },
         {
           "id": "nep-d2-s4",
@@ -440,7 +485,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         }
       ],
       "location": {
@@ -526,7 +576,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Mangalia",
+            "lat": 43.8175,
+            "lon": 28.5831
+          }
         },
         {
           "id": "nep-d3-s2",
@@ -568,7 +623,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Mangalia Marina",
+            "lat": 43.8206,
+            "lon": 28.5859
+          }
         },
         {
           "id": "nep-d3-s3",
@@ -600,7 +660,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Mangalia",
+            "lat": 43.8167,
+            "lon": 28.584
+          }
         },
         {
           "id": "nep-d3-s4",
@@ -625,7 +690,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         }
       ],
       "location": {
@@ -669,7 +739,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Neptun, Romania",
+            "lat": 43.81,
+            "lon": 28.585
+          }
         },
         {
           "id": "nep-d4-s2",
@@ -729,7 +804,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Bucharest, Romania",
+            "lat": 44.4268,
+            "lon": 26.1025
+          }
         }
       ],
       "location": {

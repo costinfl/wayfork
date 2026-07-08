@@ -102,6 +102,15 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
           }
         }
       }
+      if (s.place !== undefined && s.place !== null) {
+        if (!isObj(s.place)) {
+          err(`${sw}.place must be null or an object with name/lat/lon`);
+        } else {
+          checkStr(s.place, "name", `${sw}.place`);
+          checkNum(s.place, "lat", `${sw}.place`);
+          checkNum(s.place, "lon", `${sw}.place`);
+        }
+      }
       for (const [k, v] of checkArr(s, "variants", sw).entries()) {
         const vw = `${sw}.variants[${k}]`;
         if (!isObj(v)) {

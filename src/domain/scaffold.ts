@@ -1,5 +1,5 @@
 import { newId, newUid } from "./mutate";
-import type { Day, ItinerarySlot, Trip } from "./types";
+import type { Day, ItinerarySlot, Place, Trip } from "./types";
 
 // Build a valid, editable *scaffold* trip from a small plan (starting point,
 // ordered destinations, dates, return flag). The scaffold is the contract the
@@ -7,12 +7,10 @@ import type { Day, ItinerarySlot, Trip } from "./types";
 // truth; every placeholder slot is marked `estimated` so it reads as unverified
 // until enriched. Pure and framework-free — no fetch, no React.
 
-export interface Place {
-  name: string;
-  lat: number;
-  lon: number;
-  country?: string;
-}
+// Re-exported for the many call sites that import Place alongside PlanInput /
+// scaffoldTrip; the canonical definition now lives in types.ts (so ItinerarySlot
+// can reference it without a circular import).
+export type { Place } from "./types";
 
 export interface PlanInput {
   startPoint: Place;

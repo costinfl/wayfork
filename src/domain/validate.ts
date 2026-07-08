@@ -65,6 +65,11 @@ export function validateTrip(trip: Trip): string[] {
       if (!slot.variants.some((v) => v.id === slot.defaultVariantId)) {
         err(`slot ${slot.id}: defaultVariantId "${slot.defaultVariantId}" is not one of its variants`);
       }
+      if (slot.place) {
+        const { lat, lon } = slot.place;
+        if (!(lat >= -90 && lat <= 90)) err(`slot ${slot.id}: place lat ${lat} must be in [-90, 90]`);
+        if (!(lon >= -180 && lon <= 180)) err(`slot ${slot.id}: place lon ${lon} must be in [-180, 180]`);
+      }
       if (slot.checkpoint) {
         if (slot.checkpoint.timeMin < 0 || !Number.isInteger(slot.checkpoint.timeMin)) {
           err(`slot ${slot.id}: checkpoint timeMin must be a non-negative integer`);

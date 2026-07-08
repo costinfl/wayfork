@@ -52,6 +52,7 @@ interface ItinerarySlot {
   variants: VariantNode[];     // >= 1; the UI forks when there are 2+
   defaultVariantId: string;    // must be one of the variants' ids
   checkpoint: { label: string; timeMin: number; bufferMin: number } | null;
+  place?: { name: string; lat: number; lon: number } | null; // for the day map
 }
 
 interface Day {
@@ -195,6 +196,10 @@ at noon.
   currencies, with amounts plausible for the destinations.
 - Flights and prepaid entry tickets get variant cost 0 — their money belongs
   in the pre-trip ledger as expenses instead.
+- Each slot SHOULD carry a `place` with the real `name`/`lat`/`lon` of where it
+  ends or happens (airport, station, museum, neighbourhood) — the day map draws
+  the journey through them. It stays optional: omit it (or use `null`) only when
+  there is genuinely no meaningful point.
 
 ## Style reference (excerpt of a valid document)
 

@@ -65,6 +65,37 @@ describe("parseTrip — estimated provenance flag", () => {
   });
 });
 
+describe("parseTrip — slot place", () => {
+  it("round-trips a slot place", () => {
+    const { trip, errors } = roundTrip((t) => {
+      t.days[0].slots[0].place = { name: "Rome FCO", lat: 41.8, lon: 12.24 };
+    });
+    expect(errors).toEqual([]);
+    expect(trip?.days[0].slots[0].place).toEqual({ name: "Rome FCO", lat: 41.8, lon: 12.24 });
+  });
+
+  it("keeps an absent place absent", () => {
+    const { trip, errors } = roundTrip((t) => delete t.days[0].slots[0].place);
+    expect(errors).toEqual([]);
+    expect(trip?.days[0].slots[0].place).toBeUndefined();
+  });
+
+  it("rejects a place with an out-of-range latitude (semantic)", () => {
+    const { trip, errors } = roundTrip((t) => {
+      t.days[0].slots[0].place = { name: "Nowhere", lat: 120, lon: 0 };
+    });
+    expect(trip).toBeNull();
+    expect(errors.join("\n")).toContain("place lat 120 must be in [-90, 90]");
+  });
+
+  it("rejects a structurally malformed place", () => {
+    const { errors } = roundTrip((t) => {
+      t.days[0].slots[0].place = { name: "Bad", lat: "x", lon: 0 };
+    });
+    expect(errors.join("\n")).toContain("place.lat must be a number");
+  });
+});
+
 describe("parseTrip — structural rejections", () => {
   it("rejects non-objects", () => {
     expect(parseTrip("hello").errors[0]).toContain("expected a JSON object");

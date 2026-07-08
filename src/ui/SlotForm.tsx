@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { starterSlot } from "../domain/mutate";
 import { fmtTime } from "../domain/time";
-import type { Checkpoint, ItinerarySlot, Trip } from "../domain/types";
+import type { Checkpoint, ItinerarySlot, Place, Trip } from "../domain/types";
+import { PlaceInput } from "./PlaceInput";
 import { C, mono } from "./theme";
 
 const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
@@ -26,6 +27,7 @@ export function SlotForm({
   const [cpTime, setCpTime] = useState(cp ? fmtTime(cp.timeMin) : "12:00");
   const [cpBuffer, setCpBuffer] = useState(cp ? String(cp.bufferMin) : "15");
   const [cpOpens, setCpOpens] = useState(cp?.opensMin != null ? fmtTime(cp.opensMin) : "");
+  const [place, setPlace] = useState<Place | null>(initial?.place ?? null);
   const [errors, setErrors] = useState<string[]>([]);
 
   const submit = () => {
@@ -51,9 +53,10 @@ export function SlotForm({
       setErrors(pre);
       return;
     }
-    const slot: ItinerarySlot = initial
+    const base: ItinerarySlot = initial
       ? { ...initial, title: title.trim(), checkpoint }
       : { ...starterSlot(trip.currencies.local, title.trim()), checkpoint };
+    const slot: ItinerarySlot = { ...base, place };
     setErrors(onSave(slot));
   };
 
@@ -69,6 +72,14 @@ export function SlotForm({
           style={inputStyle}
         />
       </label>
+      <div className="mb-2">
+        <PlaceInput
+          label="Location on map (optional)"
+          placeholder="search a place… — leave blank for none"
+          value={place}
+          onChange={setPlace}
+        />
+      </div>
       <label className="text-xs flex items-center gap-2 mb-2" style={{ color: C.sub }}>
         <input
           type="checkbox"

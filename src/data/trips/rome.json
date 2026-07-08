@@ -91,7 +91,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Henri Coandă Airport (OTP)",
+            "lat": 44.5711,
+            "lon": 26.0858
+          }
         },
         {
           "id": "slot-sec",
@@ -123,7 +128,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Henri Coandă Airport (OTP)",
+            "lat": 44.5711,
+            "lon": 26.0858
+          }
         },
         {
           "id": "slot-flight",
@@ -160,7 +170,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Rome Fiumicino (FCO)",
+            "lat": 41.8003,
+            "lon": 12.2389
+          }
         },
         {
           "id": "slot-fco",
@@ -223,7 +238,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Trastevere, Rome",
+            "lat": 41.889,
+            "lon": 12.4693
+          }
         }
       ],
       "location": {

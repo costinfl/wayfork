@@ -95,7 +95,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Henri Coandă Airport (OTP)",
+            "lat": 44.5711,
+            "lon": 26.0858
+          }
         },
         {
           "id": "lx-slot-sec",
@@ -127,7 +132,12 @@
                 "currency": "RON"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Henri Coandă Airport (OTP)",
+            "lat": 44.5711,
+            "lon": 26.0858
+          }
         },
         {
           "id": "lx-slot-flight",
@@ -164,7 +174,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Lisbon Airport (LIS)",
+            "lat": 38.7756,
+            "lon": -9.1354
+          }
         },
         {
           "id": "lx-slot-lis",
@@ -234,7 +249,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Alfama, Lisbon",
+            "lat": 38.7139,
+            "lon": -9.1277
+          }
         }
       ],
       "location": {
@@ -317,7 +337,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Belém, Lisbon",
+            "lat": 38.6979,
+            "lon": -9.2065
+          }
         },
         {
           "id": "lx-slot-jeronimos",
@@ -354,7 +379,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Jerónimos Monastery",
+            "lat": 38.6979,
+            "lon": -9.2063
+          }
         },
         {
           "id": "lx-slot-lunch",
@@ -386,7 +416,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Pastéis de Belém",
+            "lat": 38.6975,
+            "lon": -9.2032
+          }
         },
         {
           "id": "lx-slot-lx",
@@ -435,7 +470,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "LX Factory",
+            "lat": 38.7028,
+            "lon": -9.1786
+          }
         }
       ],
       "location": {
@@ -496,7 +536,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Rossio Station",
+            "lat": 38.7141,
+            "lon": -9.1394
+          }
         },
         {
           "id": "lx-slot-sintra-train",
@@ -532,7 +577,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Sintra Station",
+            "lat": 38.7986,
+            "lon": -9.3868
+          }
         },
         {
           "id": "lx-slot-pena",
@@ -581,7 +631,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Pena Palace, Sintra",
+            "lat": 38.7876,
+            "lon": -9.3905
+          }
         },
         {
           "id": "lx-slot-return",
@@ -634,7 +689,12 @@
                 "currency": "EUR"
               }
             }
-          ]
+          ],
+          "place": {
+            "name": "Pena Palace, Sintra",
+            "lat": 38.7876,
+            "lon": -9.3905
+          }
         }
       ],
       "location": {

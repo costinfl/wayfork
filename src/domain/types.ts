@@ -58,12 +58,25 @@ export interface Checkpoint {
   opensMin?: number | null;
 }
 
+// A named geographic point (city, landmark, station). The canonical shape used
+// by geocoding, the plan-a-trip scaffold, and per-slot map coordinates.
+export interface Place {
+  name: string;
+  lat: number;
+  lon: number;
+  country?: string;
+}
+
 export interface ItinerarySlot {
   id: string;
   title: string;
   variants: VariantNode[]; // >= 1; active one tracked in UI state
   defaultVariantId: string;
   checkpoint: Checkpoint | null;
+  // Where the slot ends / takes place, for the day-journey map. Optional and
+  // absent-by-default so old trips stay valid; the map connects across slots
+  // that have none.
+  place?: Place | null;
 }
 
 // Where the day happens, for weather lookups. Optional — days without a
