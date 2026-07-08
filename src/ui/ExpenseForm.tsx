@@ -25,6 +25,7 @@ export function ExpenseForm({
   const [payerId, setPayerId] = useState(initial?.payerId ?? trip.participants[0].id);
   const [phase, setPhase] = useState<ExpensePhase>(initial?.phase ?? "mid-trip");
   const [splitType, setSplitType] = useState<SplitDef["type"]>(initial?.split.type ?? "equal");
+  const [estimated, setEstimated] = useState(initial?.estimated ?? false);
   const [shares, setShares] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       trip.participants.map((p) => {
@@ -63,6 +64,7 @@ export function ExpenseForm({
       amount: amt,
       currency,
       split,
+      ...(estimated ? { estimated: true } : {}),
     };
     setErrors(onSave(exp));
   };
@@ -148,6 +150,14 @@ export function ExpenseForm({
             </select>
           </label>
         </div>
+        <label className="text-xs flex items-center gap-1.5" style={{ color: C.sub }}>
+          <input
+            type="checkbox"
+            checked={estimated}
+            onChange={(e) => setEstimated(e.target.checked)}
+          />
+          Estimated amount
+        </label>
       </div>
 
       {splitType !== "equal" && (

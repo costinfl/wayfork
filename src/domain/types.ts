@@ -103,6 +103,9 @@ export interface ExpenseItem {
   amount: number;
   currency: CurrencyCode; // stored natively in input currency
   split: SplitDef;
+  // Provenance: true marks an approximated/placeholder amount the user has not
+  // yet verified. Absent = not claimed either way (backward compatible).
+  estimated?: boolean;
 }
 
 export interface TripCurrencies {

@@ -110,6 +110,9 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
         }
         checkStr(v, "id", vw);
         checkStr(v, "name", vw);
+        if (v.estimated !== undefined && typeof v.estimated !== "boolean") {
+          err(`${vw}.estimated, when present, must be a boolean`);
+        }
         if (!isObj(v.cost)) {
           err(`${vw}.cost must be an object with amount and currency`);
         } else {
@@ -154,6 +157,9 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
     checkStr(e, "payerId", ew);
     checkStr(e, "currency", ew);
     checkNum(e, "amount", ew);
+    if (e.estimated !== undefined && typeof e.estimated !== "boolean") {
+      err(`${ew}.estimated, when present, must be a boolean`);
+    }
     if (e.phase !== "pre-trip" && e.phase !== "mid-trip") {
       err(`${ew}.phase must be "pre-trip" or "mid-trip"`);
     }

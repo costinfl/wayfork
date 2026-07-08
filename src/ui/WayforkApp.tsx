@@ -33,6 +33,7 @@ import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Trip, VariantNode }
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { DayForm } from "./DayForm";
+import { EstBadge } from "./EstBadge";
 import { ExpenseForm } from "./ExpenseForm";
 import { SlotForm } from "./SlotForm";
 import { TripForm } from "./TripForm";
@@ -1163,6 +1164,7 @@ function TripView({
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
+                      {e.estimated && <EstBadge />}
                       <span style={mono}>{money(convert(e.amount, e.currency, viewCcy, rates), viewCcy)}</span>
                       {canEdit && (
                         <>
