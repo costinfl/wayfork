@@ -1,0 +1,293 @@
+{
+  "id": "tm-trip-sicily-bari-0726",
+  "name": "Taormina to Bari Scenic Railway · July 2026",
+  "participants": [
+    { "id": "tm-p1", "name": "Elena" },
+    { "id": "tm-p2", "name": "Sofia" }
+  ],
+  "currencies": {
+    "home": "RON",
+    "local": "EUR",
+    "intl": "USD"
+  },
+  "days": [
+    {
+      "id": "tm-day-1",
+      "date": "2026-07-08",
+      "startTimeMin": 540,
+      "location": {
+        "name": "Bari Centrale",
+        "lat": 41.1186,
+        "lon": 16.8697
+      },
+      "slots": [
+        {
+          "id": "tm-slot-d1-s1",
+          "title": "Taormina-Giardini Station Wait & Departure",
+          "defaultVariantId": "tm-v-d1-s1-delayed",
+          "checkpoint": {
+            "label": "Scheduled IC 734 Departure",
+            "timeMin": 570,
+            "bufferMin": 10
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s1-delayed",
+              "name": "Delayed Departure (50-Min Delay)",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s1-d1", "type": "wait", "label": "Wait on platform for delayed inbound train", "durationMin": 75, "distanceKm": null },
+                { "id": "tm-ms-d1-s1-d2", "type": "walk", "label": "Board Intercity 734", "durationMin": 5, "distanceKm": 0.1 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s2",
+          "title": "IC 734: Taormina → Villa San Giovanni Ferry Crossing",
+          "defaultVariantId": "tm-v-d1-s2-ferry",
+          "checkpoint": {
+            "label": "Expected Arrival Villa S.G.",
+            "timeMin": 740,
+            "bufferMin": 5
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s2-ferry",
+              "name": "Delayed Ferry Crossing",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s2-f1", "type": "train", "label": "Coastal run to Messina Centrale", "durationMin": 40, "distanceKm": 48.0 },
+                { "id": "tm-ms-d1-s2-f2", "type": "transfer", "label": "Carriage shunting on board the ferryboat", "durationMin": 50, "distanceKm": null },
+                { "id": "tm-ms-d1-s2-f3", "type": "transfer", "label": "Strait crossing & shunting off at Villa S.G.", "durationMin": 30, "distanceKm": null }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s3",
+          "title": "Villa San Giovanni Layover (Missed Connection)",
+          "defaultVariantId": "tm-v-d1-s3-missed",
+          "checkpoint": {
+            "label": "Departure of original IC 562",
+            "timeMin": 712,
+            "bufferMin": 15
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s3-missed",
+              "name": "Missed Connection & Re-routing",
+              "cost": { "amount": 45, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s3-m1", "type": "walk", "label": "Disembark train & head to ticket desk", "durationMin": 15, "distanceKm": 0.4 },
+                { "id": "tm-ms-d1-s3-m2", "type": "wait", "label": "Wait on platform 3 for Regionale 6184", "durationMin": 37, "distanceKm": null }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s4",
+          "title": "Regionale 6184: Villa S. Giovanni → Castiglione Cosentino",
+          "defaultVariantId": "tm-v-d1-s4-regio",
+          "checkpoint": {
+            "label": "Arrival at Castiglione Cosentino",
+            "timeMin": 940,
+            "bufferMin": 5
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s4-regio",
+              "name": "Regionale 6184 Calabrian Run",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s4-r1", "type": "train", "label": "Regional transit past Lamezia Terme to Cosenza", "durationMin": 148, "distanceKm": 182.0 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s5",
+          "title": "Castiglione Cosentino Connection",
+          "defaultVariantId": "tm-v-d1-s5-transfer",
+          "checkpoint": {
+            "label": "Departure of Regionale 12870",
+            "timeMin": 945,
+            "bufferMin": 5
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s5-transfer",
+              "name": "Quick Cross-Platform Transfer",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s5-t1", "type": "transfer", "label": "Hurry across to Platform 3", "durationMin": 5, "distanceKm": 0.1 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s6",
+          "title": "Regionale 12870: Castiglione Cosentino → Sibari",
+          "defaultVariantId": "tm-v-d1-s6-regio",
+          "checkpoint": {
+            "label": "Arrival at Sibari Station",
+            "timeMin": 992,
+            "bufferMin": 10
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s6-regio",
+              "name": "Regionale 12870 Sibaritide",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s6-r1", "type": "train", "label": "Local line crossing to Sibari", "durationMin": 47, "distanceKm": 41.0 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s7",
+          "title": "Sibari Junction: Catching Intercity 562",
+          "defaultVariantId": "tm-v-d1-s7-catch",
+          "checkpoint": {
+            "label": "Intercity 562 Departure from Sibari",
+            "timeMin": 1031,
+            "bufferMin": 15
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s7-catch",
+              "name": "Intercept Intercity 562",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s7-c1", "type": "wait", "label": "Wait on platform for the incoming IC 562 from the coast", "durationMin": 34, "distanceKm": null },
+                { "id": "tm-ms-d1-s7-c2", "type": "walk", "label": "Re-board Intercity 562 carriage", "durationMin": 5, "distanceKm": 0.1 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s8",
+          "title": "IC 562: Sibari → Taranto",
+          "defaultVariantId": "tm-v-d1-s8-train",
+          "checkpoint": {
+            "label": "Arrival at Taranto Station",
+            "timeMin": 1120,
+            "bufferMin": 5
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s8-train",
+              "name": "Intercity Ionian Leg",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s8-t1", "type": "train", "label": "Transit around the Gulf of Taranto", "durationMin": 89, "distanceKm": 122.0 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tm-slot-d1-s9",
+          "title": "IC 562: Taranto → Bari Centrale",
+          "defaultVariantId": "tm-v-d1-s9-train",
+          "checkpoint": {
+            "label": "Arrival at Bari Centrale",
+            "timeMin": 1196,
+            "bufferMin": 10
+          },
+          "variants": [
+            {
+              "id": "tm-v-d1-s9-train",
+              "name": "Final Apulian Leg",
+              "cost": { "amount": 0, "currency": "RON" },
+              "microSteps": [
+                { "id": "tm-ms-d1-s9-t1", "type": "wait", "label": "Taranto station scheduled stopover", "durationMin": 10, "distanceKm": null },
+                { "id": "tm-ms-d1-s9-t2", "type": "train", "label": "High-speed rail corridor north to Bari", "durationMin": 66, "distanceKm": 112.0 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expenses": [
+    {
+      "id": "tm-exp-1",
+      "phase": "pre-trip",
+      "label": "Trenitalia Intercity Booking (Elena)",
+      "payerId": "tm-p1",
+      "amount": 120,
+      "currency": "EUR",
+      "split": {
+        "type": "equal"
+      }
+    },
+    {
+      "id": "tm-exp-2",
+      "phase": "pre-trip",
+      "label": "Trenitalia Seat Upgrades (Sofia)",
+      "payerId": "tm-p2",
+      "amount": 200,
+      "currency": "RON",
+      "split": {
+        "type": "percent",
+        "shares": {
+          "tm-p1": 0.5,
+          "tm-p2": 0.5
+        }
+      }
+    },
+    {
+      "id": "tm-exp-3",
+      "phase": "mid-trip",
+      "label": "Strait Ferry Deck Coffee & Aperitifs",
+      "payerId": "tm-p1",
+      "amount": 25,
+      "currency": "EUR",
+      "split": {
+        "type": "equal"
+      }
+    },
+    {
+      "id": "tm-exp-4",
+      "phase": "mid-trip",
+      "label": "Emergency Regional Tickets (R6184 & R12870)",
+      "payerId": "tm-p2",
+      "amount": 110,
+      "currency": "RON",
+      "split": {
+        "type": "fixed",
+        "shares": {
+          "tm-p1": 55,
+          "tm-p2": 55
+        }
+      }
+    },
+    {
+      "id": "tm-exp-5",
+      "phase": "mid-trip",
+      "label": "Sibari Platform Snacks & Water",
+      "payerId": "tm-p1",
+      "amount": 12,
+      "currency": "EUR",
+      "split": {
+        "type": "percent",
+        "shares": {
+          "tm-p1": 0.5,
+          "tm-p2": 0.5
+        }
+      }
+    },
+    {
+      "id": "tm-exp-6",
+      "phase": "mid-trip",
+      "label": "Bari Centrale Taxi to Destination",
+      "payerId": "tm-p2",
+      "amount": 18,
+      "currency": "USD",
+      "split": {
+        "type": "equal"
+      }
+    }
+  ]
+}
