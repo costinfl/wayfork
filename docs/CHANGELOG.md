@@ -254,3 +254,14 @@
   provenance flag on `VariantNode`/`ExpenseItem` (parser + muted "est." badge +
   form checkbox). 184 tests; E2E-verified (Rome→Florence, return, geocoding
   stubbed): autocomplete dropdown, 6-day scaffold timeline, copy-ready prompt.
+- **v0.28.0** — Day-journey map. A lazy-loaded Leaflet + OSM map (the repo's
+  first runtime dependency, own ~46KB-gzip chunk) sits beside the day's timeline
+  (two columns wide, toggleable panel on mobile). Slots gained an optional
+  `place` (canonical `Place` in types.ts; parsed/validated; SlotForm autocomplete
+  via an extracted `PlaceInput`; built-in Rome/Lisbon/Neptun backfilled). Pure
+  `domain/geometry.ts` (`dayTrack` + `offsetArc`) builds segments; the active
+  chain draws a solid route (OSRM road/foot geometry via `domain/route.ts`,
+  straight-line fallback, cached), forks' alternatives dashed schematic arcs,
+  clickable to activate. Variant cards gain a ⌖ focus button. 207 tests
+  (geometry/route/DayMap/VariantCard, Leaflet mocked); Playwright-verified on
+  Rome day 1 (tiles/OSRM stubbed): active track, focus, solid/dashed restyle.

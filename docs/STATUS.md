@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v0.27 — 184 tests green
+## Current version: v0.28 — 207 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -21,11 +21,18 @@ start date + number of days, return-to-start toggle) builds a validated
 prompt (`domain/prompt.ts` + `docs/trip-prompt.md`); the paste/upload path
 replaces a matching scaffold in place and flags any drift from it. New
 `estimated` provenance flag on variants/expenses (muted badge + form checkbox).
+**Day-journey map (v0.28):** Leaflet + OSM (first runtime dep, lazy-loaded)
+beside the selected day's timeline — the active variant chain as a solid route
+(OSRM road/foot geometry via `domain/route.ts`, straight-line fallback),
+forked alternatives as dashed schematic arcs (`domain/geometry.ts`) that are
+clickable to activate; a ⌖ button on each variant card focuses its segment.
+Slots gained an optional `place` (built-in Rome/Lisbon/Neptun backfilled).
 
 ## NEXT TASK — Component/UI test coverage for the big components
 
-The pure domain and store layers are well unit-tested; `PlanTripForm` now has
-jsdom coverage too, but the other large React components do not: `WayforkApp`
+The pure domain and store layers are well unit-tested; `PlanTripForm`,
+`VariantCard`, and `DayMap` (wiring, Leaflet mocked) now have jsdom coverage
+too, but the other large React components do not: `WayforkApp`
 (store wiring, the sync poll, and the `saveTrip` conflict → `mergeTrip` → retry
 path — browser-verified in v0.25 but not unit-tested), the CRUD forms, and
 `TripView`. The harness already exists (jsdom + @testing-library, opt-in per
@@ -35,6 +42,20 @@ wiring first (inject a stub `TripStore` that throws `TripConflictError`), then
 the forms and `TripView`.
 
 ## Open items (after the test-coverage task)
+- Day map — no real transit geometry: metro/train/tram (and same-endpoint
+  forks) draw schematic arcs, because no free worldwide transit-routing API
+  exists. Transitous (transitous.org) is the candidate for real rail/transit
+  shapes — future work.
+- Day map — geometry is per-slot (a variant's segment routes into the slot's
+  place). Per-micro-step waypoints (route through each leg's intermediate
+  points) would be richer but needs a place per step, not per slot.
+- Day map — the first located slot of a day is the map origin, so its own
+  segment is degenerate (marker only); its ⌖ pans to the marker. A distinct
+  day-origin point (e.g. the hotel, or the prior day's last place) would give
+  it a real leg.
+- Day map — OSRM public demo server + OSM tiles are courtesy services with no
+  SLA; before any real traffic, self-host/route through a keyed provider and
+  honour the OSM tile usage policy.
 - Scaffold replace is automatic: pasting a trip whose id matches an existing
   scaffold overwrites that row in place and surfaces day/date/location drift as
   a warning list — but there is no explicit "Replace scaffold" confirmation step

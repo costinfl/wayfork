@@ -42,6 +42,9 @@ function DayMapImpl(
   const mapRef = useRef<L.Map | null>(null);
   // Drawn polylines keyed by `${slotId}:${variantId}` so focus can find them.
   const linesRef = useRef<Map<string, L.Polyline>>(new Map());
+  // Each slot's place point, so focus can still pan to a slot whose segment is
+  // degenerate (the day's origin slot draws no line).
+  const pointsRef = useRef<Map<string, [number, number]>>(new Map());
   const layersRef = useRef<L.Layer[]>([]);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -67,6 +70,8 @@ function DayMapImpl(
     for (const layer of layersRef.current) layer.remove();
     layersRef.current = [];
     linesRef.current.clear();
+    pointsRef.current.clear();
+    for (const seg of segments) pointsRef.current.set(seg.slotId, [seg.to.lat, seg.to.lon]);
 
     const allPoints: [number, number][] = [];
 
@@ -141,13 +146,19 @@ function DayMapImpl(
   useImperativeHandle(ref, () => ({
     focusSegment: (slotId, variantId) => {
       const map = mapRef.current;
+      if (!map) return;
       const line = linesRef.current.get(`${slotId}:${variantId}`);
-      if (!map || !line) return;
-      map.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 15 });
-      const restore = line.options.dashArray ? altStyle : activeStyle;
-      line.setStyle({ weight: 9, opacity: 1 });
-      if (highlightTimer.current) clearTimeout(highlightTimer.current);
-      highlightTimer.current = setTimeout(() => line.setStyle(restore), 2000);
+      if (line) {
+        map.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 15 });
+        const restore = line.options.dashArray ? altStyle : activeStyle;
+        line.setStyle({ weight: 9, opacity: 1 });
+        if (highlightTimer.current) clearTimeout(highlightTimer.current);
+        highlightTimer.current = setTimeout(() => line.setStyle(restore), 2000);
+        return;
+      }
+      // Degenerate segment (the day's origin slot) — just pan to its marker.
+      const point = pointsRef.current.get(slotId);
+      if (point) map.setView(point, 15);
     },
   }));
 
