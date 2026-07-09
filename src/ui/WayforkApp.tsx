@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } from "../data/repository";
@@ -53,6 +53,30 @@ import type { AddTripResult } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
 import { WeatherBadge } from "./WeatherBadge";
+import type { DayMapHandle } from "./DayMap";
+
+// Leaflet + its CSS load only when the map actually renders (kept out of the
+// entry bundle). See DayMap.tsx.
+const DayMap = lazy(() => import("./DayMap"));
+
+// Reactive media query — drives the timeline/map two-column split. Guards
+// against environments without matchMedia (jsdom).
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(query).matches
+      : false
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
@@ -774,6 +798,20 @@ function TripView({
   const [variantForm, setVariantForm] = useState<{ slotId: string; variant: VariantNode | null } | null>(null);
   const [editError, setEditError] = useState<string[]>([]);
 
+  // Day-journey map: always shown beside the timeline on wide viewports, a
+  // toggleable panel below the breakpoint.
+  const isWide = useMediaQuery("(min-width: 1024px)");
+  const [mapOpen, setMapOpen] = useState(false);
+  const showMap = isWide || mapOpen;
+  const dayMapRef = useRef<DayMapHandle>(null);
+  const focusVariant = (slotId: string, variantId: string) => {
+    setMapOpen(true);
+    // Let the (lazy) map mount/paint before panning to the segment.
+    setTimeout(() => dayMapRef.current?.focusSegment(slotId, variantId), 60);
+  };
+  const activateVariant = (slotId: string, variantId: string) =>
+    setActiveVariants((s) => ({ ...s, [slotId]: variantId }));
+
   // Validate, then persist through the repository; returns the problems.
   const applyTrip = (next: Trip): string[] => {
     const errors = validateTrip(next);
@@ -922,8 +960,45 @@ function TripView({
         />
       )}
 
-      {/* Timeline */}
-      <section className="rounded-xl p-4 mb-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+      {/* Mobile map toggle (desktop shows the map beside the timeline) */}
+      <div className="lg:hidden mb-3">
+        <button
+          onClick={() => setMapOpen((o) => !o)}
+          className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+          style={{
+            border: `1px solid ${mapOpen ? C.line : C.border}`,
+            background: mapOpen ? C.lineSoft : C.card,
+            color: C.line,
+          }}
+        >
+          🗺 {mapOpen ? "Hide map" : "Show journey map"}
+        </button>
+      </div>
+
+      {/* Timeline + day-journey map (two columns on wide viewports) */}
+      <div className="flex flex-col lg:flex-row lg:gap-6 lg:items-start mb-6">
+        {showMap && (
+          <div className="order-first lg:order-2 lg:w-2/5 lg:sticky lg:top-4 mb-4 lg:mb-0">
+            <Suspense
+              fallback={
+                <div
+                  className="rounded-xl flex items-center justify-center text-sm"
+                  style={{ height: 420, border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
+                >
+                  Loading map…
+                </div>
+              }
+            >
+              <DayMap
+                ref={dayMapRef}
+                day={day}
+                activeVariants={activeVariants}
+                onActivate={activateVariant}
+              />
+            </Suspense>
+          </div>
+        )}
+      <section className="rounded-xl p-4 lg:order-1 lg:flex-1 lg:min-w-0" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-bold flex items-center gap-2 flex-wrap">
             Day {dayIdx + 1} — {day.date}
@@ -1017,6 +1092,7 @@ function TripView({
                       rates={rates}
                       rainRisk={!!dayWeather && dayWeather.precipProb >= RAIN_RISK_THRESHOLD}
                       onSelect={() => setActiveVariants((s) => ({ ...s, [row.slot.id]: v.id }))}
+                      onFocus={row.slot.place ? () => focusVariant(row.slot.id, v.id) : undefined}
                     />
                   ))}
                 </div>
@@ -1128,6 +1204,7 @@ function TripView({
           Change the departure time or switch a variant — every downstream time and the checkpoint buffer recalculate instantly.
         </p>
       </section>
+      </div>
 
       {/* Ledger */}
       <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
