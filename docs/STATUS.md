@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v0.28 — 207 tests green
+## Current version: v1.0.0 — 226 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -27,25 +27,33 @@ beside the selected day's timeline — the active variant chain as a solid route
 forked alternatives as dashed schematic arcs (`domain/geometry.ts`) that are
 clickable to activate; a ⌖ button on each variant card focuses its segment.
 Slots gained an optional `place` (built-in Rome/Lisbon/Neptun backfilled).
+**POI discovery (v1.0.0):** free-API strategy documented in
+`docs/INTEGRATIONS.md` (keyless-first — client-side app means per-user IP
+quotas); Discover panel beside the day map (`domain/poi.ts` Overpass QL with
+mirror fallback + Wikipedia/Wikidata enrichment, `ui/DiscoverPanel.tsx`
+category chips/radius/add-to-day → placed starter slot); day-map ⛶
+fullscreen toggle (CSS overlay); owner-only Admin panel (`ui/AdminPanel.tsx`
++ `supabase/functions/admin-users` edge function gated on ADMIN_EMAIL —
+list/disable/enable/revoke-invites/delete-with-trips).
 
-## NEXT TASK — Component/UI test coverage for the big components
+## NEXT TASK — Transit micro-steps via Transitous (v1.1.0, Milestone B)
 
-The pure domain and store layers are well unit-tested; `PlanTripForm`,
-`VariantCard`, and `DayMap` (wiring, Leaflet mocked) now have jsdom coverage
-too, but the other large React components do not: `WayforkApp`
-(store wiring, the sync poll, and the `saveTrip` conflict → `mergeTrip` → retry
-path — browser-verified in v0.25 but not unit-tested), the CRUD forms, and
-`TripView`. The harness already exists (jsdom + @testing-library, opt-in per
-file via a `/** @vitest-environment jsdom */` docblock + `src/test/setup-dom.ts`;
-see `src/ui/*.test.tsx` for the pattern). Add coverage for the conflict/merge
-wiring first (inject a stub `TripStore` that throws `TripConflictError`), then
-the forms and `TripView`.
+Per `docs/INTEGRATIONS.md`: a `domain/transit.ts` adapter for the Transitous
+MOTIS 2 `plan` endpoint (`api.transitous.org`) that routes between two placed
+slots and maps the returned legs (walk/metro/train/bus, times, polylines)
+onto a new `VariantNode` with per-leg micro-steps; UI entry point on the
+variant card / between consecutive placed slots. Honour their fair-use note
+(user-initiated requests only, no prefetch). This also unlocks real transit
+geometry on the day map (open item since v0.28).
 
-## Open items (after the test-coverage task)
-- Day map — no real transit geometry: metro/train/tram (and same-endpoint
-  forks) draw schematic arcs, because no free worldwide transit-routing API
-  exists. Transitous (transitous.org) is the candidate for real rail/transit
-  shapes — future work.
+## Open items (after Milestone B)
+- Component/UI test coverage for the big components (deferred from v0.28):
+  `WayforkApp` store wiring, the sync poll, the `saveTrip` conflict →
+  `mergeTrip` → retry path (stub `TripStore` throwing `TripConflictError`),
+  the CRUD forms, and `TripView`. Harness pattern: `src/ui/*.test.tsx`.
+- Admin panel: live end-to-end pass (magic-link sign-in as
+  costinfl@gmail.com on the deployed site) — the sandbox can't do auth
+  emails; unit tests cover the wiring, the edge function is deployed.
 - Day map — geometry is per-slot (a variant's segment routes into the slot's
   place). Per-micro-step waypoints (route through each leg's intermediate
   points) would be richer but needs a place per step, not per slot.
@@ -54,8 +62,8 @@ the forms and `TripView`.
   day-origin point (e.g. the hotel, or the prior day's last place) would give
   it a real leg.
 - Day map — OSRM public demo server + OSM tiles are courtesy services with no
-  SLA; before any real traffic, self-host/route through a keyed provider and
-  honour the OSM tile usage policy.
+  SLA; tiles move to OpenFreeMap (keyless, unlimited) in v1.2.0 per
+  `docs/INTEGRATIONS.md`.
 - Scaffold replace is automatic: pasting a trip whose id matches an existing
   scaffold overwrites that row in place and surfaces day/date/location drift as
   a warning list — but there is no explicit "Replace scaffold" confirmation step

@@ -265,3 +265,23 @@
   clickable to activate. Variant cards gain a ⌖ focus button. 207 tests
   (geometry/route/DayMap/VariantCard, Leaflet mocked); Playwright-verified on
   Rome day 1 (tiles/OSRM stubbed): active track, focus, solid/dashed restyle.
+- **v1.0.0** — Free-API integrations, phase 1: POI discovery + admin. New
+  `docs/INTEGRATIONS.md` fixes the API strategy: the app is pure client-side,
+  so keyless per-IP services (Overpass, Wikipedia, Open-Meteo, OSRM,
+  Transitous, OpenFreeMap) scale per user, while keyed free tiers
+  (Mapbox/MapTiler/Geoapify) pool one quota — keyless-first, roadmap
+  v1.1.0 Transitous transit micro-steps → v1.2.0 OpenFreeMap vector tiles.
+  **Discover panel** (`domain/poi.ts` + `ui/DiscoverPanel.tsx`, collapsed by
+  default, beside the day map): Overpass QL nearby search (sights/museums/
+  food/parks chips, 1/3/10 km radius, primary instance + kumi mirror
+  fallback, distance-sorted, opening hours) with lazy Wikipedia/Wikidata
+  extracts + thumbnails, and one-click "Add to day" → placed starter slot
+  through the usual validate→save path. **Day map ⛶ fullscreen** (CSS
+  overlay, Esc exits, invalidateSize on toggle). **Admin panel**
+  (`ui/AdminPanel.tsx` + AuthBar 🛠 button for ADMIN_EMAIL only) backed by
+  the new `supabase/functions/admin-users` edge function (service-role ops
+  server-side, JWT email gate): list users + owned-trip counts,
+  disable/enable via auth ban, revoke shared access + pending invites
+  (owned trips kept), delete user cascading their trips. 226 tests
+  (poi/DiscoverPanel/AdminPanel/DayMap-fullscreen); Playwright-verified
+  (Overpass/Wikipedia/Supabase stubbed).
