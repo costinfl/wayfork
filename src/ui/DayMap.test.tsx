@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
 import type { Day, ItinerarySlot, Place, StepType, VariantNode } from "../domain/types";
 
@@ -28,7 +28,7 @@ vi.mock("leaflet", () => {
     return o;
   };
   const L = {
-    map: () => ({ setView: () => {}, fitBounds: () => {}, remove: () => {} }),
+    map: () => ({ setView: () => {}, fitBounds: () => {}, remove: () => {}, invalidateSize: () => {} }),
     tileLayer: () => ({ addTo: () => ({}) }),
     marker: () => ({ addTo: () => ({ remove: () => {} }), remove: () => {} }),
     divIcon: () => ({}),
@@ -103,5 +103,17 @@ describe("DayMap wiring", () => {
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
     const solid = polylines.filter((p) => !p.options.dashArray);
     for (const p of solid) expect(p._onClick).toBeUndefined();
+  });
+
+  it("toggles fullscreen via the ⛶ button and exits on Escape", () => {
+    render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
+    const btn = screen.getByLabelText("Fullscreen map");
+    fireEvent.click(btn);
+    const exit = screen.getByLabelText("Exit fullscreen map");
+    expect(exit.parentElement?.className).toContain("fixed inset-0");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByLabelText("Fullscreen map").parentElement?.className).not.toContain(
+      "fixed inset-0"
+    );
   });
 });

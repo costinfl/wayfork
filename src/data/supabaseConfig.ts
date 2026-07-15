@@ -8,3 +8,7 @@ export const SUPABASE_CONFIG: SupabaseConfig = {
   url: "https://uwffkbfwikwomzhbrthj.supabase.co",
   anonKey: "sb_publishable_mAf8edtczeP8jRR3qe38MQ_J38rse3l",
 };
+
+// Shows the Admin button for this account. Cosmetic only — the admin-users
+// edge function enforces the same email server-side against its own secret.
+export const ADMIN_EMAIL = "costinfl@gmail.com";
