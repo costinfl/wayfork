@@ -9,10 +9,14 @@ export function AuthBar({
   session,
   onSignIn,
   onSignOut,
+  isAdmin = false,
+  onAdmin,
 }: {
   session: Session | null;
   onSignIn: (email: string) => Promise<void>;
   onSignOut: () => void;
+  isAdmin?: boolean;
+  onAdmin?: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -28,13 +32,24 @@ export function AuthBar({
           Signed in as <b style={{ color: C.ink }}>{session.user.email || "your account"}</b> — trips
           sync to your account.
         </span>
-        <button
-          onClick={onSignOut}
-          className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
-          style={{ border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
-        >
-          Sign out
-        </button>
+        <span className="flex items-center gap-2">
+          {isAdmin && onAdmin && (
+            <button
+              onClick={onAdmin}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
+              style={{ border: `1px solid ${C.line}`, background: C.lineSoft, color: C.line }}
+            >
+              🛠 Admin
+            </button>
+          )}
+          <button
+            onClick={onSignOut}
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
+            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
+          >
+            Sign out
+          </button>
+        </span>
       </div>
     );
   }
