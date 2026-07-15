@@ -6,7 +6,7 @@ import type { TripStore } from "../data/repository";
 import { mergeTrip } from "../domain/merge";
 import { createAuthClient } from "../data/supabaseAuth";
 import type { Session } from "../data/supabaseAuth";
-import { SUPABASE_CONFIG } from "../data/supabaseConfig";
+import { ADMIN_EMAIL, SUPABASE_CONFIG } from "../data/supabaseConfig";
 import { createSupabaseStore } from "../data/supabaseStore";
 import { convert, money, RATES_EUR } from "../domain/currency";
 import type { RateMatrix } from "../domain/currency";
@@ -19,11 +19,14 @@ import {
   removeExpense,
   removeSlot,
   removeVariant,
+  starterSlot,
   upsertDay,
   upsertExpense,
   upsertSlot,
   upsertVariant,
 } from "../domain/mutate";
+import type { Poi } from "../domain/poi";
+import DiscoverPanel from "./DiscoverPanel";
 import { fetchRatesEUR } from "../domain/rates";
 import { scaffoldMismatches } from "../domain/scaffold";
 import { computeSchedule } from "../domain/schedule";
@@ -43,6 +46,7 @@ import { C, mono } from "./theme";
 import { createCollabClient } from "../data/collab";
 import type { MyMembership, TripInvite, TripMember, TripRole } from "../data/collab";
 import { AuthBar } from "./AuthBar";
+import AdminPanel from "./AdminPanel";
 import { InvitesInbox } from "./InvitesInbox";
 import { SharePanel } from "./SharePanel";
 import { MigrationBanner } from "./MigrationBanner";
@@ -558,10 +562,25 @@ export default function WayforkApp() {
     return [];
   };
 
+  const [adminOpen, setAdminOpen] = useState(false);
+  const isAdmin =
+    !!session && (session.user.email ?? "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
   return (
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
       <div className="max-w-2xl mx-auto">
-        {AUTH && <AuthBar session={session} onSignIn={signIn} onSignOut={signOut} />}
+        {AUTH && (
+          <AuthBar
+            session={session}
+            onSignIn={signIn}
+            onSignOut={signOut}
+            isAdmin={isAdmin}
+            onAdmin={() => setAdminOpen((o) => !o)}
+          />
+        )}
+        {isAdmin && adminOpen && session && (
+          <AdminPanel session={session} onClose={() => setAdminOpen(false)} />
+        )}
         {migratable.length > 0 && (
           <MigrationBanner
             trips={migratable}
@@ -834,6 +853,13 @@ function TripView({
     return errors;
   };
 
+  // One-click add from the Discover panel: a starter slot at the POI's place.
+  const addPoiSlot = (poi: Poi): string[] => {
+    const slot = starterSlot(trip.currencies.local, poi.name);
+    slot.place = { name: poi.name, lat: poi.lat, lon: poi.lon };
+    return applyTrip(upsertSlot(trip, day.id, slot));
+  };
+
   const saveVariant = (slotId: string) => (variant: VariantNode): string[] => {
     const errors = applyTrip(upsertVariant(trip, slotId, variant));
     if (!errors.length) setVariantForm(null);
@@ -996,6 +1022,7 @@ function TripView({
                 onActivate={activateVariant}
               />
             </Suspense>
+            <DiscoverPanel day={day} canEdit={canEdit} onAdd={addPoiSlot} />
           </div>
         )}
       <section className="rounded-xl p-4 lg:order-1 lg:flex-1 lg:min-w-0" style={{ background: C.card, border: `1px solid ${C.border}` }}>

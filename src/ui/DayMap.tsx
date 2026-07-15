@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { dayTrack, offsetArc, type TrackSegment } from "../domain/geometry";
@@ -50,7 +51,26 @@ function DayMapImpl(
 
   const { segments, unmapped } = dayTrack(day, activeVariants);
 
-  // Init the Leaflet map once.
+  // Fullscreen = a fixed CSS overlay (not the Fullscreen API — jsdom-testable
+  // and consistent across browsers). Leaflet must re-measure after the resize.
+  const [fullscreen, setFullscreen] = useState(false);
+  const toggleFullscreen = () => {
+    setFullscreen((f) => !f);
+    setTimeout(() => mapRef.current?.invalidateSize(), 60);
+  };
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") toggleFullscreen();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreen]);
+
+  // Init the Leaflet map. Re-created when fullscreen toggles: the portal
+  // switch remounts the container element, so the map must bind to the new
+  // node (the redraw effect below re-renders the track and refits bounds).
   useEffect(() => {
     if (!elRef.current || mapRef.current) return;
     const map = L.map(elRef.current, { scrollWheelZoom: false });
@@ -59,8 +79,10 @@ function DayMapImpl(
     return () => {
       map.remove();
       mapRef.current = null;
+      layersRef.current = [];
+      linesRef.current.clear();
     };
-  }, []);
+  }, [fullscreen]);
 
   // (Re)draw the whole track whenever the day or the active selection changes.
   useEffect(() => {
@@ -141,7 +163,7 @@ function DayMapImpl(
       map.fitBounds(allPoints, { padding: [40, 40] });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.id, JSON.stringify(activeVariants)]);
+  }, [day.id, JSON.stringify(activeVariants), fullscreen]);
 
   useImperativeHandle(ref, () => ({
     focusSegment: (slotId, variantId) => {
@@ -162,9 +184,31 @@ function DayMapImpl(
     },
   }));
 
-  return (
-    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}`, background: C.card }}>
-      <div ref={elRef} style={{ height: 420, width: "100%" }} aria-label="Day journey map" />
+  const panel = (
+    <div
+      className={
+        fullscreen ? "fixed inset-0 flex flex-col" : "rounded-xl overflow-hidden relative"
+      }
+      style={{
+        border: `1px solid ${C.border}`,
+        background: C.card,
+        ...(fullscreen ? { zIndex: 1100 } : {}),
+      }}
+    >
+      <button
+        onClick={toggleFullscreen}
+        aria-label={fullscreen ? "Exit fullscreen map" : "Fullscreen map"}
+        title={fullscreen ? "Exit fullscreen (Esc)" : "Fill the whole window"}
+        className="absolute top-2 right-2 w-8 h-8 rounded-lg text-base font-bold"
+        style={{ zIndex: 1050, border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
+      >
+        {fullscreen ? "✕" : "⛶"}
+      </button>
+      <div
+        ref={elRef}
+        style={fullscreen ? { flex: 1, width: "100%" } : { height: 420, width: "100%" }}
+        aria-label="Day journey map"
+      />
       {unmapped.length > 0 && (
         <div className="px-3 py-2 text-xs" style={{ color: C.sub, background: C.card }}>
           <span
@@ -178,6 +222,11 @@ function DayMapImpl(
       )}
     </div>
   );
+
+  // Fullscreen escapes to a body-level portal: the map column is a sticky
+  // flex item, and sticky elements form their own stacking context (Blink),
+  // which would trap the overlay's z-index under later page content.
+  return fullscreen ? createPortal(panel, document.body) : panel;
 }
 
 export const DayMap = forwardRef(DayMapImpl);
