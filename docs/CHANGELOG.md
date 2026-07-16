@@ -285,3 +285,23 @@
   (owned trips kept), delete user cascading their trips. 226 tests
   (poi/DiscoverPanel/AdminPanel/DayMap-fullscreen); Playwright-verified
   (Overpass/Wikipedia/Supabase stubbed).
+- **v1.0.1 + v1.1.0** — Field-feedback round on v1.0.0. Fixes (v1.0.1): the
+  admin panel's "Failed to fetch" was a doubly-failing CORS preflight
+  (`apikey` missing from Access-Control-Allow-Headers + verify_jwt 401-ing
+  the OPTIONS request) — headers widened, admin-users redeployed v2 with
+  verify_jwt off (handler self-gates on the admin JWT); Overpass hardened
+  (bare `historic=*` narrowed to tourist-grade values, `[timeout:12]` with a
+  matching 12 s client abort per endpoint, third mirror overpass.private.
+  coffee, and `fetchPois` now returns null-on-failure vs []-on-empty so the
+  panel can show "Overpass is busy — Retry" instead of a silent empty
+  state); Discover only fires from its explicit 🧭 button. Features
+  (v1.1.0): desktop wide view (~92 % width, default on, persisted, toggle
+  hidden below lg); the day map draws the search circle, a ⌖ center marker
+  and amber POI pins for the last search (`discover` prop, deterministic
+  fitBounds); a "Start from" select anchors discovery — added places insert
+  right after the anchor (new `insertSlotAfter` mutation) and the anchor
+  advances to each added slot; added slots connect with a real estimated
+  leg via new `estimateLeg` in domain/route.ts (OSRM foot ≤2.5 km with
+  distance-derived walk time, driving beyond with OSRM duration, haversine
+  ×1.3 fallback; variant flagged `estimated`). Transitous → v1.2.0,
+  OpenFreeMap → v1.3.0. 236 tests; Playwright-verified.
