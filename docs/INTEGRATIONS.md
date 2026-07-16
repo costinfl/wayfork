@@ -27,15 +27,18 @@ opt-in reliability upgrade for the small-audience case only.
 | Frankfurter (ECB) | tri-currency rates | fair use | v0.2x |
 | OSRM demo server | road/foot route geometry on the day map | courtesy, no SLA | v0.28 |
 | OSM raster tiles | day-map base layer | tile usage policy, no heavy use | v0.28 |
-| **Overpass API** (`overpass-api.de`, mirror `overpass.kumi.systems`) | POI discovery (Discover panel) | ~10k req/day + 1 GB/day; 429 + slot queue when busy | **v1.0.0** |
+| **Overpass API** (`overpass-api.de`, mirrors `overpass.kumi.systems`, `overpass.private.coffee`) | POI discovery (Discover panel) | ~10k req/day + 1 GB/day; 429 + slot queue when busy | **v1.0.0** |
 | **Wikipedia REST summary / Wikidata EntityData** | POI descriptions + thumbnails via OSM `wikipedia`/`wikidata` tags | generous | **v1.0.0** |
 | Transitous / MOTIS 2 (`api.transitous.org`) | worldwide transit routing → variant micro-steps | fair use; contact the project before heavy endpoints | v1.1.0 (planned) |
 | OpenFreeMap | keyless unlimited vector tiles (MapLibre) | unlimited, attribution required | v1.2.0 (planned) |
 
 Conventions for every adapter (see `src/domain/geocode.ts`, `poi.ts`,
-`route.ts`): pure module in `src/domain/`, injectable `fetchFn`, returns
-`[]`/`null` on any failure, one mirror/fallback at most, and the UI never
-fetches until the user asks (panels collapsed by default, debounced).
+`route.ts`): pure module in `src/domain/`, injectable `fetchFn`, `null`/`[]`
+on failure, client-side abort timeouts, and the UI never fetches until the
+user asks (Discover fires only on its explicit button since v1.0.1).
+Overpass queries stay cheap by design: narrowed tag selectors (no bare
+`historic=*`), `[timeout:12]` + a matching 12 s client abort per endpoint,
+and an 80-element output cap.
 
 ## Scale scenarios
 
@@ -67,10 +70,18 @@ is keyless.
 - **v1.0.0 — POI discovery (shipped).** Discover panel beside the day map:
   Overpass categories (sights/museums/food/parks), Wikipedia enrichment,
   one-click add-to-day.
-- **v1.1.0 — Transit micro-steps.** Transitous `plan` between consecutive
+- **v1.0.1 — field fixes (shipped).** Admin-function CORS preflight;
+  Overpass reliability (narrowed selectors, 12 s timeouts, third mirror,
+  failure ≠ empty + Retry); explicit Discover button.
+- **v1.1.0 — Discover & desktop UX (shipped).** Desktop wide view (~92%,
+  default on); search circle + ⌖ center + POI pins on the day map; added
+  slots insert after a chosen "Start from" anchor and connect with a real
+  estimated leg (OSRM foot ≤2.5 km / driving beyond, haversine fallback).
+- **v1.2.0 — Transit micro-steps.** Transitous `plan` between consecutive
   placed slots → real metro/train/bus legs inserted as a variant with
-  per-leg micro-steps (also fixes "no real transit geometry" on the map).
-- **v1.2.0 — OpenFreeMap vector tiles.** Swap OSM raster + Leaflet for
+  per-leg micro-steps (also fixes "no real transit geometry" on the map and
+  upgrades the v1.1.0 walk/drive estimates wherever transit fits).
+- **v1.3.0 — OpenFreeMap vector tiles.** Swap OSM raster + Leaflet for
   MapLibre GL + OpenFreeMap (keyless, unlimited); retires the OSM
   tile-policy risk noted since v0.28.
 - Later: per-micro-step waypoint routing; POI opening_hours →

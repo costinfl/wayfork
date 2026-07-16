@@ -12,7 +12,9 @@ import { convert, money, RATES_EUR } from "../domain/currency";
 import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
 import {
+  insertSlotAfter,
   moveSlot,
+  newId,
   newUid,
   nextDate,
   removeDay,
@@ -26,7 +28,9 @@ import {
   upsertVariant,
 } from "../domain/mutate";
 import type { Poi } from "../domain/poi";
-import DiscoverPanel from "./DiscoverPanel";
+import { estimateLeg } from "../domain/route";
+import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
+import type { DiscoverQuery } from "./DiscoverPanel";
 import { fetchRatesEUR } from "../domain/rates";
 import { scaffoldMismatches } from "../domain/scaffold";
 import { computeSchedule } from "../domain/schedule";
@@ -566,9 +570,28 @@ export default function WayforkApp() {
   const isAdmin =
     !!session && (session.user.email ?? "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
+  // Desktop wide view: ~92% of the window instead of the mobile-first 672px
+  // column. Default on (persisted per browser); the toggle hides below lg.
+  const [wide, setWide] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("wayfork.wideView") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const toggleWide = () =>
+    setWide((w) => {
+      try {
+        localStorage.setItem("wayfork.wideView", w ? "0" : "1");
+      } catch {
+        /* storage unavailable — session-only toggle */
+      }
+      return !w;
+    });
+
   return (
     <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
-      <div className="max-w-2xl mx-auto">
+      <div className={wide ? "w-[92%] max-w-none mx-auto" : "max-w-2xl mx-auto"}>
         {AUTH && (
           <AuthBar
             session={session}
@@ -604,6 +627,14 @@ export default function WayforkApp() {
           />
         )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
+          <button
+            onClick={toggleWide}
+            title={wide ? "Center the app in a narrow column" : "Use the whole window width"}
+            className="hidden lg:inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
+          >
+            {wide ? "⇥ Narrow" : "⇔ Wide"}
+          </button>
           {allTrips.length > 1 && (
             <select
               value={uidOf(trip)}
@@ -853,11 +884,40 @@ function TripView({
     return errors;
   };
 
-  // One-click add from the Discover panel: a starter slot at the POI's place.
-  const addPoiSlot = (poi: Poi): string[] => {
+  // Discover state shared between panel and map: the anchor slot new places
+  // chain after (null = last placed slot), and the last executed search so
+  // the map can draw its center/radius/pins. Both reset when the day changes.
+  const [discoverAnchorId, setDiscoverAnchorId] = useState<string | null>(null);
+  const [discoverQuery, setDiscoverQuery] = useState<DiscoverQuery | null>(null);
+  useEffect(() => {
+    setDiscoverAnchorId(null);
+    setDiscoverQuery(null);
+  }, [day.id]);
+
+  // One-click add from the Discover panel: a slot at the POI's place,
+  // inserted right after the anchor, connected by a real (estimated) leg —
+  // OSRM-routed walk ≤2.5km, drive beyond, haversine fallback. The anchor
+  // then advances to the new slot so subsequent adds chain onwards.
+  const addPoiSlot = async (poi: Poi): Promise<string[]> => {
+    const anchor = anchorSlot(day, discoverAnchorId);
     const slot = starterSlot(trip.currencies.local, poi.name);
     slot.place = { name: poi.name, lat: poi.lat, lon: poi.lon };
-    return applyTrip(upsertSlot(trip, day.id, slot));
+    if (anchor?.place) {
+      const leg = await estimateLeg(anchor.place, slot.place);
+      slot.variants[0].microSteps = [
+        {
+          id: newId("ms"),
+          type: leg.type,
+          label: `${leg.type === "walk" ? "Walk" : "Drive"} from ${anchor.place.name}`,
+          durationMin: leg.durationMin,
+          distanceKm: leg.distanceKm,
+        },
+      ];
+      slot.variants[0].estimated = true;
+    }
+    const errors = applyTrip(insertSlotAfter(trip, day.id, anchor?.id ?? null, slot));
+    if (!errors.length) setDiscoverAnchorId(slot.id);
+    return errors;
   };
 
   const saveVariant = (slotId: string) => (variant: VariantNode): string[] => {
@@ -1020,9 +1080,17 @@ function TripView({
                 day={day}
                 activeVariants={activeVariants}
                 onActivate={activateVariant}
+                discover={discoverQuery}
               />
             </Suspense>
-            <DiscoverPanel day={day} canEdit={canEdit} onAdd={addPoiSlot} />
+            <DiscoverPanel
+              day={day}
+              canEdit={canEdit}
+              anchorId={discoverAnchorId}
+              onAnchorChange={setDiscoverAnchorId}
+              onAdd={addPoiSlot}
+              onResults={setDiscoverQuery}
+            />
           </div>
         )}
       <section className="rounded-xl p-4 lg:order-1 lg:flex-1 lg:min-w-0" style={{ background: C.card, border: `1px solid ${C.border}` }}>

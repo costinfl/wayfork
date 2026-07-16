@@ -17,7 +17,13 @@ export const POI_CATEGORIES: PoiCategory[] = [
   {
     id: "sights",
     label: "Sights",
-    filters: ['"tourism"~"^(attraction|viewpoint|artwork)$"', '"historic"'],
+    // historic is narrowed to tourist-grade values: the bare key matches
+    // every wayside cross/boundary stone within radius and made big-city
+    // queries slow enough to hit the server timeout.
+    filters: [
+      '"tourism"~"^(attraction|viewpoint|artwork)$"',
+      '"historic"~"^(castle|monument|memorial|ruins|archaeological_site|fort|palace|city_gate)$"',
+    ],
   },
   { id: "museums", label: "Museums", filters: ['"tourism"~"^(museum|gallery)$"'] },
   { id: "food", label: "Food & drink", filters: ['"amenity"~"^(restaurant|cafe)$"'] },
@@ -45,9 +51,11 @@ export interface PoiSummary {
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
 ];
 
 const MAX_RESULTS = 40;
+const ENDPOINT_TIMEOUT_MS = 12000; // matches the server-side [timeout:12]
 
 interface OverpassElement {
   type?: string;
@@ -98,33 +106,42 @@ export function buildPoiQuery(
     .flatMap((c) => c.filters)
     .map((f) => `nwr[${f}]["name"]${around};`)
     .join("");
-  return `[out:json][timeout:25];(${clauses});out tags center ${MAX_RESULTS * 3};`;
+  return `[out:json][timeout:12];(${clauses});out tags center ${MAX_RESULTS * 2};`;
 }
 
+// Resolves to the parsed POIs ([] = the search genuinely found nothing) or
+// null when every endpoint failed — callers surface the difference (retry
+// prompt vs empty state). Each endpoint gets its own client-side abort so a
+// hung mirror can't stall the UI past the server timeout.
 export async function fetchPois(
   center: { lat: number; lon: number },
   radiusM: number,
   categories: PoiCategoryId[],
   fetchFn: typeof fetch = fetch
-): Promise<Poi[]> {
+): Promise<Poi[] | null> {
   if (categories.length === 0) return [];
   const query = buildPoiQuery(center, radiusM, categories);
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ENDPOINT_TIMEOUT_MS);
     try {
       const res = await fetchFn(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
       });
       if (!res.ok) continue; // 429/504 → try the mirror
       const body = (await res.json()) as { elements?: OverpassElement[] };
       if (!Array.isArray(body?.elements)) continue;
       return parseElements(body.elements, center, categories);
     } catch {
-      // network/parse failure → try the mirror
+      // network/parse/abort failure → try the mirror
+    } finally {
+      clearTimeout(timer);
     }
   }
-  return [];
+  return null;
 }
 
 function parseElements(

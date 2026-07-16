@@ -16,9 +16,14 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// apikey/x-client-info must be allow-listed: supabase-js style clients send
+// them, and a preflight that omits any requested header fails the whole call
+// ("Failed to fetch"). Deployed with verify_jwt=false because the platform
+// gate would 401 the OPTIONS preflight (browsers never attach Authorization
+// to preflights) — the handler enforces its own admin JWT check below.
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 

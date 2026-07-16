@@ -68,7 +68,7 @@ describe("fetchPois", () => {
 
   it("parses, categorizes, sorts by distance and posts to the primary endpoint", async () => {
     const fetchFn = vi.fn(async () => okJson({ elements }));
-    const pois = await fetchPois(CENTER, 1000, ["sights", "museums"], fetchFn as unknown as typeof fetch);
+    const pois = (await fetchPois(CENTER, 1000, ["sights", "museums"], fetchFn as unknown as typeof fetch))!;
     expect(fetchFn).toHaveBeenCalledTimes(1);
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://overpass-api.de/api/interpreter");
@@ -97,13 +97,18 @@ describe("fetchPois", () => {
     expect(pois).toHaveLength(1);
   });
 
-  it("returns [] when both endpoints fail or on no categories", async () => {
+  it("returns null when every endpoint fails, [] for no categories", async () => {
     const failing = vi.fn(async () => {
       throw new Error("down");
     });
-    expect(await fetchPois(CENTER, 1000, ["sights"], failing as unknown as typeof fetch)).toEqual([]);
-    expect(failing).toHaveBeenCalledTimes(2);
+    expect(await fetchPois(CENTER, 1000, ["sights"], failing as unknown as typeof fetch)).toBeNull();
+    expect(failing).toHaveBeenCalledTimes(3); // primary + two mirrors
     expect(await fetchPois(CENTER, 1000, [], failing as unknown as typeof fetch)).toEqual([]);
+  });
+
+  it("keeps [] (not null) for a successful but empty search", async () => {
+    const fetchFn = vi.fn(async () => okJson({ elements: [] }));
+    expect(await fetchPois(CENTER, 1000, ["parks"], fetchFn as unknown as typeof fetch)).toEqual([]);
   });
 });
 

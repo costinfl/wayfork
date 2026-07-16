@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TRIPS } from "../data";
 import {
+  insertSlotAfter,
   moveSlot,
   newExpenseId,
   newId,
@@ -121,6 +122,18 @@ describe("slot mutations", () => {
     expect(down.days[0].slots[1].id).toBe(slot.id);
     const clamped = moveSlot(trip, slot.id, -1);
     expect(clamped.days[0].slots.map((s) => s.id)).toEqual(day.slots.map((s) => s.id));
+  });
+
+  it("insertSlotAfter places the slot right after the anchor", () => {
+    const next = insertSlotAfter(trip, day.id, slot.id, newSlot);
+    const ids = next.days[0].slots.map((s) => s.id);
+    expect(ids.indexOf(newSlot.id)).toBe(ids.indexOf(slot.id) + 1);
+    expect(next.days[0].slots).toHaveLength(day.slots.length + 1);
+  });
+
+  it("insertSlotAfter appends on a null or unknown anchor", () => {
+    expect(insertSlotAfter(trip, day.id, null, newSlot).days[0].slots.at(-1)?.id).toBe(newSlot.id);
+    expect(insertSlotAfter(trip, day.id, "nope", newSlot).days[0].slots.at(-1)?.id).toBe(newSlot.id);
   });
 });
 

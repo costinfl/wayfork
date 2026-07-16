@@ -9,7 +9,11 @@ import type { Day, ItinerarySlot, Place, StepType, VariantNode } from "../domain
 // Leaflet is too heavy/canvas-bound for jsdom — mock it and capture the created
 // polylines (with their click handlers) so we can test the wiring: which
 // segments become clickable alternatives, and the unmapped hint.
-const { polylines } = vi.hoisted(() => ({ polylines: [] as any[] }));
+const { polylines, circles, circleMarkers } = vi.hoisted(() => ({
+  polylines: [] as any[],
+  circles: [] as any[],
+  circleMarkers: [] as any[],
+}));
 
 vi.mock("leaflet/dist/leaflet.css", () => ({}));
 vi.mock("leaflet", () => {
@@ -27,11 +31,21 @@ vi.mock("leaflet", () => {
     polylines.push(o);
     return o;
   };
+  const layer = (store: any[] | null, latlng: unknown, options: unknown) => {
+    const o: any = { _latlng: latlng, options };
+    o.addTo = () => o;
+    o.remove = () => {};
+    o.bindTooltip = (t: string) => ((o._tooltip = t), o);
+    if (store) store.push(o);
+    return o;
+  };
   const L = {
     map: () => ({ setView: () => {}, fitBounds: () => {}, remove: () => {}, invalidateSize: () => {} }),
     tileLayer: () => ({ addTo: () => ({}) }),
     marker: () => ({ addTo: () => ({ remove: () => {} }), remove: () => {} }),
     divIcon: () => ({}),
+    circle: (latlng: unknown, options: unknown) => layer(circles, latlng, options),
+    circleMarker: (latlng: unknown, options: unknown) => layer(circleMarkers, latlng, options),
     polyline,
   };
   return { default: L, ...L };
@@ -103,6 +117,26 @@ describe("DayMap wiring", () => {
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
     const solid = polylines.filter((p) => !p.options.dashArray);
     for (const p of solid) expect(p._onClick).toBeUndefined();
+  });
+
+  it("draws the discover search circle, its center, and a pin per POI", () => {
+    circles.length = 0;
+    circleMarkers.length = 0;
+    const discover = {
+      center: { name: "A", lat: 0, lon: 0 },
+      radiusM: 3000,
+      pois: [
+        { id: "node/1", name: "Colosseum", lat: 0.01, lon: 0.01, category: "sights", distanceM: 900 },
+        { id: "node/2", name: "Pantheon", lat: 0.02, lon: 0.02, category: "sights", distanceM: 1200 },
+      ],
+    };
+    render(
+      <DayMap day={day} activeVariants={{}} onActivate={vi.fn()} discover={discover as any} />
+    );
+    expect(circles).toHaveLength(1);
+    expect(circles[0].options.radius).toBe(3000);
+    expect(circleMarkers).toHaveLength(2);
+    expect(circleMarkers.map((m) => m._tooltip)).toEqual(["Colosseum", "Pantheon"]);
   });
 
   it("toggles fullscreen via the ⛶ button and exits on Escape", () => {
