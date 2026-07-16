@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchRoute } from "./route";
+import { estimateLeg, fetchRoute } from "./route";
 import type { Place } from "./types";
 
 const P = (lat: number, lon: number): Place => ({ name: `${lat},${lon}`, lat, lon });
 
-const okResponse = (coords: [number, number][]) =>
-  ({ ok: true, status: 200, json: async () => ({ routes: [{ geometry: { coordinates: coords } }] }) }) as Response;
+const okResponse = (coords: [number, number][], duration = 0, distance = 0) =>
+  ({
+    ok: true,
+    status: 200,
+    json: async () => ({ routes: [{ geometry: { coordinates: coords }, duration, distance }] }),
+  }) as Response;
 
 describe("fetchRoute", () => {
   it("returns null for the arc profile without fetching", async () => {
@@ -52,5 +56,41 @@ describe("fetchRoute", () => {
     const second = await fetchRoute(from, to, "driving", fetchFn);
     expect(first).toEqual(second);
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("estimateLeg", () => {
+  it("walks short hops, deriving the duration from the routed distance", async () => {
+    // ~1 km apart; OSRM says 1.2 km — walk time comes from distance (12 min/km),
+    // never from the demo server's driving-profile duration.
+    const fetchFn = (async (u: string) => {
+      expect(String(u)).toContain("/foot/");
+      return okResponse([[12.5, 41.9]], 99, 1200);
+    }) as unknown as typeof fetch;
+    const leg = await estimateLeg(P(41.9, 12.5), P(41.909, 12.5), fetchFn);
+    expect(leg).toEqual({ type: "walk", durationMin: 14, distanceKm: 1.2 });
+  });
+
+  it("drives beyond 2.5 km using OSRM duration and distance", async () => {
+    const fetchFn = (async (u: string) => {
+      expect(String(u)).toContain("/driving/");
+      return okResponse([[12.5, 41.9]], 1200, 12000);
+    }) as unknown as typeof fetch;
+    const leg = await estimateLeg(P(41.9, 12.5), P(42.0, 12.5), fetchFn);
+    expect(leg).toEqual({ type: "car", durationMin: 20, distanceKm: 12 });
+  });
+
+  it("falls back to a haversine ×1.3 estimate when OSRM is down", async () => {
+    const boom = (async () => {
+      throw new Error("network");
+    }) as unknown as typeof fetch;
+    const walk = await estimateLeg(P(10, 10), P(10.009, 10), boom); // ~1.0 km
+    expect(walk.type).toBe("walk");
+    expect(walk.distanceKm).toBeCloseTo(1.3, 1);
+    expect(walk.durationMin).toBe(Math.round(walk.distanceKm * 12));
+
+    const drive = await estimateLeg(P(10, 10), P(10.09, 10), boom); // ~10 km
+    expect(drive.type).toBe("car");
+    expect(drive.durationMin).toBe(Math.round((drive.distanceKm / 30) * 60));
   });
 });

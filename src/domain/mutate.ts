@@ -58,6 +58,24 @@ export const upsertSlot = (trip: Trip, dayId: string, slot: ItinerarySlot): Trip
   };
 };
 
+// Inserts a new slot right after the given one (both in dayId); a null/absent
+// or unknown afterSlotId appends, matching upsertSlot for a new slot.
+export const insertSlotAfter = (
+  trip: Trip,
+  dayId: string,
+  afterSlotId: string | null,
+  slot: ItinerarySlot
+): Trip => ({
+  ...trip,
+  days: trip.days.map((d) => {
+    if (d.id !== dayId) return d;
+    const i = afterSlotId ? d.slots.findIndex((s) => s.id === afterSlotId) : -1;
+    const slots = [...d.slots];
+    slots.splice(i >= 0 ? i + 1 : slots.length, 0, slot);
+    return { ...d, slots };
+  }),
+});
+
 export const removeSlot = (trip: Trip, slotId: string): Trip => ({
   ...trip,
   days: trip.days.map((d) => ({ ...d, slots: d.slots.filter((s) => s.id !== slotId) })),

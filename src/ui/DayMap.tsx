@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { dayTrack, offsetArc, type TrackSegment } from "../domain/geometry";
+import type { Poi } from "../domain/poi";
 import { fetchRoute } from "../domain/route";
-import type { Day } from "../domain/types";
+import type { Day, Place } from "../domain/types";
 import { C } from "./theme";
 
 // The day-journey map. Active variant chain → solid blue route (real road/foot
@@ -32,10 +33,14 @@ function DayMapImpl(
     day,
     activeVariants,
     onActivate,
+    discover = null,
   }: {
     day: Day;
     activeVariants: Record<string, string>;
     onActivate: (slotId: string, variantId: string) => void;
+    // The last Discover search: draws the search circle, its ⌖ center, and a
+    // pin per result so it is obvious where "nearby" was measured from.
+    discover?: { center: Place; radiusM: number; pois: Poi[] } | null;
   },
   ref: React.Ref<DayMapHandle>
 ) {
@@ -162,8 +167,55 @@ function DayMapImpl(
     } else if (allPoints.length > 1) {
       map.fitBounds(allPoints, { padding: [40, 40] });
     }
+
+    // Discover overlay: search circle + ⌖ center + a pin per result. Drawn
+    // last so its fitBounds wins — after a search the user wants to see the
+    // searched area.
+    if (discover) {
+      const { center, radiusM, pois } = discover;
+      const circle = L.circle([center.lat, center.lon], {
+        radius: radiusM,
+        color: C.line,
+        weight: 1.5,
+        fillColor: C.line,
+        fillOpacity: 0.08,
+        interactive: false,
+      }).addTo(map);
+      layersRef.current.push(circle);
+      const cross = L.marker([center.lat, center.lon], {
+        icon: L.divIcon({
+          className: "wf-discover-center",
+          html: `<span style="font:700 18px system-ui;color:${C.line};text-shadow:0 0 3px #fff">⌖</span>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        }),
+      }).addTo(map);
+      layersRef.current.push(cross);
+      for (const poi of pois) {
+        const dot = L.circleMarker([poi.lat, poi.lon], {
+          radius: 5,
+          color: "#fff",
+          weight: 1.5,
+          fillColor: C.amber,
+          fillOpacity: 0.95,
+        }).addTo(map);
+        dot.bindTooltip?.(poi.name);
+        layersRef.current.push(dot);
+      }
+      // Deterministic bounds from the radius (circle.getBounds needs a live
+      // renderer, which the jsdom mock doesn't have).
+      const dLat = radiusM / 111320;
+      const dLon = radiusM / (111320 * Math.cos((center.lat * Math.PI) / 180));
+      map.fitBounds(
+        [
+          [center.lat - dLat, center.lon - dLon],
+          [center.lat + dLat, center.lon + dLon],
+        ],
+        { padding: [10, 10] }
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.id, JSON.stringify(activeVariants), fullscreen]);
+  }, [day.id, JSON.stringify(activeVariants), fullscreen, discover]);
 
   useImperativeHandle(ref, () => ({
     focusSegment: (slotId, variantId) => {
