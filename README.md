@@ -1,15 +1,24 @@
 # Wayfork
 
-Multi-variant travel planner & shared expense engine — prototype v0.1 (formerly "Vario").
+Multi-variant travel planner & shared expense engine (formerly "Vario").
 
-The app lets a group plan a travel day as a timeline of slots, where each slot can hold
-alternative route **variants** (public transit vs. taxi, etc.). Switching a variant or the
-departure time ripples through every downstream slot and re-checks hard checkpoints
-(e.g. boarding time). A shared ledger tracks multi-currency expenses, net balances, and a
-minimal settle-up transaction list.
+A group plans each travel day as a timeline of slots, where every slot can hold
+alternative route **variants** (public transit vs. taxi, etc.). Switching a variant or
+the departure time ripples through every downstream slot, re-checking hard checkpoints
+(boarding times, opening-hours windows) and per-day weather. A tri-currency layer
+converts every amount, and a shared ledger tracks expenses with equal/percent/fixed
+splits, net balances, and a minimal settle-up transaction list.
 
-This first iteration is in-memory only (no persistence, no backend). See `docs/` for the
-product specification and `docs/CHANGELOG.md` for the implementation history.
+Trips are fully editable in-app (trips, days, participants, slots, variants, steps,
+expenses) or generated from a plan-a-trip wizard that scaffolds the days and emits an
+AI trip-generation prompt bound to the app's public JSON contract. A day-journey map
+draws the active route with clickable forked alternatives, plus nearby-POI discovery.
+Persistence is Supabase behind a repository interface: magic-link sign-in, per-user
+row-level security, multi-device sync, and trip collaboration (invite as editor or
+viewer, co-edit with conflict re-merge, roster management) — signed out, trips live in
+localStorage.
+
+See `docs/STATUS.md` for the current state and `docs/CHANGELOG.md` for the history.
 
 ## Live demo
 
