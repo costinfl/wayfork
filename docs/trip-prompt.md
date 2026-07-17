@@ -51,7 +51,11 @@ interface ItinerarySlot {
   title: string;               // e.g. "Hotel → Otopeni Airport"
   variants: VariantNode[];     // >= 1; the UI forks when there are 2+
   defaultVariantId: string;    // must be one of the variants' ids
-  checkpoint: { label: string; timeMin: number; bufferMin: number } | null;
+  checkpoint: {
+    label: string; timeMin: number; bufferMin: number;
+    opensMin?: number;         // optional opening time: turns the deadline into
+                               // a window [opensMin, timeMin] (e.g. museum hours)
+  } | null;
   place?: { name: string; lat: number; lon: number } | null; // for the day map
 }
 
@@ -61,6 +65,8 @@ interface Day {
   startTimeMin: number;        // minutes since midnight, integer in [0, 1440)
   slots: ItinerarySlot[];
   location?: { name: string; lat: number; lon: number } | null; // for weather
+  tz?: string;                 // short label for the day's starting zone,
+                               // e.g. "Bucharest"
 }
 
 type SplitDef =
@@ -146,6 +152,8 @@ Both `VariantNode` and `ExpenseItem` accept an optional `"estimated": boolean`.
 8. Percent shares sum to 1; fixed shares sum to the expense amount; all share
    keys and payerId are participant ids.
 9. Variant costs are >= 0; expense amounts are > 0.
+10. `opensMin`, when present, is an integer with `opensMin <= timeMin`, in the
+    same absolute minutes-since-midnight convention as `timeMin`.
 
 ## Realistic full-day pacing (READ THIS — it is the most common mistake)
 
@@ -183,7 +191,9 @@ at noon.
   transit vs taxi, walk vs bus, bus vs hike); the rest single-variant.
 - At least one variant with cost 0 (e.g. walking) so the "—" cost renders.
 - At least one checkpoint per day on a plausible slot (flight boarding, timed
-  museum entry, train departure), with `bufferMin` 10–30. Tune the preceding
+  museum entry, train departure), with `bufferMin` 10–30. At least one
+  checkpoint in the trip SHOULD be an opening-hours window (set `opensMin`,
+  e.g. a timed museum/palace entry) so the waiting-time path renders. Tune the preceding
   durations so the DEFAULT variants leave a comfortable margin (status ok),
   but switching to the slower variant of an earlier fork can push it into
   amber or red — that is the demo's point.
