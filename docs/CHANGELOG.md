@@ -6,7 +6,20 @@
 
 ## Session history
 
-- docs consistency pass — README truth-pass, changelog re-sort + prepend
+- **v1.1.1** — component/UI test coverage for the big components (the open
+  item deferred since v0.28); 236 → 260 tests. WayforkApp: the v0.25
+  conflict→merge→retry path driven through the DOM (retry carries the fresh
+  version + both sides' changes; info banner; bounded three-attempt bail-out
+  with reload + warn banner) and the three v0.26 sync-poll guards under fake
+  timers (empty-poll keep, stale-token skip, post-write grace). CRUD forms:
+  equal/percent/fixed split payloads + payer, opening-hours checkpoint
+  window + clear-to-null + the validateTrip-returned rejections, trip/day
+  happy + rejection paths — all via typed spy onSave. TripView: variant
+  switch ripples rendered times, ok/amber/red checkpoint banners, day tabs,
+  viewer-mode gating. Injection seam: WayforkApp takes an optional `deps`
+  prop (localStore/auth/remoteStore/collab) defaulting to the real clients
+  (runtime unchanged); TripView gained an `export` keyword. Test-only —
+  no behavior change, no tag. README truth-pass, changelog re-sort + prepend
   rule, trip-prompt schema sync (tz/opensMin), CLAUDE.md additions
   (typecheck command, trip-prompt runtime-asset note). The "queue authored
   workstreams in STATUS" step was skipped: both workstreams (plan-a-trip

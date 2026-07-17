@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v1.1.0 — 236 tests green
+## Current version: v1.1.1 — 260 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -45,6 +45,11 @@ anchor select — added places insert right after the anchor
 (`insertSlotAfter`), connect with a real estimated leg (`estimateLeg`:
 OSRM foot ≤2.5 km / driving beyond, haversine fallback, `estimated` flag),
 and the anchor advances to each added slot.
+**Component/UI coverage (v1.1.1):** the big components are now
+behavior-tested — WayforkApp conflict→merge→retry + the v0.26 sync-poll
+guards (via a `deps` injection seam defaulting to the real clients), all
+four CRUD forms, and TripView (ripple render, checkpoint banner states,
+viewer gating; exported for tests).
 
 ## NEXT TASK — Transit micro-steps via Transitous (v1.2.0)
 
@@ -57,10 +62,6 @@ variant card / between consecutive placed slots. Honour their fair-use note
 geometry on the day map (open item since v0.28).
 
 ## Open items (after v1.2.0)
-- Component/UI test coverage for the big components (deferred from v0.28):
-  `WayforkApp` store wiring, the sync poll, the `saveTrip` conflict →
-  `mergeTrip` → retry path (stub `TripStore` throwing `TripConflictError`),
-  the CRUD forms, and `TripView`. Harness pattern: `src/ui/*.test.tsx`.
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in
   as costinfl@gmail.com on the deployed site) — the sandbox can't do auth
   emails; the preflight fix is deployed (admin-users v2, verify_jwt off).
