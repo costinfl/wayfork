@@ -782,7 +782,8 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
   );
 }
 
-function TripView({
+// Exported for component tests only — the app always renders it via WayforkApp.
+export function TripView({
   trip,
   rates,
   ratesLabel,
