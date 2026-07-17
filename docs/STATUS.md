@@ -97,5 +97,5 @@ geometry on the day map (open item since v0.28).
 
 ## Update rule
 After each session: bump the version line, rewrite NEXT TASK, prune finished
-open items, and append the session's details to `docs/CHANGELOG.md` — never
-here.
+open items, and prepend the session's details to `docs/CHANGELOG.md` (newest
+first) — never here.
