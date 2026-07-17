@@ -5,7 +5,7 @@ import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } f
 import type { TripStore } from "../data/repository";
 import { mergeTrip } from "../domain/merge";
 import { createAuthClient } from "../data/supabaseAuth";
-import type { Session } from "../data/supabaseAuth";
+import type { AuthClient, Session } from "../data/supabaseAuth";
 import { ADMIN_EMAIL, SUPABASE_CONFIG } from "../data/supabaseConfig";
 import { createSupabaseStore } from "../data/supabaseStore";
 import { convert, money, RATES_EUR } from "../domain/currency";
@@ -101,23 +101,39 @@ const SYNC_INTERVAL_MS = 15000;
 // read can't momentarily revert the optimistic update.
 const SYNC_WRITE_GRACE_MS = 4000;
 
-const LOCAL_STORE = createLocalStorageStore();
+const DEFAULT_LOCAL_STORE = createLocalStorageStore();
 // Auth + per-user remote store. Signed-in requests carry the user's JWT so
 // row-level security scopes trips to their account; signed-out users stay on
 // localStorage and never consult the remote store.
-const AUTH = SUPABASE_CONFIG.url ? createAuthClient(SUPABASE_CONFIG) : null;
-const REMOTE_STORE = AUTH
+const DEFAULT_AUTH = SUPABASE_CONFIG.url ? createAuthClient(SUPABASE_CONFIG) : null;
+const DEFAULT_REMOTE_STORE = DEFAULT_AUTH
   ? createSupabaseStore(
       SUPABASE_CONFIG,
       fetch,
-      () => AUTH.getAccessToken(),
-      async () => AUTH.getSession()?.user.id ?? null
+      () => DEFAULT_AUTH.getAccessToken(),
+      async () => DEFAULT_AUTH.getSession()?.user.id ?? null
     )
   : null;
 // Collaboration API (invites + membership); shares the auth token with the store.
-const COLLAB = AUTH ? createCollabClient(SUPABASE_CONFIG, fetch, () => AUTH.getAccessToken()) : null;
+const DEFAULT_COLLAB = DEFAULT_AUTH
+  ? createCollabClient(SUPABASE_CONFIG, fetch, () => DEFAULT_AUTH.getAccessToken())
+  : null;
 
-export default function WayforkApp() {
+// Test seam: every external client is injectable, defaulting to the real
+// module-level instance — runtime behavior is unchanged. The locals shadow the
+// old constant names so the component body reads exactly as before.
+export interface WayforkDeps {
+  localStore?: TripStore;
+  auth?: AuthClient | null;
+  remoteStore?: TripStore | null;
+  collab?: ReturnType<typeof createCollabClient> | null;
+}
+
+export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
+  const LOCAL_STORE = deps.localStore ?? DEFAULT_LOCAL_STORE;
+  const AUTH = deps.auth !== undefined ? deps.auth : DEFAULT_AUTH;
+  const REMOTE_STORE = deps.remoteStore !== undefined ? deps.remoteStore : DEFAULT_REMOTE_STORE;
+  const COLLAB = deps.collab !== undefined ? deps.collab : DEFAULT_COLLAB;
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripUid, setTripUid] = useState(uidOf(TRIPS[0]));
   const [uploadOpen, setUploadOpen] = useState(false);
