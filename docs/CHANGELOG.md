@@ -6,6 +6,12 @@
 
 ## Session history
 
+- docs consistency pass — README truth-pass, changelog re-sort + prepend
+  rule, trip-prompt schema sync (tz/opensMin), CLAUDE.md additions
+  (typecheck command, trip-prompt runtime-asset note). The "queue authored
+  workstreams in STATUS" step was skipped: both workstreams (plan-a-trip
+  wizard, day-journey map) had already shipped as v0.27/v0.28. No version
+  bump.
 - **v1.0.1 + v1.1.0** — Field-feedback round on v1.0.0. Fixes (v1.0.1): the
   admin panel's "Failed to fetch" was a doubly-failing CORS preflight
   (`apikey` missing from Access-Control-Allow-Headers + verify_jwt 401-ing
