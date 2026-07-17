@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../test/setup-dom";
 
@@ -121,5 +121,74 @@ describe("WayforkApp conflict → merge → retry wiring", () => {
     expect(save).toHaveBeenCalledTimes(3);
     // The bail-out path re-reads the store so the user edits real state.
     expect(list.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("WayforkApp sync-poll guards (v0.26 regressions)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // shouldAdvanceTime lets Testing Library's promise-based waits progress
+  // while the 15s poll interval stays under explicit control.
+  const withFakeTimers = () => vi.useFakeTimers({ shouldAdvanceTime: true });
+
+  it("ignores an empty poll result while trips are held (no picker snap-back)", async () => {
+    withFakeTimers();
+    const base = fixture();
+    let listResult: Trip[] = [base];
+    const list = vi.fn(async () => listResult);
+    renderApp(stubStore({ list }));
+
+    const option = await screen.findByRole("option", { name: /Shared trip/ });
+    fireEvent.change(option.closest("select")!, { target: { value: "uid-shared" } });
+    await screen.findByText("Second stop");
+
+    // From now on the store answers empty (lapsed token → RLS-as-anon blip).
+    listResult = [];
+    const callsBefore = list.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(15_500);
+    expect(list.mock.calls.length).toBeGreaterThan(callsBefore); // the poll DID run
+
+    // …but the held trips were not cleared: selection and timeline survive.
+    expect(screen.getByText("Second stop")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Shared trip/ })).toBeInTheDocument();
+  });
+
+  it("skips the poll entirely when the access token cannot be refreshed", async () => {
+    withFakeTimers();
+    const base = fixture();
+    const list = vi.fn(async () => [base]);
+    // Signed in (session present) but the token refresh fails → tick must
+    // not query the store as anon.
+    renderApp(stubStore({ list }), stubAuth({ getAccessToken: async () => null }));
+
+    await screen.findByRole("option", { name: /Shared trip/ });
+    const callsAfterLoad = list.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(31_000); // two poll ticks
+    expect(list.mock.calls.length).toBe(callsAfterLoad);
+  });
+
+  it("suppresses the poll inside the post-write grace window, resumes after", async () => {
+    withFakeTimers();
+    const base = fixture();
+    const list = vi.fn(async () => [base]);
+    renderApp(stubStore({ list }));
+
+    const option = await screen.findByRole("option", { name: /Shared trip/ });
+    fireEvent.change(option.closest("select")!, { target: { value: "uid-shared" } });
+    await screen.findByText("Second stop");
+
+    // Edit at ~t+12s so the 4s write grace covers the t+15s poll tick.
+    await vi.advanceTimersByTimeAsync(12_000);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getAllByTitle("Move down")[0]);
+    const callsAfterWrite = list.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(4_000); // t+16s: tick at 15s was in grace
+    expect(list.mock.calls.length).toBe(callsAfterWrite);
+
+    await vi.advanceTimersByTimeAsync(15_000); // t+31s: tick at 30s is past it
+    expect(list.mock.calls.length).toBeGreaterThan(callsAfterWrite);
   });
 });
