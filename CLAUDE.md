@@ -17,8 +17,9 @@ on every change. Vite + React 19 + Tailwind v4 + TypeScript, Supabase backend.
   green. Tag shipped versions `vX.Y.0`.
 
 ## Commands
-- `npm install` · `npm test` (Vitest, must stay green) · `npm run build`
-  (tsc + vite) · `npm run preview` (:4173)
+- `npm install` · `npm test` (Vitest, must stay green) · `npm run typecheck`
+  (tsc only, faster than build) · `npm run build` (tsc + vite) ·
+  `npm run preview` (:4173)
 
 ## Architecture conventions
 - Pure logic in `src/domain/` — framework-free, unit-tested (`*.test.ts`).
@@ -39,6 +40,9 @@ on every change. Vite + React 19 + Tailwind v4 + TypeScript, Supabase backend.
   end of the task**, not after every edit. Non-UI changes: `npm test` suffices.
 - The sandbox blocks external APIs — stub Supabase / Open-Meteo / Frankfurter
   routes when driving the browser.
+- `docs/trip-prompt.md` is a runtime asset (imported `?raw` into the in-app
+  prompt card) — editing it is an app change: keep the contract stable,
+  revalidate with `npm test`.
 
 ## Token discipline (applies to subagents too)
 - Read files lazily: only what the current task touches. Never front-load
