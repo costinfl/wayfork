@@ -5,10 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
 import { TripForm } from "./TripForm";
+import type { Trip } from "../domain/types";
 
 describe("TripForm (new-trip mode)", () => {
   it("creates a trip from name, start date and non-empty participants", () => {
-    const onSave = vi.fn(() => [] as string[]);
+    const onSave = vi.fn<(t: Trip) => string[]>(() => []);
     render(<TripForm initial={null} onSave={onSave} onCancel={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Trip name"), { target: { value: "Vienna" } });
     fireEvent.change(screen.getByLabelText("First day"), { target: { value: "2026-10-01" } });
@@ -25,7 +26,7 @@ describe("TripForm (new-trip mode)", () => {
   });
 
   it("rejects a submit without any named participant, without calling onSave", () => {
-    const onSave = vi.fn(() => [] as string[]);
+    const onSave = vi.fn<(t: Trip) => string[]>(() => []);
     render(<TripForm initial={null} onSave={onSave} onCancel={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Trip name"), { target: { value: "Vienna" } });
     fireEvent.change(screen.getByLabelText("First day"), { target: { value: "2026-10-01" } });

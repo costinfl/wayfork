@@ -6,6 +6,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
 import { DayForm } from "./DayForm";
 import { newTrip } from "../domain/mutate";
+import type { Day } from "../domain/types";
 
 const trip = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], {
   home: "RON",
@@ -15,7 +16,7 @@ const trip = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], {
 
 describe("DayForm", () => {
   it("submits date + departure with a starter slot and no location", () => {
-    const onSave = vi.fn(() => [] as string[]);
+    const onSave = vi.fn<(d: Day) => string[]>(() => []);
     render(
       <DayForm trip={trip} initial={null} defaultDate="2026-08-02" onSave={onSave} onCancel={vi.fn()} />
     );
@@ -33,7 +34,7 @@ describe("DayForm", () => {
 
   it("renders the parent's strictly-increasing-dates rejection", () => {
     // Date ordering is validateTrip's rule — the form shows what onSave returns.
-    const onSave = vi.fn(() => ["day dates must be strictly increasing"]);
+    const onSave = vi.fn<(d: Day) => string[]>(() => ["day dates must be strictly increasing"]);
     render(
       <DayForm trip={trip} initial={null} defaultDate="2026-08-01" onSave={onSave} onCancel={vi.fn()} />
     );
@@ -42,7 +43,7 @@ describe("DayForm", () => {
   });
 
   it("pre-checks a partial location without calling onSave", () => {
-    const onSave = vi.fn(() => [] as string[]);
+    const onSave = vi.fn<(d: Day) => string[]>(() => []);
     render(
       <DayForm trip={trip} initial={null} defaultDate="2026-08-02" onSave={onSave} onCancel={vi.fn()} />
     );

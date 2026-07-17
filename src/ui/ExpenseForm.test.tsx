@@ -6,6 +6,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
 import { ExpenseForm } from "./ExpenseForm";
 import { newTrip } from "../domain/mutate";
+import type { ExpenseItem } from "../domain/types";
 
 const trip = newTrip(
   "T",
@@ -17,7 +18,9 @@ const trip = newTrip(
   { home: "RON", local: "EUR", intl: "USD" }
 );
 
-const renderForm = (onSave = vi.fn(() => [] as string[])) => {
+const spy = () => vi.fn<(exp: ExpenseItem) => string[]>(() => []);
+
+const renderForm = (onSave = spy()) => {
   render(<ExpenseForm trip={trip} initial={null} onSave={onSave} onCancel={vi.fn()} />);
   return onSave;
 };
@@ -45,7 +48,7 @@ describe("ExpenseForm", () => {
     // The shares-sum rule lives in validateTrip — the form surfaces whatever
     // onSave returns.
     const onSave = vi
-      .fn<() => string[]>()
+      .fn<(exp: ExpenseItem) => string[]>()
       .mockReturnValueOnce(["expense: percent shares must sum to 1"])
       .mockReturnValue([]);
     renderForm(onSave);

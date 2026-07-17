@@ -14,7 +14,9 @@ const trip = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], {
   intl: "USD",
 });
 
-const renderForm = (initial: ItinerarySlot | null, onSave = vi.fn(() => [] as string[])) => {
+const spy = () => vi.fn<(slot: ItinerarySlot) => string[]>(() => []);
+
+const renderForm = (initial: ItinerarySlot | null, onSave = spy()) => {
   render(<SlotForm trip={trip} initial={initial} onSave={onSave} onCancel={vi.fn()} />);
   return onSave;
 };
@@ -45,7 +47,7 @@ describe("SlotForm", () => {
   });
 
   it("renders the parent's opensMin > timeMin rejection (rule lives in validateTrip)", () => {
-    const onSave = vi.fn(() => [
+    const onSave = vi.fn<(slot: ItinerarySlot) => string[]>(() => [
       "slot s1: checkpoint opensMin 1080 is after its closing timeMin 1020",
     ]);
     renderForm(null, onSave);
