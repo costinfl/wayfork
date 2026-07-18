@@ -6,6 +6,27 @@
 
 ## Session history
 
+- **v1.2.0** — Transit micro-steps via Transitous. New `domain/transit.ts`:
+  `fetchTransitPlan` calls the MOTIS 2 `/api/v6/plan` endpoint
+  (`api.transitous.org`, keyless/worldwide) and parses the best itinerary
+  defensively — `mode` → the app's `StepType` set (unrecognized modes fall
+  back to "transfer" rather than being dropped), `duration`/`distance` per
+  leg with a haversine fallback when either is missing, and `legGeometry`'s
+  encoded polyline decoded via a small standalone Google-polyline decoder.
+  `transitItineraryToVariant` turns the result into a `VariantNode` — one
+  micro-step per leg, always `estimated: true`, and a new optional
+  `geometry?: [number, number][] | null` field carrying the whole route's
+  line. A 🚆 Transit button next to "+ variant" (shown once a slot and the
+  nearest earlier placed slot both carry a map place, via new
+  `previousPlace`) fetches and saves it in one click. `ui/DayMap.tsx` now
+  draws a variant's stored `geometry` directly instead of the schematic arc
+  metro/train previously fell back to (real transit shapes, active or not),
+  closing the "no real transit geometry" gap open since v0.28. Response
+  schema caveat: MOTIS's interactive docs both 403'd automated fetches and
+  the sandbox can't reach the live endpoint, so parsing leans on the public
+  OpenAPI spec plus defensive fallbacks throughout — see
+  `docs/INTEGRATIONS.md` for the full note. Roadmap: OpenFreeMap tiles →
+  v1.3.0. 260 → 277 tests.
 - **v1.1.1** — component/UI test coverage for the big components (the open
   item deferred since v0.28); 236 → 260 tests. WayforkApp: the v0.25
   conflict→merge→retry path driven through the DOM (retry carries the fresh

@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v1.1.1 — 260 tests green
+## Current version: v1.2.0 — 277 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -50,23 +50,33 @@ behavior-tested — WayforkApp conflict→merge→retry + the v0.26 sync-poll
 guards (via a `deps` injection seam defaulting to the real clients), all
 four CRUD forms, and TripView (ripple render, checkpoint banner states,
 viewer gating; exported for tests).
+**Transit micro-steps (v1.2.0):** a 🚆 Transit button beside "+ variant"
+(shown once a slot and its nearest earlier placed slot both carry a map
+place) fetches the best Transitous/MOTIS itinerary (`domain/transit.ts`)
+and saves it as a variant — one micro-step per leg, `estimated: true`, and
+a stored route `geometry` the day map now draws directly instead of a
+schematic arc (`VariantNode.geometry?`). Response parsing is defensive
+throughout (unrecognized `mode` → "transfer", missing duration/distance →
+haversine estimate) since the exact MOTIS response schema wasn't fully
+confirmable from the sandbox — see the caveat in `docs/INTEGRATIONS.md`.
 
-## NEXT TASK — Transit micro-steps via Transitous (v1.2.0)
+## NEXT TASK — OpenFreeMap vector tiles (v1.3.0)
 
-Per `docs/INTEGRATIONS.md`: a `domain/transit.ts` adapter for the Transitous
-MOTIS 2 `plan` endpoint (`api.transitous.org`) that routes between two placed
-slots and maps the returned legs (walk/metro/train/bus, times, polylines)
-onto a new `VariantNode` with per-leg micro-steps; UI entry point on the
-variant card / between consecutive placed slots. Honour their fair-use note
-(user-initiated requests only, no prefetch). This also unlocks real transit
-geometry on the day map (open item since v0.28).
+Per `docs/INTEGRATIONS.md`: swap Leaflet + OSM raster tiles for MapLibre GL
++ OpenFreeMap (keyless, unlimited vector tiles). Retires the OSM
+tile-usage-policy risk flagged since v0.28. Touches `ui/DayMap.tsx`'s tile
+layer and its Leaflet dependency/mocking in tests; the rest of DayMap's
+segment/geometry logic is tile-library-agnostic and should be unaffected.
 
-## Open items (after v1.2.0)
+## Open items (after v1.3.0)
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in
   as costinfl@gmail.com on the deployed site) — the sandbox can't do auth
   emails; the preflight fix is deployed (admin-users v2, verify_jwt off).
-- Day map — tiles move to OpenFreeMap (keyless, unlimited) in v1.3.0 per
-  `docs/INTEGRATIONS.md`.
+- Transit micro-steps: only the single best-returned itinerary is offered
+  (no alternatives UI); the `time` request param is unset (routes as "now"
+  rather than against the trip's actual day/time) — both reasonable v1
+  scope cuts, worth revisiting. The MOTIS response schema should get a live
+  spot check once this sandbox (or a real deploy) can reach the endpoint.
 - Day map — geometry is per-slot (a variant's segment routes into the slot's
   place). Per-micro-step waypoints (route through each leg's intermediate
   points) would be richer but needs a place per step, not per slot.
@@ -83,7 +93,6 @@ geometry on the day map (open item since v0.28).
   trip names and travel-slot titles read verbosely ("Bucharest, Romania → Rome,
   Lazio, Italy"). Fine per spec (coords are user-selected truth) but a shorter
   display label could be split out later.
-- No UI to author `fixed` splits (engine + one mock exercise them).
 - Variant costs are projection-only, not netted into settlement (deliberate —
   no payer yet; spec ambiguous, revisit).
 - Optional: swap the sync poll for Supabase Realtime WebSocket (would make the

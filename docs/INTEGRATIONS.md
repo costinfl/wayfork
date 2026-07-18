@@ -29,16 +29,30 @@ opt-in reliability upgrade for the small-audience case only.
 | OSM raster tiles | day-map base layer | tile usage policy, no heavy use | v0.28 |
 | **Overpass API** (`overpass-api.de`, mirrors `overpass.kumi.systems`, `overpass.private.coffee`) | POI discovery (Discover panel) | ~10k req/day + 1 GB/day; 429 + slot queue when busy | **v1.0.0** |
 | **Wikipedia REST summary / Wikidata EntityData** | POI descriptions + thumbnails via OSM `wikipedia`/`wikidata` tags | generous | **v1.0.0** |
-| Transitous / MOTIS 2 (`api.transitous.org`) | worldwide transit routing → variant micro-steps | fair use; contact the project before heavy endpoints | v1.1.0 (planned) |
-| OpenFreeMap | keyless unlimited vector tiles (MapLibre) | unlimited, attribution required | v1.2.0 (planned) |
+| **Transitous / MOTIS 2** (`api.transitous.org/api/v6/plan`) | worldwide transit routing → real variant micro-steps + map geometry | fair use; contact the project before heavy endpoints | **v1.2.0** |
+| OpenFreeMap | keyless unlimited vector tiles (MapLibre) | unlimited, attribution required | v1.3.0 (planned) |
 
 Conventions for every adapter (see `src/domain/geocode.ts`, `poi.ts`,
-`route.ts`): pure module in `src/domain/`, injectable `fetchFn`, `null`/`[]`
-on failure, client-side abort timeouts, and the UI never fetches until the
-user asks (Discover fires only on its explicit button since v1.0.1).
+`route.ts`, `transit.ts`): pure module in `src/domain/`, injectable
+`fetchFn`, `null`/`[]` on failure, client-side abort timeouts, and the UI
+never fetches until the user asks (Discover fires only on its explicit
+button since v1.0.1; the day map's 🚆 Transit button is the same pattern).
 Overpass queries stay cheap by design: narrowed tag selectors (no bare
 `historic=*`), `[timeout:12]` + a matching 12 s client abort per endpoint,
 and an 80-element output cap.
+
+**Transitous/MOTIS response schema caveat:** both of MOTIS's interactive doc
+UIs (transitous.org/api, routing.spline.de/doc) returned 403 to automated
+fetches during research, and this sandbox cannot reach the live endpoint at
+all (same constraint every external adapter here already has — Overpass,
+Wikipedia, and OSRM were never verified against a live call either, only
+against the public OpenAPI spec + stubbed responses). `transit.ts` parses
+every field defensively — unrecognized `mode` values map to a generic
+"transfer" step instead of dropping the leg, missing `duration`/`distance`
+fall back to a haversine estimate, and a malformed polyline degrades to no
+stored geometry (the map falls back to its schematic arc) — so a schema
+mismatch produces a rougher variant, not a broken one. Worth a live spot
+check before heavy real-world use.
 
 ## Scale scenarios
 
@@ -77,10 +91,13 @@ is keyless.
   default on); search circle + ⌖ center + POI pins on the day map; added
   slots insert after a chosen "Start from" anchor and connect with a real
   estimated leg (OSRM foot ≤2.5 km / driving beyond, haversine fallback).
-- **v1.2.0 — Transit micro-steps.** Transitous `plan` between consecutive
-  placed slots → real metro/train/bus legs inserted as a variant with
-  per-leg micro-steps (also fixes "no real transit geometry" on the map and
-  upgrades the v1.1.0 walk/drive estimates wherever transit fits).
+- **v1.2.0 — Transit micro-steps (shipped).** A 🚆 Transit button (beside
+  "+ variant", shown once a slot and its nearest earlier placed slot both
+  have a map place) fetches the best Transitous itinerary and saves it as a
+  variant: one micro-step per leg (walk/metro/train/bus/etc., mapped from
+  MOTIS's `mode`), `estimated: true`, and — new — a stored `geometry` on
+  the variant so the day map draws the itinerary's real path instead of a
+  schematic arc (`VariantNode.geometry?: [number, number][] | null`).
 - **v1.3.0 — OpenFreeMap vector tiles.** Swap OSM raster + Leaflet for
   MapLibre GL + OpenFreeMap (keyless, unlimited); retires the OSM
   tile-policy risk noted since v0.28.
