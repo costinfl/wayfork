@@ -1,12 +1,21 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../test/setup-dom";
+
+// Stub the Transitous adapter — network/parsing is exercised in transit.test.ts.
+const { fetchTransitPlanMock } = vi.hoisted(() => ({ fetchTransitPlanMock: vi.fn() }));
+vi.mock("../domain/transit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../domain/transit")>()),
+  fetchTransitPlan: fetchTransitPlanMock,
+}));
+
 import { TripView } from "./WayforkApp";
 import { RATES_EUR } from "../domain/currency";
 import { newTrip } from "../domain/mutate";
+import type { TransitItinerary } from "../domain/transit";
 import type { Checkpoint, Trip, VariantNode } from "../domain/types";
 
 // Wiring-level fixtures: schedule math itself is covered in domain tests —
@@ -125,5 +134,85 @@ describe("TripView", () => {
     expect(screen.getByText("+ Add expense")).toBeInTheDocument();
     expect(screen.getByTitle("Edit expense")).toBeInTheDocument();
     expect(screen.getByTitle("Delete expense")).toBeInTheDocument();
+  });
+});
+
+describe("TripView — 🚆 Transit option", () => {
+  const placedSlot = (id: string, title: string, place: { name: string; lat: number; lon: number } | null) => ({
+    id,
+    title,
+    defaultVariantId: `${id}v`,
+    checkpoint: null,
+    place,
+    variants: [variant(`${id}v`, "Option A", 10)],
+  });
+
+  const placedTrip = (): Trip => {
+    const t = newTrip("Fixture", "2026-08-01", [{ id: "p1", name: "Ana" }], {
+      home: "RON",
+      local: "EUR",
+      intl: "USD",
+    });
+    t.days[0].slots = [
+      // First slot: has a place but no EARLIER placed slot -> button absent.
+      placedSlot("s1", "Start", { name: "A", lat: 1, lon: 1 }),
+      // No place at all -> button absent regardless of what precedes it.
+      placedSlot("s2", "Waypoint", null),
+      // Has a place AND an earlier placed slot (s1, skipping unplaced s2) -> shown.
+      placedSlot("s3", "Destination", { name: "B", lat: 2, lon: 2 }),
+    ];
+    return t;
+  };
+
+  const enterEditMode = () => fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+  beforeEach(() => {
+    fetchTransitPlanMock.mockReset();
+  });
+
+  it("only offers the button on a placed slot that has an earlier placed slot", () => {
+    renderView(placedTrip());
+    enterEditMode();
+    expect(screen.getAllByText("🚆 Transit")).toHaveLength(1); // s3 only, not s1 or s2
+  });
+
+  it("fetches from the nearest earlier place to this slot's place, then saves the itinerary as a variant", async () => {
+    const itinerary: TransitItinerary = {
+      durationMin: 20,
+      legs: [{ type: "metro", label: "M2 → B", durationMin: 20, distanceKm: 5, line: null }],
+    };
+    fetchTransitPlanMock.mockResolvedValue(itinerary);
+    const onTripChange = vi.fn();
+    render(
+      <TripView
+        trip={placedTrip()}
+        rates={RATES_EUR}
+        ratesLabel="built-in snapshot"
+        storeLabel="local browser"
+        canEdit={true}
+        onTripChange={onTripChange}
+      />
+    );
+    enterEditMode();
+    fireEvent.click(screen.getByText("🚆 Transit"));
+
+    expect(fetchTransitPlanMock).toHaveBeenCalledWith(
+      { name: "A", lat: 1, lon: 1 },
+      { name: "B", lat: 2, lon: 2 }
+    );
+    await waitFor(() => expect(onTripChange).toHaveBeenCalled());
+    const saved: Trip = onTripChange.mock.calls[0][0];
+    const destination = saved.days[0].slots.find((s) => s.id === "s3")!;
+    const added = destination.variants.find((v: VariantNode) => v.name === "Public transit");
+    expect(added).toMatchObject({ estimated: true });
+    expect(added!.microSteps[0]).toMatchObject({ type: "metro", label: "M2 → B", durationMin: 20 });
+  });
+
+  it("shows an inline message on the destination slot when no itinerary is found", async () => {
+    fetchTransitPlanMock.mockResolvedValue(null);
+    renderView(placedTrip());
+    enterEditMode();
+    fireEvent.click(screen.getByText("🚆 Transit"));
+    expect(await screen.findByText(/No transit options found/)).toBeInTheDocument();
   });
 });

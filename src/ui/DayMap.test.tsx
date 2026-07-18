@@ -64,11 +64,12 @@ const step = (type: StepType): VariantNode["microSteps"][number] => ({
   durationMin: 10,
   distanceKm: null,
 });
-const variant = (id: string, type: StepType): VariantNode => ({
+const variant = (id: string, type: StepType, geometry?: [number, number][] | null): VariantNode => ({
   id,
   name: id,
   cost: { amount: 0, currency: "EUR" },
   microSteps: [step(type)],
+  ...(geometry !== undefined ? { geometry } : {}),
 });
 const slot = (id: string, place: Place | null, variants: VariantNode[]): ItinerarySlot => ({
   id,
@@ -110,6 +111,35 @@ describe("DayMap wiring", () => {
     const onActivate = vi.fn();
     render(<DayMap day={day} activeVariants={{}} onActivate={onActivate} />);
     expect(screen.getByText(/1 slot have no location|1 slot have no location yet|no location/i)).toBeInTheDocument();
+  });
+
+  it("draws a variant's stored geometry (transit route) instead of the schematic arc", () => {
+    polylines.length = 0;
+    const line: [number, number][] = [
+      [0.1, 0.1],
+      [0.5, 0.6],
+      [1, 1],
+    ];
+    const dayWithTransit: Day = {
+      ...day,
+      slots: [
+        day.slots[0],
+        slot("s2", P("B", 1, 1), [variant("active", "metro", line), variant("alt", "car")]),
+        day.slots[2],
+      ],
+    };
+    render(<DayMap day={dayWithTransit} activeVariants={{}} onActivate={vi.fn()} />);
+    const active = polylines.find((p) => !p.options.dashArray);
+    expect(active._latlngs).toEqual(line);
+  });
+
+  it("falls back to the schematic arc when a transit-typed variant carries no geometry", () => {
+    polylines.length = 0;
+    render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
+    // "active" on s2 is a metro (arc profile) with no stored geometry — still
+    // renders a bowed arc, not the two-point straight line.
+    const active = polylines.find((p) => !p.options.dashArray);
+    expect(active._latlngs.length).toBeGreaterThan(2);
   });
 
   it("does not attach a click handler to the active solid segment", () => {

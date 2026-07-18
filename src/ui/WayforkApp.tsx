@@ -29,6 +29,7 @@ import {
 } from "../domain/mutate";
 import type { Poi } from "../domain/poi";
 import { estimateLeg } from "../domain/route";
+import { fetchTransitPlan, previousPlace, transitItineraryToVariant } from "../domain/transit";
 import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
 import type { DiscoverQuery } from "./DiscoverPanel";
 import { fetchRatesEUR } from "../domain/rates";
@@ -943,6 +944,34 @@ export function TripView({
     return errors;
   };
 
+  // One-click "add a real transit option" beside "+ variant": routes from the
+  // nearest earlier placed slot to this one via Transitous, and saves the
+  // best itinerary as a new variant (with its own route geometry for the map).
+  const [transitBusyId, setTransitBusyId] = useState<string | null>(null);
+  const [transitError, setTransitError] = useState<{ slotId: string; message: string } | null>(null);
+
+  const addTransitOption = async (slot: ItinerarySlot) => {
+    const origin = previousPlace(day, slot.id);
+    if (!origin || !slot.place) return;
+    setTransitBusyId(slot.id);
+    setTransitError(null);
+    try {
+      const itinerary = await fetchTransitPlan(origin, slot.place);
+      if (!itinerary) {
+        setTransitError({
+          slotId: slot.id,
+          message: "No transit options found — the routing service may be unavailable.",
+        });
+        return;
+      }
+      const variant = transitItineraryToVariant(itinerary, trip.currencies.local);
+      const errors = saveVariant(slot.id)(variant);
+      if (errors.length) setTransitError({ slotId: slot.id, message: errors.join("; ") });
+    } finally {
+      setTransitBusyId(null);
+    }
+  };
+
   const [dayForm, setDayForm] = useState<"new" | Day | null>(null);
 
   const saveDay = (d: Day): string[] => {
@@ -1254,6 +1283,17 @@ export function TripView({
                   >
                     + variant
                   </button>
+                  {row.slot.place && previousPlace(day, row.slot.id) && (
+                    <button
+                      onClick={() => void addTransitOption(row.slot)}
+                      disabled={transitBusyId === row.slot.id}
+                      title="Fetch a real public-transit itinerary between the previous stop and here"
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{ ...editBtn, color: C.line, opacity: transitBusyId === row.slot.id ? 0.6 : 1 }}
+                    >
+                      {transitBusyId === row.slot.id ? "🚆 Searching…" : "🚆 Transit"}
+                    </button>
+                  )}
                   {row.slot.variants.map((v) => (
                     <span key={v.id} className="inline-flex items-center gap-0.5">
                       <button
@@ -1290,6 +1330,11 @@ export function TripView({
                   onSave={saveVariant(row.slot.id)}
                   onCancel={() => setVariantForm(null)}
                 />
+              )}
+              {transitError?.slotId === row.slot.id && (
+                <div className="text-xs mt-1" style={{ color: C.amber }}>
+                  {transitError.message}
+                </div>
               )}
             </div>
           ))}

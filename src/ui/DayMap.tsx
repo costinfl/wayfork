@@ -126,10 +126,23 @@ function DayMapImpl(
 
     for (const seg of segments) {
       if (same(seg)) continue; // degenerate origin — marker only, no line
+
+      // A transit variant (added via "🚆 Transit") carries its own real route
+      // line — precomputed at add-time since, unlike OSRM's road/foot geometry,
+      // it can't be deterministically re-fetched from just the two endpoints
+      // (many itineraries connect the same two places). Draw it as-is, active
+      // or not, instead of the schematic arc rail/train otherwise falls back to.
+      const variant = day.slots
+        .find((s) => s.id === seg.slotId)
+        ?.variants.find((v) => v.id === seg.variantId);
+      const storedGeometry = variant?.geometry;
+
       allPoints.push([seg.from.lat, seg.from.lon]);
 
       let latlngs: [number, number][];
-      if (seg.active && seg.profile !== "arc") {
+      if (storedGeometry && storedGeometry.length > 0) {
+        latlngs = storedGeometry;
+      } else if (seg.active && seg.profile !== "arc") {
         latlngs = [
           [seg.from.lat, seg.from.lon],
           [seg.to.lat, seg.to.lon],
@@ -153,7 +166,8 @@ function DayMapImpl(
       linesRef.current.set(`${seg.slotId}:${seg.variantId}`, line);
 
       // Upgrade the active road/foot segment to real geometry, best-effort.
-      if (seg.active && seg.profile !== "arc") {
+      // Skipped when stored geometry already resolved the line above.
+      if (!storedGeometry && seg.active && seg.profile !== "arc") {
         fetchRoute(seg.from, seg.to, seg.profile).then((geo) => {
           if (geo && linesRef.current.get(`${seg.slotId}:${seg.variantId}`) === line) {
             line.setLatLngs(geo);
