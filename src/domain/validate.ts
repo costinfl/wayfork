@@ -95,6 +95,12 @@ export function validateTrip(trip: Trip): string[] {
         if (v.microSteps.length === 0) err(`variant ${v.id} has no micro-steps`);
         if (!(v.cost.amount >= 0)) err(`variant ${v.id}: cost must be >= 0`);
         knownCcy(v.cost.currency, `variant ${v.id}`);
+        if (v.geometry) {
+          v.geometry.forEach(([lat, lon], gi) => {
+            if (!(lat >= -90 && lat <= 90)) err(`variant ${v.id}: geometry[${gi}] lat ${lat} must be in [-90, 90]`);
+            if (!(lon >= -180 && lon <= 180)) err(`variant ${v.id}: geometry[${gi}] lon ${lon} must be in [-180, 180]`);
+          });
+        }
         for (const ms of v.microSteps) {
           if (ms.durationMin <= 0 || !Number.isInteger(ms.durationMin)) {
             err(`micro-step ${ms.id}: durationMin ${ms.durationMin} must be a positive integer`);

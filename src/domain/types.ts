@@ -45,6 +45,12 @@ export interface VariantNode {
   // scaffold slot the user has not yet verified). Absent = not claimed either
   // way, so this stays backward compatible with existing trips.
   estimated?: boolean;
+  // Precomputed [lat, lon] route line for the day-journey map — set when the
+  // variant came from a real routing lookup (e.g. a Transitous transit plan)
+  // whose exact path can't be deterministically re-derived from the slot's
+  // place alone. Absent/null: the map draws its usual road/foot route or
+  // schematic arc instead.
+  geometry?: [number, number][] | null;
 }
 
 // Hard guardrail: absolute time milestone the active chain must respect.

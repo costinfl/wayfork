@@ -122,6 +122,22 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
         if (v.estimated !== undefined && typeof v.estimated !== "boolean") {
           err(`${vw}.estimated, when present, must be a boolean`);
         }
+        if (v.geometry !== undefined && v.geometry !== null) {
+          if (!Array.isArray(v.geometry)) {
+            err(`${vw}.geometry must be null or an array of [lat, lon] pairs`);
+          } else {
+            v.geometry.forEach((pt, gi) => {
+              if (
+                !Array.isArray(pt) ||
+                pt.length !== 2 ||
+                typeof pt[0] !== "number" ||
+                typeof pt[1] !== "number"
+              ) {
+                err(`${vw}.geometry[${gi}] must be a [lat, lon] number pair`);
+              }
+            });
+          }
+        }
         if (!isObj(v.cost)) {
           err(`${vw}.cost must be an object with amount and currency`);
         } else {
