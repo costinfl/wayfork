@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v1.2.0 — 277 tests green
+## Current version: v1.3.0 — 280 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -21,8 +21,9 @@ start date + number of days, return-to-start toggle) builds a validated
 prompt (`domain/prompt.ts` + `docs/trip-prompt.md`); the paste/upload path
 replaces a matching scaffold in place and flags any drift from it. New
 `estimated` provenance flag on variants/expenses (muted badge + form checkbox).
-**Day-journey map (v0.28):** Leaflet + OSM (first runtime dep, lazy-loaded)
-beside the selected day's timeline — the active variant chain as a solid route
+**Day-journey map (v0.28):** a lazy-loaded map (MapLibre GL + OpenFreeMap
+since v1.3.0; Leaflet + OSM raster originally) beside the selected day's
+timeline — the active variant chain as a solid route
 (OSRM road/foot geometry via `domain/route.ts`, straight-line fallback),
 forked alternatives as dashed schematic arcs (`domain/geometry.ts`) that are
 clickable to activate; a ⌖ button on each variant card focuses its segment.
@@ -59,16 +60,28 @@ schematic arc (`VariantNode.geometry?`). Response parsing is defensive
 throughout (unrecognized `mode` → "transfer", missing duration/distance →
 haversine estimate) since the exact MOTIS response schema wasn't fully
 confirmable from the sandbox — see the caveat in `docs/INTEGRATIONS.md`.
+**OpenFreeMap vector tiles (v1.3.0):** the day map moved from Leaflet + OSM
+raster tiles to **MapLibre GL + OpenFreeMap** (keyless, unlimited, Liberty
+style) — retires the OSM tile-usage-policy risk open since v0.28. `DayMap.tsx`
+rewritten on MapLibre's data-driven model: one `tracks` GeoJSON source with
+`tracks-active`/`tracks-alt` line layers (feature-state highlight for focus,
+click delegation on the alt layer only), a `discover-area` polygon (new pure
+`circlePolygon` helper in `geometry.ts` — MapLibre has no metres-accurate
+circle), and imperative HTML markers. Coordinates stay `[lat,lon]` app-wide;
+a `toLngLat` flip is applied only at the MapLibre boundary. **This completes
+the free-API integration roadmap (v1.0–v1.3).**
 
-## NEXT TASK — OpenFreeMap vector tiles (v1.3.0)
+## NEXT TASK — pick the next feature workstream
 
-Per `docs/INTEGRATIONS.md`: swap Leaflet + OSM raster tiles for MapLibre GL
-+ OpenFreeMap (keyless, unlimited vector tiles). Retires the OSM
-tile-usage-policy risk flagged since v0.28. Touches `ui/DayMap.tsx`'s tile
-layer and its Leaflet dependency/mocking in tests; the rest of DayMap's
-segment/geometry logic is tile-library-agnostic and should be unaffected.
+The free-API roadmap (`docs/INTEGRATIONS.md`) is complete. No single item is
+pre-committed; choose from the open items below. Strongest candidate:
+**trip export/share as PDF** (the largest user-facing gap — its own
+workstream: POI photos, map thumbnails via MapLibre's canvas export now that
+it's WebGL, render pipeline). Smaller self-contained options: the day-map
+degenerate-origin leg, a scaffold-replace confirm gate, or a shorter
+place-name display label.
 
-## Open items (after v1.3.0)
+## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in
   as costinfl@gmail.com on the deployed site) — the sandbox can't do auth
   emails; the preflight fix is deployed (admin-users v2, verify_jwt off).
@@ -77,6 +90,13 @@ segment/geometry logic is tile-library-agnostic and should be unaffected.
   rather than against the trip's actual day/time) — both reasonable v1
   scope cuts, worth revisiting. The MOTIS response schema should get a live
   spot check once this sandbox (or a real deploy) can reach the endpoint.
+- Day map — the MapLibre GL chunk is ~288 KB gzipped (was ~46 KB with
+  Leaflet), the cost of a full WebGL vector renderer. It stays lazy-loaded
+  (only fetched when a day's map first renders), so the entry bundle is
+  unchanged — but if map weight ever matters, MapLibre supports slimmer
+  builds / `maplibre-gl-basic`. The Liberty basemap imagery + WebGL line
+  rendering were verified against a stubbed style in the sandbox (real tiles
+  are unreachable here); confirm the live basemap looks right after deploy.
 - Day map — geometry is per-slot (a variant's segment routes into the slot's
   place). Per-micro-step waypoints (route through each leg's intermediate
   points) would be richer but needs a place per step, not per slot.

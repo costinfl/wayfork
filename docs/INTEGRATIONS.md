@@ -26,7 +26,7 @@ opt-in reliability upgrade for the small-audience case only.
 | Open-Meteo geocoding + forecast | place autocomplete, weather badges | ~10k req/day fair use | v0.2x |
 | Frankfurter (ECB) | tri-currency rates | fair use | v0.2x |
 | OSRM demo server | road/foot route geometry on the day map | courtesy, no SLA | v0.28 |
-| OSM raster tiles | day-map base layer | tile usage policy, no heavy use | v0.28 |
+| **OpenFreeMap** (`tiles.openfreemap.org/styles/liberty`) | day-map base layer (MapLibre GL vector tiles) | keyless, unlimited, attribution required | **v1.3.0** (replaced OSM raster + Leaflet) |
 | **Overpass API** (`overpass-api.de`, mirrors `overpass.kumi.systems`, `overpass.private.coffee`) | POI discovery (Discover panel) | ~10k req/day + 1 GB/day; 429 + slot queue when busy | **v1.0.0** |
 | **Wikipedia REST summary / Wikidata EntityData** | POI descriptions + thumbnails via OSM `wikipedia`/`wikidata` tags | generous | **v1.0.0** |
 | **Transitous / MOTIS 2** (`api.transitous.org/api/v6/plan`) | worldwide transit routing → real variant micro-steps + map geometry | fair use; contact the project before heavy endpoints | **v1.2.0** |
@@ -98,8 +98,15 @@ is keyless.
   MOTIS's `mode`), `estimated: true`, and — new — a stored `geometry` on
   the variant so the day map draws the itinerary's real path instead of a
   schematic arc (`VariantNode.geometry?: [number, number][] | null`).
-- **v1.3.0 — OpenFreeMap vector tiles.** Swap OSM raster + Leaflet for
-  MapLibre GL + OpenFreeMap (keyless, unlimited); retires the OSM
-  tile-policy risk noted since v0.28.
+- **v1.3.0 — OpenFreeMap vector tiles (shipped).** The day map moved from
+  Leaflet + OSM raster to MapLibre GL + OpenFreeMap (Liberty style, keyless,
+  unlimited); retires the OSM tile-policy risk noted since v0.28. `DayMap.tsx`
+  rewritten on MapLibre's source/layer model (one `tracks` GeoJSON source,
+  `tracks-active`/`tracks-alt` line layers, feature-state highlight, a
+  `discover-area` polygon via new `circlePolygon` in `geometry.ts`). The
+  MapLibre chunk is heavier (~288 KB gzip vs Leaflet's ~46 KB) but stays
+  lazy-loaded, so the entry bundle is unchanged. **This completes the
+  free-API integration roadmap (v1.0–v1.3).**
 - Later: per-micro-step waypoint routing; POI opening_hours →
-  checkpoint `opensMin`; PDF export with POI photos.
+  checkpoint `opensMin`; PDF export with POI photos (map thumbnails can now
+  use MapLibre's canvas export).

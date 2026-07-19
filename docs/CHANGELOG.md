@@ -6,6 +6,31 @@
 
 ## Session history
 
+- **v1.3.0** — OpenFreeMap vector tiles: the day map swapped Leaflet + OSM
+  raster for **MapLibre GL + OpenFreeMap** (Liberty style, keyless,
+  unlimited), retiring the OSM tile-usage-policy risk open since v0.28 and
+  completing the free-API integration roadmap (v1.0–v1.3). `DayMap.tsx` was
+  rewritten from Leaflet's per-object imperative layers to MapLibre's
+  data-driven model: an init effect creates the map and, on style `load`,
+  adds one `tracks` GeoJSON source with two line layers — `tracks-active`
+  (solid) and `tracks-alt` (dashed, the only interactive one, so "no click
+  handler on the active route" now holds by construction) — plus a
+  `discover-area` polygon source; a separate redraw effect (guarded by a
+  per-instance `styleReadyRef` so a stale-closure redraw can't touch a
+  freshly-recreated map's sources on fullscreen toggle) calls `setData` and
+  reconciles HTML markers. Focus uses `setFeatureState` highlight;
+  fitBounds/jumpTo/resize replace Leaflet's setView/fitBounds/invalidateSize.
+  New pure `circlePolygon(center, radiusM, points)` in `domain/geometry.ts`
+  (+ test) generates the Discover search-radius as a real GeoJSON polygon,
+  since MapLibre has no metres-accurate circle primitive. Coordinates stay
+  `[lat,lon]` everywhere; a `toLngLat` flip is applied only at the MapLibre
+  boundary, mirroring route.ts's OSRM handling. package.json: removed
+  `leaflet` + `@types/leaflet`, added `maplibre-gl` (ships own types). The
+  lazy map chunk grew ~46→288 KB gzip (full WebGL vector renderer) but the
+  entry bundle is unchanged. 277 → 280 tests; DayMap's 7 tests preserved
+  against a new `maplibre-gl` mock; Playwright-verified (stubbed style —
+  markers/route/fullscreen render, WebGL works headless; the live Liberty
+  basemap needs the real deploy).
 - **v1.2.0** — Transit micro-steps via Transitous. New `domain/transit.ts`:
   `fetchTransitPlan` calls the MOTIS 2 `/api/v6/plan` endpoint
   (`api.transitous.org`, keyless/worldwide) and parses the best itinerary
