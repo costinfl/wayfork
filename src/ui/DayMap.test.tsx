@@ -6,54 +6,79 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
 import type { Day, ItinerarySlot, Place, StepType, VariantNode } from "../domain/types";
 
-// Leaflet is too heavy/canvas-bound for jsdom — mock it and capture the created
-// polylines (with their click handlers) so we can test the wiring: which
-// segments become clickable alternatives, and the unmapped hint.
-const { polylines, circles, circleMarkers } = vi.hoisted(() => ({
-  polylines: [] as any[],
-  circles: [] as any[],
-  circleMarkers: [] as any[],
+// MapLibre GL is WebGL-bound and unusable in jsdom — mock it and capture what
+// the component draws: the `tracks`/`discover-area` GeoJSON sources (last
+// setData), the added layers, the per-layer event handlers, and the markers
+// (each with its DOM element), so tests inspect the wiring without a renderer.
+const { sources, layers, layerHandlers, markers } = vi.hoisted(() => ({
+  sources: {} as Record<string, any>,
+  layers: [] as any[],
+  layerHandlers: {} as Record<string, (e: any) => void>,
+  markers: [] as any[],
 }));
 
-vi.mock("leaflet/dist/leaflet.css", () => ({}));
-vi.mock("leaflet", () => {
-  const polyline = (latlngs: unknown, options: any) => {
-    const o: any = { options, _latlngs: latlngs };
-    o.addTo = () => o;
-    o.on = (ev: string, fn: () => void) => {
-      if (ev === "click") o._onClick = fn;
-      return o;
-    };
-    o.setStyle = (s: any) => ((o.options = { ...o.options, ...s }), o);
-    o.setLatLngs = (ll: unknown) => ((o._latlngs = ll), o);
-    o.getBounds = () => ({});
-    o.remove = () => {};
-    polylines.push(o);
-    return o;
-  };
-  const layer = (store: any[] | null, latlng: unknown, options: unknown) => {
-    const o: any = { _latlng: latlng, options };
-    o.addTo = () => o;
-    o.remove = () => {};
-    o.bindTooltip = (t: string) => ((o._tooltip = t), o);
-    if (store) store.push(o);
-    return o;
-  };
-  const L = {
-    map: () => ({ setView: () => {}, fitBounds: () => {}, remove: () => {}, invalidateSize: () => {} }),
-    tileLayer: () => ({ addTo: () => ({}) }),
-    marker: () => ({ addTo: () => ({ remove: () => {} }), remove: () => {} }),
-    divIcon: () => ({}),
-    circle: (latlng: unknown, options: unknown) => layer(circles, latlng, options),
-    circleMarker: (latlng: unknown, options: unknown) => layer(circleMarkers, latlng, options),
-    polyline,
-  };
+vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
+vi.mock("maplibre-gl", () => {
+  class Marker {
+    element: HTMLElement;
+    _lngLat: unknown;
+    constructor(opts: { element: HTMLElement }) {
+      this.element = opts.element;
+    }
+    setLngLat(ll: unknown) {
+      this._lngLat = ll;
+      return this;
+    }
+    addTo() {
+      markers.push(this);
+      return this;
+    }
+    remove() {
+      const i = markers.indexOf(this);
+      if (i >= 0) markers.splice(i, 1);
+    }
+  }
+  class LngLatBounds {
+    extend() {
+      return this;
+    }
+  }
+  class MapMock {
+    constructor(_opts: unknown) {}
+    on(type: string, layerOrFn: any, fn?: (e: any) => void) {
+      if (type === "load") {
+        layerOrFn(); // fire synchronously so sources/layers exist before asserts
+      } else {
+        layerHandlers[`${type}:${layerOrFn}`] = fn!;
+      }
+      return this;
+    }
+    addSource() {}
+    addLayer(cfg: any) {
+      layers.push(cfg);
+    }
+    getSource(id: string) {
+      return { setData: (fc: any) => (sources[id] = fc) };
+    }
+    setFeatureState() {}
+    getCanvas() {
+      return { style: {} as CSSStyleDeclaration };
+    }
+    fitBounds() {}
+    jumpTo() {}
+    resize() {}
+    remove() {}
+  }
+  const L = { Map: MapMock, Marker, LngLatBounds };
   return { default: L, ...L };
 });
 // Keep the routing adapter off the network.
 vi.mock("../domain/route", () => ({ fetchRoute: vi.fn(async () => null) }));
 
 import { DayMap } from "./DayMap";
+
+const trackFeatures = () => (sources["tracks"]?.features ?? []) as any[];
+const featureFor = (key: string) => trackFeatures().find((f) => f.id === key);
 
 const P = (name: string, lat: number, lon: number): Place => ({ name, lat, lon });
 
@@ -92,29 +117,36 @@ const day: Day = {
   ],
 };
 
+const reset = () => {
+  for (const k of Object.keys(sources)) delete sources[k];
+  layers.length = 0;
+  for (const k of Object.keys(layerHandlers)) delete layerHandlers[k];
+  markers.length = 0;
+};
+
 describe("DayMap wiring", () => {
   it("activates the variant when its dashed alternative is clicked", () => {
-    polylines.length = 0;
+    reset();
     const onActivate = vi.fn();
     render(<DayMap day={day} activeVariants={{}} onActivate={onActivate} />);
 
-    // The alternative segment is the dashed one and carries a click handler.
-    const dashed = polylines.filter((p) => p.options.dashArray);
-    expect(dashed.length).toBeGreaterThanOrEqual(1);
-    const withClick = dashed.find((p) => typeof p._onClick === "function");
-    expect(withClick).toBeTruthy();
-    withClick._onClick();
+    // One click handler on the alt-only layer; it reads the clicked feature key.
+    const handler = layerHandlers["click:tracks-alt"];
+    expect(handler).toBeTypeOf("function");
+    handler({ features: [{ properties: { key: "s2:alt" } }] });
     expect(onActivate).toHaveBeenCalledWith("s2", "alt");
   });
 
   it("renders the unmapped-slots hint", () => {
-    const onActivate = vi.fn();
-    render(<DayMap day={day} activeVariants={{}} onActivate={onActivate} />);
-    expect(screen.getByText(/1 slot have no location|1 slot have no location yet|no location/i)).toBeInTheDocument();
+    reset();
+    render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
+    expect(
+      screen.getByText(/1 slot have no location|1 slot have no location yet|no location/i)
+    ).toBeInTheDocument();
   });
 
   it("draws a variant's stored geometry (transit route) instead of the schematic arc", () => {
-    polylines.length = 0;
+    reset();
     const line: [number, number][] = [
       [0.1, 0.1],
       [0.5, 0.6],
@@ -129,29 +161,36 @@ describe("DayMap wiring", () => {
       ],
     };
     render(<DayMap day={dayWithTransit} activeVariants={{}} onActivate={vi.fn()} />);
-    const active = polylines.find((p) => !p.options.dashArray);
-    expect(active._latlngs).toEqual(line);
+    // The active feature's coordinates are the stored line, flipped to [lon,lat].
+    expect(featureFor("s2:active").geometry.coordinates).toEqual([
+      [0.1, 0.1],
+      [0.6, 0.5],
+      [1, 1],
+    ]);
   });
 
   it("falls back to the schematic arc when a transit-typed variant carries no geometry", () => {
-    polylines.length = 0;
+    reset();
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
-    // "active" on s2 is a metro (arc profile) with no stored geometry — still
-    // renders a bowed arc, not the two-point straight line.
-    const active = polylines.find((p) => !p.options.dashArray);
-    expect(active._latlngs.length).toBeGreaterThan(2);
+    // "active" on s2 is a metro (arc profile) with no stored geometry — the arc
+    // is a multi-point bézier, not a 2-point straight line.
+    expect(featureFor("s2:active").geometry.coordinates.length).toBeGreaterThan(2);
   });
 
-  it("does not attach a click handler to the active solid segment", () => {
-    polylines.length = 0;
+  it("does not attach a click handler to the active route layer (structural)", () => {
+    reset();
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
-    const solid = polylines.filter((p) => !p.options.dashArray);
-    for (const p of solid) expect(p._onClick).toBeUndefined();
+    // Only the alt layer is interactive — the active route can't be clicked
+    // to activate, because it's a separate layer with no handler at all.
+    expect(layerHandlers["click:tracks-alt"]).toBeTypeOf("function");
+    expect(layerHandlers["click:tracks-active"]).toBeUndefined();
+    // Both track features carry an `active` flag used by the layer filters.
+    expect(featureFor("s2:active").properties.active).toBe(true);
+    expect(featureFor("s2:alt").properties.active).toBe(false);
   });
 
-  it("draws the discover search circle, its center, and a pin per POI", () => {
-    circles.length = 0;
-    circleMarkers.length = 0;
+  it("draws the discover search polygon, its ⌖ center, and a pin per POI", () => {
+    reset();
     const discover = {
       center: { name: "A", lat: 0, lon: 0 },
       radiusM: 3000,
@@ -160,16 +199,21 @@ describe("DayMap wiring", () => {
         { id: "node/2", name: "Pantheon", lat: 0.02, lon: 0.02, category: "sights", distanceM: 1200 },
       ],
     };
-    render(
-      <DayMap day={day} activeVariants={{}} onActivate={vi.fn()} discover={discover as any} />
-    );
-    expect(circles).toHaveLength(1);
-    expect(circles[0].options.radius).toBe(3000);
-    expect(circleMarkers).toHaveLength(2);
-    expect(circleMarkers.map((m) => m._tooltip)).toEqual(["Colosseum", "Pantheon"]);
+    render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} discover={discover as any} />);
+
+    const area = sources["discover-area"];
+    expect(area.features).toHaveLength(1);
+    expect(area.features[0].geometry.type).toBe("Polygon");
+    // A ⌖ center marker plus one titled dot per POI, in order.
+    expect(markers.some((m) => m.element.textContent?.includes("⌖"))).toBe(true);
+    const poiTitles = markers
+      .map((m) => m.element.getAttribute("title"))
+      .filter((t): t is string => !!t);
+    expect(poiTitles).toEqual(["Colosseum", "Pantheon"]);
   });
 
   it("toggles fullscreen via the ⛶ button and exits on Escape", () => {
+    reset();
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
     const btn = screen.getByLabelText("Fullscreen map");
     fireEvent.click(btn);
