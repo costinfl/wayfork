@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dayTrack, offsetArc, variantProfile } from "./geometry";
+import { circlePolygon, dayTrack, offsetArc, variantProfile } from "./geometry";
+import { distanceM } from "./poi";
 import type { Day, ItinerarySlot, MicroStep, Place, StepType, VariantNode } from "./types";
 
 const P = (name: string, lat: number, lon: number): Place => ({ name, lat, lon });
@@ -130,5 +131,29 @@ describe("offsetArc", () => {
     // The midpoint actually bows away from the chord.
     const mid = up[Math.floor(up.length / 2)];
     expect(Math.abs(mid[0])).toBeGreaterThan(0.1);
+  });
+});
+
+describe("circlePolygon", () => {
+  const center = { lat: 41.9, lon: 12.5 }; // Rome
+
+  it("returns a closed ring of points+1 vertices", () => {
+    const ring = circlePolygon(center, 1000, 32);
+    expect(ring).toHaveLength(33);
+    expect(ring[0][0]).toBeCloseTo(ring[32][0], 9);
+    expect(ring[0][1]).toBeCloseTo(ring[32][1], 9);
+  });
+
+  it("places every vertex ~radiusM from the center (within 1%)", () => {
+    const radiusM = 3000;
+    for (const [lat, lon] of circlePolygon(center, radiusM, 64)) {
+      const d = distanceM(center, { lat, lon });
+      expect(d).toBeGreaterThan(radiusM * 0.99);
+      expect(d).toBeLessThan(radiusM * 1.01);
+    }
+  });
+
+  it("defaults to 64 segments (65 points)", () => {
+    expect(circlePolygon(center, 500)).toHaveLength(65);
   });
 });

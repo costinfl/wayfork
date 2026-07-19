@@ -99,3 +99,37 @@ export function offsetArc(
   }
   return pts;
 }
+
+// A closed ring of `[lat, lon]` points approximating a geographic circle of
+// `radiusM` metres around `center` — MapLibre has no metres-accurate circle
+// primitive (its `circle` paint sizes in pixels), so the day map's Discover
+// search-radius is drawn as this polygon instead. Uses the destination-point-
+// given-bearing-and-distance formula on a spherical earth; the first point is
+// repeated last so the ring closes (length = points + 1).
+const EARTH_R = 6371000;
+
+export function circlePolygon(
+  center: { lat: number; lon: number },
+  radiusM: number,
+  points = 64
+): [number, number][] {
+  const rad = Math.PI / 180;
+  const lat1 = center.lat * rad;
+  const lon1 = center.lon * rad;
+  const dR = radiusM / EARTH_R; // angular distance
+  const ring: [number, number][] = [];
+  for (let i = 0; i <= points; i++) {
+    const brng = (2 * Math.PI * i) / points;
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(dR) + Math.cos(lat1) * Math.sin(dR) * Math.cos(brng)
+    );
+    const lon2 =
+      lon1 +
+      Math.atan2(
+        Math.sin(brng) * Math.sin(dR) * Math.cos(lat1),
+        Math.cos(dR) - Math.sin(lat1) * Math.sin(lat2)
+      );
+    ring.push([lat2 / rad, lon2 / rad]);
+  }
+  return ring;
+}
