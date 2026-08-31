@@ -3,7 +3,13 @@ import { createPortal } from "react-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature, FeatureCollection, LineString } from "geojson";
-import { circlePolygon, dayTrack, offsetArc, type TrackSegment } from "../domain/geometry";
+import {
+  circlePolygon,
+  dayTrack,
+  offsetArc,
+  slotMarkerNumbers,
+  type TrackSegment,
+} from "../domain/geometry";
 import type { Poi } from "../domain/poi";
 import { fetchRoute } from "../domain/route";
 import type { Day, Place } from "../domain/types";
@@ -208,13 +214,15 @@ function DayMapImpl(
       boundsCount++;
     };
 
-    // Numbered markers at each located slot place (in track order).
-    const placesSeen: string[] = [];
+    // Numbered markers at each located slot place (in track order). Numbers
+    // come from the shared slotMarkerNumbers helper so the timeline can show
+    // the same number next to each slot.
+    const markerNumbers = slotMarkerNumbers(day);
+    const numbersSeen = new Set<number>();
     for (const seg of segments) {
-      const pkey = `${seg.to.lat},${seg.to.lon}`;
-      if (placesSeen.includes(pkey)) continue;
-      placesSeen.push(pkey);
-      const n = placesSeen.length;
+      const n = markerNumbers.get(seg.slotId);
+      if (n === undefined || numbersSeen.has(n)) continue;
+      numbersSeen.add(n);
       const marker = htmlMarker(
         `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${C.line};color:#fff;font:600 12px system-ui;box-shadow:0 1px 3px rgba(0,0,0,.4)">${n}</span>`
       )

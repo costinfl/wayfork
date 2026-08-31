@@ -3,6 +3,7 @@ import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } from "../data/repository";
 import type { TripStore } from "../data/repository";
+import { slotMarkerNumbers } from "../domain/geometry";
 import { mergeTrip } from "../domain/merge";
 import { createAuthClient } from "../data/supabaseAuth";
 import type { AuthClient, Session } from "../data/supabaseAuth";
@@ -832,6 +833,9 @@ export function TripView({
     () => computeSchedule({ ...day, startTimeMin: dayStart }, activeVariants),
     [day, dayStart, activeVariants]
   );
+  // Same numbering as the day map's numbered markers (slotMarkerNumbers is
+  // shared with DayMap.tsx) — lets the timeline show which marker a slot is.
+  const markerNumbers = useMemo(() => slotMarkerNumbers(day), [day]);
 
   // Projection covers the active variants of ALL days, not just the visible one.
   const variantCostEUR = useMemo(
@@ -1206,6 +1210,15 @@ export function TripView({
                     title={`Local time here is ${fmtOffset(row.tzOffsetMin)} from the day's start zone${day.tz ? ` (${day.tz})` : ""}`}
                   >
                     🕓 {fmtOffset(row.tzOffsetMin)}
+                  </span>
+                )}
+                {showMap && markerNumbers.has(row.slot.id) && (
+                  <span
+                    title={`Map marker ${markerNumbers.get(row.slot.id)}`}
+                    className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
+                    style={{ width: 18, height: 18, background: C.line, color: "#fff" }}
+                  >
+                    {markerNumbers.get(row.slot.id)}
                   </span>
                 )}
                 <span className="font-semibold">{row.slot.title}</span>

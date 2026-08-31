@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { circlePolygon, dayTrack, offsetArc, variantProfile } from "./geometry";
+import { circlePolygon, dayTrack, offsetArc, slotMarkerNumbers, variantProfile } from "./geometry";
 import { distanceM } from "./poi";
 import type { Day, ItinerarySlot, MicroStep, Place, StepType, VariantNode } from "./types";
 
@@ -102,6 +102,46 @@ describe("dayTrack", () => {
     const d = day([slot("s1", P("X", 5, 5), [variant("a", "walk"), variant("b", "car")])]);
     const { segments } = dayTrack(d, {});
     expect(segments.find((s) => s.active)?.variantId).toBe("a");
+  });
+});
+
+describe("slotMarkerNumbers", () => {
+  it("numbers located slots in order, skipping unmapped ones", () => {
+    const A = P("A", 0, 0);
+    const B = P("B", 1, 1);
+    const C = P("C", 2, 2);
+    const d = day([
+      slot("s1", A, [variant("v1", "walk")]),
+      slot("s2", null, [variant("v2", "walk")]),
+      slot("s3", B, [variant("v3", "car")]),
+      slot("s4", C, [variant("v4", "walk")]),
+    ]);
+    const numbers = slotMarkerNumbers(d);
+    expect(numbers.get("s1")).toBe(1);
+    expect(numbers.has("s2")).toBe(false);
+    expect(numbers.get("s3")).toBe(2);
+    expect(numbers.get("s4")).toBe(3);
+  });
+
+  it("gives slots sharing the same place the same number", () => {
+    const A = P("A", 0, 0);
+    const d = day([
+      slot("s1", A, [variant("v1", "walk")]),
+      slot("s2", { ...A }, [variant("v2", "walk")]),
+    ]);
+    const numbers = slotMarkerNumbers(d);
+    expect(numbers.get("s1")).toBe(1);
+    expect(numbers.get("s2")).toBe(1);
+  });
+
+  it("does not depend on which variant is active", () => {
+    const A = P("A", 0, 0);
+    const B = P("B", 1, 1);
+    const d = day([
+      slot("s1", A, [variant("v1", "walk")]),
+      slot("s2", B, [variant("v2a", "metro"), variant("v2b", "car")]),
+    ]);
+    expect(slotMarkerNumbers(d).get("s2")).toBe(2);
   });
 });
 

@@ -6,6 +6,24 @@
 
 ## Session history
 
+- **v1.3.2** — Timeline marker numbers. New pure `slotMarkerNumbers(day):
+  Map<slotId, number>` in `domain/geometry.ts` — numbers located slots in
+  schedule order, giving slots that share the exact same place the same
+  number (mirrors the map's marker-dedup logic exactly, and is independent
+  of `activeVariants` since numbering only depends on which slots have a
+  place). `DayMap.tsx`'s marker-drawing loop now calls this instead of its
+  own inline `placesSeen` string-key dedup, so the two can't drift.
+  `WayforkApp.tsx`: a `useMemo`'d `markerNumbers` map renders a small
+  circular badge (same visual style as the map pins — `C.line` circle,
+  white number) next to each slot's title in the timeline, shown only when
+  the map panel is open (`showMap`) and the slot has a place. Addresses a
+  usability gap: a day with several slots clustered at/near the same place
+  (e.g. an airport transfer + check-in + gate) drew multiple numbered
+  markers on the map with no way to tell from the timeline which slot was
+  which. 281 → 284 tests (3 new `slotMarkerNumbers` cases in
+  `geometry.test.ts`); Playwright-verified (badges render correctly:
+  ①/①/②/③ matching two same-place airport slots, the flight, and the
+  transfer, no console errors).
 - **v1.3.1** — Map zoom controls + Supabase keep-alive. `DayMap.tsx`:
   `scrollZoom: true` on the MapLibre init (was explicitly `false`), and a
   `−`/`+` button pair added to the same top-right button row as the ⛶

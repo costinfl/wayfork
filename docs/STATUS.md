@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v1.3.1 — 281 tests green
+## Current version: v1.3.2 — 284 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -78,6 +78,13 @@ scheduled ping (`GET /rest/v1/trips?select=id&limit=1`, URL/key read live
 from `supabaseConfig.ts` so it can't drift) to stop the free-tier Supabase
 project auto-pausing after a week idle (this is what caused the "Failed to
 fetch" magic-link report this session — the project had paused).
+**Timeline marker numbers (v1.3.2):** each timeline slot now shows a small
+numbered badge (same style as the map's numbered markers) next to its title
+when the map is open and the slot has a place — so a user can tell which
+timeline item a given map marker/cluster point belongs to. New pure
+`slotMarkerNumbers(day)` in `domain/geometry.ts`, shared by both `DayMap.tsx`
+(refactored to use it instead of its own inline dedup) and `WayforkApp.tsx`'s
+timeline, so the two numberings can't drift apart.
 
 ## NEXT TASK — pick the next feature workstream
 

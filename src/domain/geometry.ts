@@ -71,6 +71,27 @@ export function dayTrack(day: Day, activeVariants: Record<string, string>): DayT
   return { segments, unmapped };
 }
 
+// The day map draws one numbered marker per distinct located-slot place, in
+// schedule order (see DayMap.tsx) — so a slot's marker number depends only on
+// which slots have a place and their order, not on the active-variant
+// selection. Exposed separately so the timeline can show the same number
+// next to each slot, letting the user match a map marker back to its slot.
+export function slotMarkerNumbers(day: Day): Map<string, number> {
+  const numbers = new Map<string, number>();
+  const placeKeyToNumber = new Map<string, number>();
+  for (const slot of day.slots) {
+    if (!slot.place) continue;
+    const key = `${slot.place.lat},${slot.place.lon}`;
+    let n = placeKeyToNumber.get(key);
+    if (n === undefined) {
+      n = placeKeyToNumber.size + 1;
+      placeKeyToNumber.set(key, n);
+    }
+    numbers.set(slot.id, n);
+  }
+  return numbers;
+}
+
 // A quadratic-bézier polyline bowed perpendicular to the from→to chord. `bend`
 // is a signed fraction of the chord length; its sign flips the bow to the other
 // side (so sibling alternatives fork apart). bend=0 degenerates to the straight
