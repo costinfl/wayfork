@@ -10,11 +10,12 @@ import type { Day, ItinerarySlot, Place, StepType, VariantNode } from "../domain
 // the component draws: the `tracks`/`discover-area` GeoJSON sources (last
 // setData), the added layers, the per-layer event handlers, and the markers
 // (each with its DOM element), so tests inspect the wiring without a renderer.
-const { sources, layers, layerHandlers, markers } = vi.hoisted(() => ({
+const { sources, layers, layerHandlers, markers, zoomCalls } = vi.hoisted(() => ({
   sources: {} as Record<string, any>,
   layers: [] as any[],
   layerHandlers: {} as Record<string, (e: any) => void>,
   markers: [] as any[],
+  zoomCalls: [] as string[],
 }));
 
 vi.mock("maplibre-gl/dist/maplibre-gl.css", () => ({}));
@@ -68,6 +69,12 @@ vi.mock("maplibre-gl", () => {
     jumpTo() {}
     resize() {}
     remove() {}
+    zoomIn() {
+      zoomCalls.push("in");
+    }
+    zoomOut() {
+      zoomCalls.push("out");
+    }
   }
   const L = { Map: MapMock, Marker, LngLatBounds };
   return { default: L, ...L };
@@ -212,16 +219,25 @@ describe("DayMap wiring", () => {
     expect(poiTitles).toEqual(["Colosseum", "Pantheon"]);
   });
 
+  it("zooms in and out via the +/− buttons", () => {
+    reset();
+    zoomCalls.length = 0;
+    render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Zoom in"));
+    fireEvent.click(screen.getByLabelText("Zoom out"));
+    expect(zoomCalls).toEqual(["in", "out"]);
+  });
+
   it("toggles fullscreen via the ⛶ button and exits on Escape", () => {
     reset();
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
     const btn = screen.getByLabelText("Fullscreen map");
     fireEvent.click(btn);
     const exit = screen.getByLabelText("Exit fullscreen map");
-    expect(exit.parentElement?.className).toContain("fixed inset-0");
+    expect(exit.parentElement?.parentElement?.className).toContain("fixed inset-0");
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByLabelText("Fullscreen map").parentElement?.className).not.toContain(
-      "fixed inset-0"
-    );
+    expect(
+      screen.getByLabelText("Fullscreen map").parentElement?.parentElement?.className
+    ).not.toContain("fixed inset-0");
   });
 });

@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v1.3.0 — 280 tests green
+## Current version: v1.3.1 — 281 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -70,6 +70,14 @@ click delegation on the alt layer only), a `discover-area` polygon (new pure
 circle), and imperative HTML markers. Coordinates stay `[lat,lon]` app-wide;
 a `toLngLat` flip is applied only at the MapLibre boundary. **This completes
 the free-API integration roadmap (v1.0–v1.3).**
+**Map zoom controls + Supabase keep-alive (v1.3.1):** the day map now
+scroll-zooms (`scrollZoom: true`, was disabled) and gained `−`/`+` buttons
+in the same top-right row as the ⛶ fullscreen toggle (`map.zoomIn()`/
+`zoomOut()`). Also added `.github/workflows/keep-alive.yml` — a daily
+scheduled ping (`GET /rest/v1/trips?select=id&limit=1`, URL/key read live
+from `supabaseConfig.ts` so it can't drift) to stop the free-tier Supabase
+project auto-pausing after a week idle (this is what caused the "Failed to
+fetch" magic-link report this session — the project had paused).
 
 ## NEXT TASK — pick the next feature workstream
 

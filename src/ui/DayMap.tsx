@@ -112,7 +112,7 @@ function DayMapImpl(
     const map = new maplibregl.Map({
       container: elRef.current,
       style: OPENFREEMAP_STYLE,
-      scrollZoom: false,
+      scrollZoom: true,
       attributionControl: { compact: true },
     });
     mapRef.current = map;
@@ -365,15 +365,35 @@ function DayMapImpl(
         ...(fullscreen ? { zIndex: 1100 } : {}),
       }}
     >
-      <button
-        onClick={toggleFullscreen}
-        aria-label={fullscreen ? "Exit fullscreen map" : "Fullscreen map"}
-        title={fullscreen ? "Exit fullscreen (Esc)" : "Fill the whole window"}
-        className="absolute top-2 right-2 w-8 h-8 rounded-lg text-base font-bold"
-        style={{ zIndex: 1050, border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
-      >
-        {fullscreen ? "✕" : "⛶"}
-      </button>
+      <div className="absolute top-2 right-2 flex items-center gap-1" style={{ zIndex: 1050 }}>
+        <button
+          onClick={() => mapRef.current?.zoomOut()}
+          aria-label="Zoom out"
+          title="Zoom out"
+          className="w-8 h-8 rounded-lg text-base font-bold"
+          style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
+        >
+          −
+        </button>
+        <button
+          onClick={() => mapRef.current?.zoomIn()}
+          aria-label="Zoom in"
+          title="Zoom in"
+          className="w-8 h-8 rounded-lg text-base font-bold"
+          style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
+        >
+          +
+        </button>
+        <button
+          onClick={toggleFullscreen}
+          aria-label={fullscreen ? "Exit fullscreen map" : "Fullscreen map"}
+          title={fullscreen ? "Exit fullscreen (Esc)" : "Fill the whole window"}
+          className="w-8 h-8 rounded-lg text-base font-bold"
+          style={{ border: `1px solid ${C.border}`, background: C.card, color: C.ink }}
+        >
+          {fullscreen ? "✕" : "⛶"}
+        </button>
+      </div>
       <div
         ref={elRef}
         style={fullscreen ? { flex: 1, width: "100%" } : { height: 420, width: "100%" }}

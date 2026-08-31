@@ -1,0 +1,22 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects auto-pause after ~1 week with no API activity.
+# Ping the REST endpoint daily (well inside that window) so the project never
+# pauses. URL/key are read from supabaseConfig.ts so this never drifts from
+# the app's actual project — the anon key is a public, RLS-governed key, not
+# a secret.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping Supabase REST endpoint
+        run: |
+          URL=$(grep -oP '(?<=url: ")[^"]+' src/data/supabaseConfig.ts)
+          KEY=$(grep -oP '(?<=anonKey: ")[^"]+' src/data/supabaseConfig.ts)
+          curl -sf "$URL/rest/v1/trips?select=id&limit=1" -H "apikey: $KEY" -o /dev/null

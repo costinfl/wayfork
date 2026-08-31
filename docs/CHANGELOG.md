@@ -6,6 +6,24 @@
 
 ## Session history
 
+- **v1.3.1** — Map zoom controls + Supabase keep-alive. `DayMap.tsx`:
+  `scrollZoom: true` on the MapLibre init (was explicitly `false`), and a
+  `−`/`+` button pair added to the same top-right button row as the ⛶
+  fullscreen toggle, calling `map.zoomIn()`/`zoomOut()`; the row is now a
+  flex container (`absolute top-2 right-2 flex ... gap-1`) instead of the
+  fullscreen button being independently `absolute`-positioned, which moved
+  the fullscreen-test assertions one level deeper (`.parentElement
+  .parentElement`). MapMock in `DayMap.test.tsx` gained `zoomIn`/`zoomOut`
+  recording into a hoisted `zoomCalls` array; new test clicks both buttons.
+  280 → 281 tests. Separately, this session's "Failed to fetch" report on
+  magic-link sign-in turned out to be the free-tier Supabase project having
+  auto-paused from a week of no API traffic (confirmed via `query_logs` —
+  zero `edge_logs` entries in 24h — then fixed by restoring the project in
+  the dashboard); added `.github/workflows/keep-alive.yml`, a daily
+  `workflow_dispatch`-able cron that `curl`s
+  `GET /rest/v1/trips?select=id&limit=1` with the URL/anon key grepped live
+  out of `src/data/supabaseConfig.ts` (no secrets needed — it's the public
+  anon key) so the project never goes a week idle again.
 - **v1.3.0** — OpenFreeMap vector tiles: the day map swapped Leaflet + OSM
   raster for **MapLibre GL + OpenFreeMap** (Liberty style, keyless,
   unlimited), retiring the OSM tile-usage-policy risk open since v0.28 and
