@@ -243,3 +243,186 @@ export function vehicleFootprint(v: Vehicle): [number, number][] | null {
   ];
   return [...ring, ring[0]];
 }
+
+// ---- trip details (tap a vehicle) -----------------------------------------
+// MOTIS `GET /api/v6/trip?tripId=` returns the vehicle's whole trip as an
+// itinerary: headsign, route names, agency, every stop with real-time and
+// scheduled times, accessibility, alerts and the route shape.
+
+export const TRANSITOUS_TRIP_URL = "https://api.transitous.org/api/v6/trip";
+
+export interface TripStop {
+  name: string;
+  lat: number;
+  lon: number;
+  tz?: string;
+  arrival?: number; // epoch ms (real-time when available)
+  departure?: number;
+  scheduledArrival?: number;
+  scheduledDeparture?: number;
+  track?: string;
+  cancelled: boolean;
+}
+
+export interface TripDetails {
+  tripId: string;
+  name: string; // route short name, e.g. "QM32"
+  longName?: string;
+  headsign?: string;
+  agency?: string;
+  mode: LiveMode;
+  color: string;
+  realTime: boolean;
+  cancelled: boolean;
+  wheelchair: boolean | null;
+  bikes: boolean | null;
+  alerts: string[];
+  stops: TripStop[];
+  line: [number, number][];
+}
+
+interface RawStop {
+  name?: string;
+  lat?: number;
+  lon?: number;
+  tz?: string;
+  arrival?: string;
+  departure?: string;
+  scheduledArrival?: string;
+  scheduledDeparture?: string;
+  track?: string;
+  scheduledTrack?: string;
+  cancelled?: boolean;
+}
+
+interface RawTripLeg {
+  mode?: string;
+  headsign?: string;
+  routeShortName?: string;
+  routeLongName?: string;
+  displayName?: string;
+  agencyName?: string;
+  routeColor?: string;
+  realTime?: boolean;
+  cancelled?: boolean;
+  wheelchairAccessible?: string;
+  bikesAllowed?: boolean;
+  alerts?: { headerText?: string; descriptionText?: string }[] | null;
+  from?: RawStop;
+  to?: RawStop;
+  intermediateStops?: RawStop[];
+  legGeometry?: { points?: string; precision?: number };
+}
+
+const ms = (iso: string | undefined): number | undefined => {
+  const t = Date.parse(iso ?? "");
+  return Number.isFinite(t) ? t : undefined;
+};
+
+function parseStop(s: RawStop | undefined): TripStop | null {
+  if (!s || typeof s.lat !== "number" || typeof s.lon !== "number") return null;
+  return {
+    name: s.name || "Stop",
+    lat: s.lat,
+    lon: s.lon,
+    ...(s.tz ? { tz: s.tz } : {}),
+    arrival: ms(s.arrival),
+    departure: ms(s.departure),
+    scheduledArrival: ms(s.scheduledArrival),
+    scheduledDeparture: ms(s.scheduledDeparture),
+    ...((s.track ?? s.scheduledTrack) ? { track: s.track ?? s.scheduledTrack } : {}),
+    cancelled: s.cancelled === true,
+  };
+}
+
+export function parseTripDetails(tripId: string, body: unknown): TripDetails | null {
+  const legs = ((body as { legs?: RawTripLeg[] } | null)?.legs ?? []).filter(
+    (l) => l && l.mode && l.mode !== "WALK"
+  );
+  if (legs.length === 0) return null;
+  const first = legs[0];
+  const stops: TripStop[] = [];
+  const line: [number, number][] = [];
+  legs.forEach((l, i) => {
+    // Interlined legs share their boundary stop; keep it once.
+    const legStops = [...(i === 0 ? [l.from] : []), ...(l.intermediateStops ?? []), l.to];
+    for (const s of legStops.map(parseStop)) if (s) stops.push(s);
+    const pts = l.legGeometry?.points;
+    if (typeof pts === "string" && pts) {
+      try {
+        line.push(...decodePolyline(pts, l.legGeometry?.precision ?? 6));
+      } catch {
+        /* no shape — the card still works */
+      }
+    }
+  });
+  if (stops.length < 2) return null;
+  const mode = MODE_MAP[first.mode ?? ""] ?? "other";
+  const access = first.wheelchairAccessible;
+  return {
+    tripId,
+    name: first.routeShortName || first.displayName || first.mode || "",
+    ...(first.routeLongName ? { longName: first.routeLongName } : {}),
+    ...(first.headsign ? { headsign: first.headsign } : {}),
+    ...(first.agencyName ? { agency: first.agencyName } : {}),
+    mode,
+    color: hexColor(first.routeColor) ?? MODE_COLORS[mode],
+    realTime: legs.some((l) => l.realTime === true),
+    cancelled: legs.every((l) => l.cancelled === true),
+    wheelchair: access === "ACCESSIBLE" ? true : access === "NOT_ACCESSIBLE" ? false : null,
+    bikes: typeof first.bikesAllowed === "boolean" ? first.bikesAllowed : null,
+    alerts: legs
+      .flatMap((l) => l.alerts ?? [])
+      .map((a) => a?.headerText || a?.descriptionText || "")
+      .filter((t, i, all) => t && all.indexOf(t) === i),
+    stops,
+    line,
+  };
+}
+
+const tripCache = new Map<string, TripDetails>();
+
+// The vehicle's trip, or null when the service fails or knows nothing about
+// it. Successful lookups are cached for the session.
+export async function fetchTripDetails(tripId: string, fetchFn: typeof fetch = fetch): Promise<TripDetails | null> {
+  const hit = tripCache.get(tripId);
+  if (hit) return hit;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(`${TRANSITOUS_TRIP_URL}?${new URLSearchParams({ tripId })}`, {
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const details = parseTripDetails(tripId, await res.json());
+    if (details) tripCache.set(tripId, details);
+    return details;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface TripProgress {
+  nextIndex: number; // first stop not yet reached (stops.length when finished)
+  delayMin: number | null; // real − scheduled at that stop; null without real-time data
+  finished: boolean;
+}
+
+// Where the vehicle is in its trip at `now`: the next stop is the first whose
+// arrival (real-time, else scheduled) is still ahead.
+export function tripProgress(d: TripDetails, now: number): TripProgress {
+  const at = (s: TripStop) => s.arrival ?? s.departure ?? s.scheduledArrival ?? s.scheduledDeparture;
+  let nextIndex = d.stops.findIndex((s) => {
+    const t = at(s);
+    return t !== undefined && t > now;
+  });
+  const finished = nextIndex === -1;
+  if (finished) nextIndex = d.stops.length;
+  const ref = d.stops[Math.min(nextIndex, d.stops.length - 1)];
+  const real = ref.arrival ?? ref.departure;
+  const sched = ref.scheduledArrival ?? ref.scheduledDeparture;
+  const delayMin = d.realTime && real !== undefined && sched !== undefined ? Math.round((real - sched) / 60_000) : null;
+  return { nextIndex, delayMin, finished };
+}

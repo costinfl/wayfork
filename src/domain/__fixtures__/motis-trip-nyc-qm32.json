@@ -1,0 +1,99 @@
+{
+ "duration": 5100,
+ "startTime": "2026-10-19T20:35:00Z",
+ "endTime": "2026-10-19T22:00:00Z",
+ "legs": [
+  {
+   "mode": "BUS",
+   "headsign": "BAY TERRACE BELL BL via WHITESTONE EXPWY",
+   "routeShortName": "QM32",
+   "routeLongName": "Bay Terrace - Midtown Express",
+   "agencyName": "MTA Bus Company",
+   "displayName": "QM32",
+   "realTime": true,
+   "cancelled": false,
+   "wheelchairAccessible": "NOT_ACCESSIBLE",
+   "bikesAllowed": false,
+   "routeColor": "00933c",
+   "tripId": "20261019_16:35_us-ny-MTA-BusCompany_47351415-CPPD6-CP_D6-Weekday-04-SDon",
+   "startTime": "2026-10-19T20:35:00Z",
+   "endTime": "2026-10-19T22:00:00Z",
+   "scheduledStartTime": "2026-10-19T20:35:00Z",
+   "scheduledEndTime": "2026-10-19T22:01:00Z",
+   "alerts": [
+    {
+     "headerText": "Buses detoured at E 57 St due to street fair"
+    }
+   ],
+   "from": {
+    "name": "3 AV/E 39 ST",
+    "lat": 40.749100000000006,
+    "lon": -73.97558599999999,
+    "tz": "America/New_York",
+    "departure": "2026-10-19T20:35:00Z",
+    "scheduledDeparture": "2026-10-19T20:35:00Z",
+    "cancelled": false
+   },
+   "to": {
+    "name": "212 ST/15 AV",
+    "lat": 40.785583,
+    "lon": -73.78152000000001,
+    "tz": "America/New_York",
+    "arrival": "2026-10-19T22:00:00Z",
+    "scheduledArrival": "2026-10-19T22:01:00Z",
+    "cancelled": false
+   },
+   "intermediateStops": [
+    {
+     "name": "3 AV/E 43 ST",
+     "lat": 40.75156,
+     "lon": -73.97376999999999,
+     "tz": "America/New_York",
+     "arrival": "2026-10-19T20:37:00Z",
+     "departure": "2026-10-19T20:37:00Z",
+     "scheduledArrival": "2026-10-19T20:37:00Z",
+     "scheduledDeparture": "2026-10-19T20:37:00Z",
+     "cancelled": false
+    },
+    {
+     "name": "3 AV/E 48 ST",
+     "lat": 40.754859999999994,
+     "lon": -73.97137,
+     "tz": "America/New_York",
+     "arrival": "2026-10-19T20:40:00Z",
+     "departure": "2026-10-19T20:40:00Z",
+     "scheduledArrival": "2026-10-19T20:40:00Z",
+     "scheduledDeparture": "2026-10-19T20:40:00Z",
+     "cancelled": false
+    },
+    {
+     "name": "3 AV/E 55 ST",
+     "lat": 40.758873,
+     "lon": -73.96845,
+     "tz": "America/New_York",
+     "arrival": "2026-10-19T20:45:00Z",
+     "departure": "2026-10-19T20:45:00Z",
+     "scheduledArrival": "2026-10-19T20:45:00Z",
+     "scheduledDeparture": "2026-10-19T20:45:00Z",
+     "cancelled": false
+    },
+    {
+     "name": "WHITESTONE EXPWY/LINDEN PL",
+     "lat": 40.77109,
+     "lon": -73.832985,
+     "tz": "America/New_York",
+     "arrival": "2026-10-19T21:33:00Z",
+     "departure": "2026-10-19T21:33:00Z",
+     "scheduledArrival": "2026-10-19T21:32:00Z",
+     "scheduledDeparture": "2026-10-19T21:32:00Z",
+     "cancelled": false
+    }
+   ],
+   "legGeometry": {
+    "points": "wacvlAbqbblC{@hCcWyPke@c[oNsIeZcQ}i@s]{EiDo]kWse@u\\mZkReJwGif@oZsf@c\\qQkLaSkMif@w[qf@k\\se@oZkf@w[uf@c[ea@_XqCwBkf@m[gTiNyA{EmOcKsi@a]kVyPkDI{ImGzz@ikCcBmG[wBYkCMkCGsDG{Eb@oKv@wLj@sEnAaG~C}IrDkLz@cCvBcGtMg^hCwGz@kCr@wBf@{@rIkR|Q_l@nCkHb[gaAxPwj@fA_DjB{EpBcGl@wBhVcs@rF{P`Wwt@xXsv@dCkHfm@woB`@gAd@oArCsI|`Ac}Czo@_hBjUsq@tU{r@vXgx@vLc_@v@oAnCgJt@cBl@kCtOsg@z@wB|BwGvAgEzQ{h@~\\{eA~HgUlAsDhDoKtC{JhHcVlJsXvWku@|Tsr@bVcn@tK_XzOsXhH{KnJkLfCwB|IgJYoAg@oAg@yAg@eAkE{P{CwK}B{Ee@{@gI{J{KcLwD}DoBaCuPwQiMiNcf@yi@uEcGeEcGiWce@eH{JJoA?wBKcBJkH_EoP_CgOcCwPcAoL_@kHq@{YIua@?uDg@sdAaAgfA?wB?sIa@_v@SkxA{@s]qBg^qC}SkFa\\iCgNmOcdAuEc\\mIko@sF{c@oIsl@yB{OuC_SaPchA]kCcAiI}Da\\}BmVoAqTg@wUS{ULkR`As]pCsb@lEod@ZkC`@{EjAgOxAiNzEei@rIkz@fJgfA~Cm[nB}Sd@oTOyLa@uR{@{O}GcwAqB_]qCkg@a@wF[kHoB_]SsDg@wLgEs{@gEo}@sE{|@mA{YkAmVuDex@sEox@iDei@m@eKu@kMkA_Xa@_HcBce@{@gOgAgPoD_{@sEcy@sDs{@{Dgw@eEcz@wDcx@mEwy@kEcy@wDox@cEox@wB{^oA{Y_Eoy@eEcx@eEwy@_Eox@{@{PaCoh@eEox@eEcy@gEky@uDey@eEmy@gEcy@aEox@gEcy@cCgc@s@oUgCgc@}A_]uEox@uD}v@wDqw@}D{x@}Ek~@uEw~@sDsv@eAwQ{Bod@kAo[UwKOkWcAcy@cAsv@eAgw@kAqw@MmQGsNo@o_@[{Zg@gc@e@cU}AgTuCk`@eEgm@{@cMoBo_@_Dce@a@_Dm@gES_Do@_NGgEFgEn@wQRmBt@yBjAoEjAgE`^_u@fBgFrAwGxBcQNoFFoFG{Jm@oFg@gE[kDs@cGkBgMkAcHcLc`@sFkWsJ}b@iIiXyBsIkBoFkC_IeC_HyBgFqBuCaMu\\kHcQ{DkI{GsMaq@ogAqGqJqRa]}Yci@cAkCyLcU}Zcp@oH_S{a@ksAwBwGqHgTM{@u@cBqHwQsFwLoDcGiGgJePgT_FcGKSiHkHwIuHwCuCoCkCkAoAoJqEwR}JeWsMwBoA_I{EkV_NeOsIu^sSgI{EkB{@kFsDoDwB_SoKgO_I{KaMeDyF}A{E_IgPyFeEeK}IyW_XqMsMaRoQqOcQyI{JiMcQkVo_@_H_N_IoOcWsh@oIcQsFwKgm@wnA{IcQgTgc@wP_]}^oi@mLkMwG{FuOgO}LoJkb@yUecAuf@_OwGsAs@}]{NeK{EavAgr@y_Asb@u_@wQcFcB_QsIoPgJ_Y_NmZ_Nia@wLcCSqGcBeNsC{m@kIw`@wGyyB_XumAgOyBg@yBKUcGYcKiAwj@?oG{@wF_Jon@mJsq@e@sDyK{w@oA_HgJsm@gOobAa@wBqBwLrCkHpEsNrKi]dImVlLy_@lBuHz@{EhAkMl@{Jl@kRhAsXbB_g@^wGrCi]hKa}AvCgc@pBgYjB{OnCgOrCkRfGgc@rAoZfAc`@a@s~A?{EVwLlG_cBjHcnAjCow@uKR}FRiARuE?kKFoI[s{@eFyUeAk_AwHik@eEkk@eEik@_Esk@}Dck@eEiQgAgYwB}}@wG`AgYbB_g@tAm`@d@mL\\yK~HmuBh~@bGhFz@jAf@pWvKnNnGbFp@lEHhF{@bb@cL|YwGnm@gJxk@qJbk@}IrxAcVqGmy@yGq{@jFwCzA\\pGq@dIg@|FR|Df@bB\\~KhDfAo@~B_@nARhGbBxHlBhFdA~Cf@pCRoA_IeCoOuFw\\_HoZeEwM}@_CgC{EaRs\\qHcQkHkSgEkMcLk\\aPod@uDyKwDyKgDsIwBcGkC_IcKsXiHoTeMo`@mB_IaBcGwD_XcAoPu@sNkAk\\?oLIc[f@g]rAw[|@kR`@kMK{Z[wKoAsNk@oPGwGJgSC}@rAiSLsDrBaMfCiNdC{JJSjUgr@bGoPdE{JxBgEnBsDrDgE~C_DnAcBj]cWbZmUdsAq|@`F_DjuAc~@fW{Ot_Ask@xB{AbGdPrHtR~ClGnL|SrHjLrIrJvGhIfKdKpb@je@tH~IrIrNrD~HfDzJpCbL|BzJbCjHfEpJ}ElGu_@fh@_K~HcGfE{JfEkDdA}JxBuEZmJ?}JoAcIoAgEoA{Bg@wI_IeEgEyHyP{Uau@sH{Tq@kCkA_D}ErDmERsEfEaEzEeDfFyCjGeD~HiArDkCrMMr@eDzToAzEyAvFqCbGoCjDgE~CeDbBkBR_DRqCRwB?yCg@qCz@wBg@yMyAeJmBkGKoAGyDS{@R?gE",
+    "precision": 6,
+    "length": 611
+   }
+  }
+ ]
+}

@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import fixture from "./__fixtures__/motis-map-trips.json";
+import nycTrip from "./__fixtures__/motis-trip-nyc-qm32.json";
 import {
   fetchLiveSegments,
+  fetchTripDetails,
   MODE_COLORS,
+  parseTripDetails,
+  TRANSITOUS_TRIP_URL,
+  tripProgress,
   parseTripSegments,
   positionAt,
   TRANSITOUS_TRIPS_URL,
@@ -147,5 +152,80 @@ describe("vehicleFootprint", () => {
 
   it("draws metro (underground) as a dot, not a box", () => {
     expect(vehicleFootprint({ ...v, mode: "metro", bearing: 90 })).toBeNull();
+  });
+});
+
+describe("trip details (tap a vehicle)", () => {
+  // Real /api/v6/trip answer for NYC bus QM32 (2026-10-19), trimmed to 6 stops.
+  // The alert was added for this test; the real trip had none.
+  const tripId = "20261019_16:35_us-ny-MTA-BusCompany_47351415-CPPD6-CP_D6-Weekday-04-SDon";
+
+  it("parses headsign, route, agency, stops, accessibility and shape", () => {
+    const d = parseTripDetails(tripId, nycTrip)!;
+    expect(d).toMatchObject({
+      tripId,
+      name: "QM32",
+      longName: "Bay Terrace - Midtown Express",
+      headsign: "BAY TERRACE BELL BL via WHITESTONE EXPWY",
+      agency: "MTA Bus Company",
+      mode: "bus",
+      realTime: true,
+      cancelled: false,
+      wheelchair: false,
+      bikes: false,
+      alerts: ["Buses detoured at E 57 St due to street fair"],
+    });
+    expect(d.stops.map((s) => s.name)).toEqual([
+      "3 AV/E 39 ST",
+      "3 AV/E 43 ST",
+      "3 AV/E 48 ST",
+      "3 AV/E 55 ST",
+      expect.any(String),
+      "212 ST/15 AV",
+    ]);
+    expect(d.stops[0]).toMatchObject({ tz: "America/New_York", departure: Date.parse("2026-10-19T20:35:00Z") });
+    expect(d.stops[5]).toMatchObject({
+      arrival: Date.parse("2026-10-19T22:00:00Z"),
+      scheduledArrival: Date.parse("2026-10-19T22:01:00Z"),
+    });
+    // Shape decoded at the response's precision (6) → lands in New York.
+    expect(d.line.length).toBeGreaterThan(100);
+    expect(d.line[0][0]).toBeCloseTo(40.749, 2);
+    expect(d.line[0][1]).toBeCloseTo(-73.976, 2);
+  });
+
+  it("returns null for an itinerary without a transit leg", () => {
+    expect(parseTripDetails("x", { legs: [{ mode: "WALK" }] })).toBeNull();
+    expect(parseTripDetails("x", null)).toBeNull();
+  });
+
+  it("fetches by tripId, caches successes, and returns null on failure", async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify(nycTrip), { status: 200 }));
+    const a = await fetchTripDetails("cache-me", fetchFn as unknown as typeof fetch);
+    const b = await fetchTripDetails("cache-me", fetchFn as unknown as typeof fetch);
+    expect(a).toBe(b);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const url = new URL((fetchFn.mock.calls[0] as unknown as [string])[0]);
+    expect(`${url.origin}${url.pathname}`).toBe(TRANSITOUS_TRIP_URL);
+    expect(url.searchParams.get("tripId")).toBe("cache-me");
+
+    const bad = vi.fn(async () => new Response("", { status: 404 }));
+    expect(await fetchTripDetails("missing", bad as unknown as typeof fetch)).toBeNull();
+    const boom = vi.fn(async () => {
+      throw new TypeError("network");
+    });
+    expect(await fetchTripDetails("offline", boom as unknown as typeof fetch)).toBeNull();
+  });
+
+  it("tracks progress: next stop, delay and arrival", () => {
+    const d = parseTripDetails(tripId, nycTrip)!;
+    const at = (iso: string) => Date.parse(iso);
+    expect(tripProgress(d, at("2026-10-19T20:36:00Z"))).toMatchObject({ nextIndex: 1, delayMin: 0, finished: false });
+    // Between the last intermediate stop and the end: the end stop is 1 min early.
+    const nearEnd = tripProgress(d, d.stops[4].arrival! + 60_000);
+    expect(nearEnd).toMatchObject({ nextIndex: 5, delayMin: -1, finished: false });
+    expect(tripProgress(d, at("2026-10-19T23:00:00Z"))).toMatchObject({ nextIndex: 6, finished: true });
+    // Without real-time data there is no delay to report.
+    expect(tripProgress({ ...d, realTime: false }, at("2026-10-19T20:36:00Z")).delayMin).toBeNull();
   });
 });

@@ -85,10 +85,14 @@ vi.mock("../../domain/transit", async (orig) => ({
   ...(await orig<typeof import("../../domain/transit")>()),
   fetchTransitPlan,
 }));
-const { fetchLiveSegments } = vi.hoisted(() => ({ fetchLiveSegments: vi.fn(async () => [] as any[]) }));
+const { fetchLiveSegments, fetchTripDetails } = vi.hoisted(() => ({
+  fetchLiveSegments: vi.fn(async () => [] as any[]),
+  fetchTripDetails: vi.fn(async (_id: string): Promise<any> => null),
+}));
 vi.mock("../../domain/liveTransit", async (orig) => ({
   ...(await orig<typeof import("../../domain/liveTransit")>()),
   fetchLiveSegments,
+  fetchTripDetails,
 }));
 
 import TripMap from "./TripMap";
@@ -281,6 +285,27 @@ describe("TripMap", () => {
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /Live/ })));
     expect(fetchLiveSegments).not.toHaveBeenCalled();
     expect(screen.getByText(/zoom in for live vehicles/)).toBeInTheDocument();
+  });
+
+  it("tapping a live vehicle opens its trip card and draws its route", async () => {
+    const { parseTripDetails } = await vi.importActual<typeof import("../../domain/liveTransit")>(
+      "../../domain/liveTransit"
+    );
+    const nyc = (await import("../../domain/__fixtures__/motis-trip-nyc-qm32.json")).default;
+    fetchTripDetails.mockResolvedValueOnce(parseTripDetails("qm32", nyc));
+    renderMap();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Live/ })));
+    await act(async () => {
+      h.handlers["click:vehicles-dots"]({ features: [{ properties: { tripId: "qm32", name: "QM32", mode: "bus", color: "#00933c" } }] });
+    });
+    expect(fetchTripDetails).toHaveBeenCalledWith("qm32");
+    expect(await screen.findByText("→ BAY TERRACE BELL BL via WHITESTONE EXPWY")).toBeInTheDocument();
+    const drawn = features("selected-trip");
+    expect(drawn.filter((f) => f.geometry.type === "LineString")).toHaveLength(1);
+    expect(drawn.filter((f) => f.geometry.type === "Point")).toHaveLength(6);
+    fireEvent.click(screen.getByRole("button", { name: "Close vehicle info" }));
+    expect(screen.queryByRole("dialog", { name: /Vehicle/ })).toBeNull();
+    expect(features("selected-trip")).toEqual([]);
   });
 
   it("renders reach bands and their legend", () => {

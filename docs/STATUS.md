@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.1.2 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 359 tests green
+## Current version: v2.2.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 370 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -178,6 +178,22 @@ rail link. Caveat seen 2026-10-19 ~20:45 UTC: Transitous also stopped
 answering Sibari→Taranto and Taranto→Bari at any hour (it did earlier the
 same day), so those legs currently draw by road. This is upstream data, not
 the app.
+
+**v2.2.0 — tap a live vehicle.** Clicking a 🚋 Live dot or 3D box opens
+`ui/map/VehicleCard.tsx` in the map's toolbar column, fed by MOTIS
+`/api/v6/trip?tripId=` (`fetchTripDetails` / `parseTripDetails` /
+`tripProgress` in `domain/liveTransit.ts`, cached per trip). The card shows:
+- line badge, → headsign, long name, operator;
+- Live/Scheduled status and delay;
+- next stop (+ track) and final stop, times in the stop's own time zone;
+- ♿/🚲 flags, alerts, cancellations;
+- an "All stops" list with passed stops dimmed;
+- Follow (the camera tracks the vehicle).
+
+On the map, the trip's whole route and stops are drawn (`selected-trip`
+source) and the vehicle gets a white ring. Esc/✕ closes the card, and
+turning Live off clears it. Follow-ups: "use this trip in my plan"; a
+departures board when tapping a stop.
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is

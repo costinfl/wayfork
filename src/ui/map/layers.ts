@@ -1,6 +1,6 @@
 import type maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
-import { vehicleFootprint, type Vehicle } from "../../domain/liveTransit";
+import { tripProgress, vehicleFootprint, type TripDetails, type Vehicle } from "../../domain/liveTransit";
 import { deltaLabel, type OverlayStop, type OverlayTrack } from "../../domain/overlay";
 import type { ReachBand } from "../../domain/reach";
 import { circlePolygon } from "../../domain/geometry";
@@ -23,6 +23,7 @@ export const SOURCES = [
   "discover-area",
   "tracks",
   "badges",
+  "selected-trip",
   "vehicles",
   "vehicles-3d",
   "stops",
@@ -133,6 +134,31 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     paint: { ...activePaint, "line-dasharray": [1.6, 1.2] },
   });
 
+  // The tapped vehicle's whole trip: its route in the line colour, under the
+  // vehicles, and its stops (passed ones dimmed).
+  map.addLayer({
+    id: "selected-trip-line",
+    type: "line",
+    source: "selected-trip",
+    filter: ["==", ["geometry-type"], "LineString"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-width": 4, "line-opacity": 0.6 },
+  });
+  map.addLayer({
+    id: "selected-trip-stops",
+    type: "circle",
+    source: "selected-trip",
+    filter: ["==", ["geometry-type"], "Point"],
+    paint: {
+      "circle-color": halo,
+      "circle-radius": 4,
+      "circle-stroke-color": ["get", "color"],
+      "circle-stroke-width": 2,
+      "circle-opacity": ["case", ["get", "passed"], 0.35, 1],
+      "circle-stroke-opacity": ["case", ["get", "passed"], 0.35, 1],
+    },
+  });
+
   // Live vehicles: 3D boxes up close, glowing dots further out.
   map.addLayer({
     id: "vehicles-3d",
@@ -173,6 +199,18 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     minzoom: 15,
     filter: ["==", ["get", "box"], false],
     paint: dotPaint,
+  });
+  map.addLayer({
+    id: "vehicles-selected",
+    type: "circle",
+    source: "vehicles",
+    filter: ["boolean", ["get", "selected"], false],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 16, 15],
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 2.5,
+    },
   });
   map.addLayer({
     id: "vehicles-label",
@@ -340,25 +378,61 @@ export function setStops(map: maplibregl.Map, stops: OverlayStop[], focusDay: nu
   );
 }
 
-export function setVehicles(map: maplibregl.Map, vehicles: Vehicle[]): void {
+export function setVehicles(map: maplibregl.Map, vehicles: Vehicle[], selectedTripId: string | null = null): void {
   const boxes: Feature[] = [];
   const dots: Feature[] = vehicles.map((v) => {
     const ring = vehicleFootprint(v);
     if (ring) {
       boxes.push({
         type: "Feature",
-        properties: { color: v.color },
+        properties: { tripId: v.id, color: v.color },
         geometry: { type: "Polygon", coordinates: [ring.map(ll)] },
       });
     }
     return {
       type: "Feature",
-      properties: { name: v.name, color: v.color, realTime: v.realTime, box: !!ring },
+      properties: {
+        tripId: v.id,
+        name: v.name,
+        mode: v.mode,
+        color: v.color,
+        realTime: v.realTime,
+        box: !!ring,
+        selected: v.id === selectedTripId,
+      },
       geometry: { type: "Point", coordinates: llp(v) },
     };
   });
   setData(map, "vehicles", fc(dots));
   setData(map, "vehicles-3d", fc(boxes));
+}
+
+export function setSelectedTrip(map: maplibregl.Map, trip: TripDetails | null, now = Date.now()): void {
+  if (!trip) {
+    setData(map, "selected-trip", EMPTY);
+    return;
+  }
+  const { nextIndex } = tripProgress(trip, now);
+  setData(
+    map,
+    "selected-trip",
+    fc([
+      ...(trip.line.length >= 2
+        ? [
+            {
+              type: "Feature" as const,
+              properties: { color: trip.color },
+              geometry: { type: "LineString" as const, coordinates: trip.line.map(ll) },
+            },
+          ]
+        : []),
+      ...trip.stops.map((st, i) => ({
+        type: "Feature" as const,
+        properties: { color: trip.color, name: st.name, passed: i < nextIndex },
+        geometry: { type: "Point" as const, coordinates: llp(st) },
+      })),
+    ])
+  );
 }
 
 export function setReach(map: maplibregl.Map, bands: ReachBand[] | null): void {

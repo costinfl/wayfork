@@ -6,6 +6,32 @@
 
 ## Session history
 
+- **v2.2.0** — Tap a live vehicle for its trip card. Each `map/trips`
+  segment carries its `tripId`; MOTIS `/api/v6/trip` returns the whole trip
+  as an itinerary (verified live on NYC bus QM32 and Bucharest tram 23).
+  - **`liveTransit.ts`.**
+    - `parseTripDetails` joins non-WALK legs, keeping boundary stops once;
+      real and scheduled times, track, tz; wheelchair, bikes, alerts;
+      shape decoded at the response's precision.
+    - `fetchTripDetails` (cached).
+    - `tripProgress`: the next stop is the first arrival still ahead; delay
+      is real − scheduled, only when real-time.
+  - **`layers.ts`.** Vehicle features carry `tripId`, `mode` and
+    `selected`; a `vehicles-selected` ring; a `selected-trip` source with a
+    route line and stops (passed dimmed).
+  - **`TripMap`.** Click handlers on dots and 3D boxes; card state; Follow
+    (`easeTo` on the 500 ms tick); a `gone` state when the vehicle leaves
+    the feed; Esc closes; Live off clears.
+  - **New `VehicleCard.tsx`.**
+  - **Fixture** `motis-trip-nyc-qm32.json` (real, trimmed; the alert was
+    added for tests).
+
+  359 → 370 tests. Playwright, with the live feed stubbed by the real
+  Bucharest segments re-timed to "now" and the real tram 23 trip: tapping
+  the tram shows "23 → Zetarilor · STB SA", next stop Pasaj Mărășești, the
+  three live STB alerts and the full stop list; its route is drawn in line
+  red.
+
 - **v2.1.2** — Transit legs only follow believable plans.
   **Bug:** the built-in Rome trip's "Leonardo Express + tram" (FCO →
   Trastevere) was drawn via Cagliari, Brussels, Lille/Paris, Lyon, Torino and
