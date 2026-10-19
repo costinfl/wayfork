@@ -29,7 +29,8 @@ on every change. Vite + React 19 + Tailwind v4 + TypeScript, Supabase backend.
   (`src/data/repository.ts`). Live adapter: Supabase
   (`supabaseStore.ts` / `supabaseAuth.ts`, schema in `supabase/migrations/`);
   falls back to localStorage when unreachable or signed out.
-- Untrusted trip JSON: `parse.ts` (structure) → `validate.ts` (semantics).
+- Untrusted trip JSON: `parse.ts` (migrates v1→v2 via `migrate.ts`, then
+  structure) → `validate.ts` (semantics). Schema v2: every slot has a `place`.
   Mutations are pure functions in `mutate.ts`; re-validate before every save.
 - Time = integer minutes since midnight; currency = EUR-pivot conversion;
   active variant is UI state, never mutated into trip data.

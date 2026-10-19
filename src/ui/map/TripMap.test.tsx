@@ -37,6 +37,7 @@ vi.mock("maplibre-gl", () => {
       return this;
     }
     off() {}
+    addControl() {}
     addSource() {}
     addLayer(cfg: any) {
       h.layers.push(cfg);
@@ -71,7 +72,8 @@ vi.mock("maplibre-gl", () => {
     }
     remove() {}
   }
-  const L = { Map: MapMock, LngLatBounds };
+  class AttributionControl {}
+  const L = { Map: MapMock, LngLatBounds, AttributionControl };
   return { default: L, ...L };
 });
 vi.mock("../../domain/route", () => ({ fetchRoute: vi.fn(async () => null) }));

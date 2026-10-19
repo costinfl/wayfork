@@ -79,7 +79,7 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "line-color": ["get", "color"],
       "line-opacity": focusOpacity(0.9, 0.18),
       "line-dasharray": [2, 1.6],
-      "line-width": ["case", highlighted, 7, ["interpolate", ["linear"], ["zoom"], 5, 1.5, 14, 3]],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", highlighted, 7, 1.5], 14, ["case", highlighted, 7, 3]],
     },
   });
   // Active chain: a wide blurred glow under a solid line.
@@ -104,7 +104,7 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": ["case", ["boolean", ["get", "estimated"], false], ESTIMATED_COLOR, ["get", "color"]],
-      "line-width": ["case", highlighted, 8, ["interpolate", ["linear"], ["zoom"], 5, 2.5, 14, 5]],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", highlighted, 8, 2.5], 14, ["case", highlighted, 8, 5]],
       "line-opacity": focusOpacity(1, 0.3),
     },
   });
@@ -128,22 +128,27 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     source: "vehicles",
     paint: {
       "circle-color": ["get", "color"],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 6, 16, 12],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 16, 16],
       "circle-blur": 1,
       "circle-opacity": ["case", ["get", "realTime"], 0.55, 0.3],
     },
   });
+  // Dots for every vehicle below z15; above it, only for those without a box
+  // (metro). Two layers because a layer filter can't depend on zoom.
+  const dotPaint: maplibregl.CircleLayerSpecification["paint"] = {
+    "circle-color": ["get", "color"],
+    "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 3.5, 16, 7],
+    "circle-stroke-color": halo,
+    "circle-stroke-width": 1,
+  };
+  map.addLayer({ id: "vehicles-dots", type: "circle", source: "vehicles", maxzoom: 15, paint: dotPaint });
   map.addLayer({
-    id: "vehicles-dots",
+    id: "vehicles-dots-unboxed",
     type: "circle",
     source: "vehicles",
-    filter: ["any", ["==", ["get", "box"], false], ["<", ["zoom"], 15]],
-    paint: {
-      "circle-color": ["get", "color"],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 5],
-      "circle-stroke-color": halo,
-      "circle-stroke-width": 1,
-    },
+    minzoom: 15,
+    filter: ["==", ["get", "box"], false],
+    paint: dotPaint,
   });
   map.addLayer({
     id: "vehicles-label",

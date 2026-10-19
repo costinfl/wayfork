@@ -6,6 +6,70 @@
 
 ## Session history
 
+- **v2.0.0** — Map-first canvas, inspired by mnml.ro/radet and /stb. Breaking;
+  on branch `claude/stoic-allen-ttugda`. **Research:** the two sites' JS
+  bundles use Next.js (Turbopack) on Vercel with Supabase auth/realtime, and
+  MapLibre GL 5 by default, with Mapbox GL 3.9 + Standard style on `/mapbox`.
+  Their `/map-style.json` is 8 layers over OpenFreeMap `planet` with
+  fill-extrusion buildings. They draw GeoJSON circle/line/fill layers with
+  blurred glow underlays and feature-state highlights; pitch 55–60, `hash`
+  camera. Vehicles are polled through `/api/stb/vehicles` server proxies
+  (paused when hidden), shown as dots, and become three.js
+  InstancedMesh boxes in a custom layer when zoomed in.
+
+  **Built:**
+  1. **Schema v2.** Required `slot.place`; geometry moved from variants onto
+     micro-steps, plus `from`/`to`; `Place.estimated`;
+     `Trip.schemaVersion: 2`.
+  2. **`domain/migrate.ts`**, run inside `parseTrip`:
+     - backfills a missing place from the nearest anchor, flagged
+       `estimated`;
+     - moves variant geometry onto the steps;
+     - leaves a malformed place for `parseTrip` to reject;
+     - repairs mixed-version documents the v1 site edited;
+     - keeps a non-persisted WeakMap report (with the raw v1 JSON) per
+       migrated trip.
+  3. **`data/migrateStore.ts`** runs after every load and is idempotent:
+     - backs up v1 JSON in localStorage;
+     - refines places with Photon `searchNear`, 1.1 s apart, accepting hits
+       within 50 km;
+     - re-validates, then does a version-guarded save with one retry on
+       conflict;
+     - skips shared-in trips.
+     `V2MigrationBanner` offers Review and "Download v1 backup".
+  4. **`ui/SideSheet.tsx`**: a right panel on desktop and a draggable 3-snap
+     bottom sheet on mobile. It publishes its inset so camera fits keep
+     content out from under it.
+  5. **`ui/map/TripMap.tsx`** + **`layers.ts`**:
+     - a body-portalled full-viewport map that replaces `DayMap.tsx`;
+     - generated dark/light styles (`scripts/gen-map-styles.mjs`);
+     - Day/Whole-trip scope, 3D tilt, theme toggle;
+     - attribution moved bottom-left;
+     - a WebGL-failure fallback.
+  6. **`domain/overlay.ts`**: every variant track across all days, with
+     Δtime/Δcost vs the active variant, distinct alt hues, and a cross-day
+     origin.
+  7. **`domain/liveTransit.ts`**: MOTIS `/api/v6/map/trips` parsing
+     (precision-5 polylines), time interpolation along segments, and
+     `vehicleFootprint` for 3D fill-extrusion boxes, which replaced three.js
+     (no new dependency).
+  8. **`domain/reach.ts`**: MOTIS `/api/v6/one-to-all` plus a walking
+     travel-time grid, cut into 15/30/45-minute bands with non-overlapping
+     row runs and per-row source pruning (903 stops ≈ 0.25 s).
+  9. **UI and prompt:** a ◎ reach button per slot; timeline stop numbers fly
+     the map to the stop; `TripForm` asks where the trip starts; `SlotForm`
+     requires a place (pre-filled with a `guessPlace` estimate). The prompt
+     contract requires a place on every slot.
+
+  MOTIS and OpenFreeMap were reachable from the sandbox this session, so
+  `src/domain/__fixtures__/` holds trimmed real responses. 284 → 336 tests.
+
+  Playwright-verified against the real tiles and API: day and whole-trip
+  views, transit reach rings at OTP, live buses at OTP, mobile sheet, and a
+  v1 trip upgraded with its backup kept. That pass found and fixed three
+  bugs the mocks couldn't: a `zoom`-inside-`case` paint expression, the
+  `.maplibregl-map` relative positioning collapsing the canvas, and the
+  hash-restore check being defeated by MapLibre's own early hash write.
 - **v1.3.2** — Timeline marker numbers. New pure `slotMarkerNumbers(day):
   Map<slotId, number>` in `domain/geometry.ts` — numbers located slots in
   schedule order, giving slots that share the exact same place the same

@@ -66,6 +66,12 @@ const STYLE_URL = (dark: boolean) => `${BASE}map-style-${dark ? "dark" : "light"
 const LIVE_POLL_MS = 30_000;
 const LIVE_TICK_MS = 500;
 
+// A view shared/bookmarked in the URL (#map=zoom/lat/lon/…) wins over the
+// automatic fit — but only for the page's first map: read at module load,
+// before MapLibre writes its own hash, and consumed by the first instance
+// (TripView remounts the map when the trip changes, and that must fit).
+let hashViewPending = typeof window !== "undefined" && /[#&]map=/.test(window.location.hash);
+
 const readPref = (key: string, fallback: boolean): boolean => {
   try {
     const v = localStorage.getItem(key);
@@ -132,16 +138,21 @@ export default function TripMap(props: TripMapProps) {
         style: STYLE_URL(darkRef.current),
         hash: "map",
         maxPitch: 60,
-        attributionControl: {
-          compact: true,
-          customAttribution: 'Transit: <a href="https://transitous.org" target="_blank">Transitous</a>',
-        },
+        attributionControl: false,
         canvasContextAttributes: { antialias: true },
       });
     } catch {
       setFailed(true); // no WebGL — the planner still works without the map
       return;
     }
+    // Bottom-left: the planner sheet covers the bottom-right corner.
+    map.addControl(
+      new maplibregl.AttributionControl({
+        compact: true,
+        customAttribution: 'Transit: <a href="https://transitous.org" target="_blank">Transitous</a>',
+      }),
+      "bottom-left"
+    );
     mapRef.current = map;
     map.on("style.load", () => {
       addTripLayers(map, darkRef.current);
@@ -228,7 +239,14 @@ export default function TripMap(props: TripMapProps) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map && styleGen > 0) setReach(map, reach?.bands ?? null);
+    if (!map || styleGen === 0) return;
+    setReach(map, reach?.bands ?? null);
+    // Frame the rings when they arrive.
+    const rects = reach?.bands?.flatMap((b) => b.rects) ?? [];
+    if (rects.length) {
+      fitTo(rects.flatMap(([s, w, n, e]): [number, number][] => [[s, w], [n, e]]), 15);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleGen, reach?.bands]);
 
   // ---- camera --------------------------------------------------------------
@@ -250,7 +268,10 @@ export default function TripMap(props: TripMapProps) {
     if (styleGen === 0) return;
     if (!fittedOnce.current) {
       fittedOnce.current = true;
-      if (/[#&]map=/.test(window.location.hash)) return;
+      if (hashViewPending) {
+        hashViewPending = false;
+        return;
+      }
     }
     const pts = overlay.stops
       .filter((s) => focusDay === null || s.dayIdx === focusDay)
@@ -354,7 +375,9 @@ export default function TripMap(props: TripMapProps) {
 
   const layer = (
     <div className="fixed inset-0" style={{ zIndex: 0, background: dark ? "#0b0f14" : "#f3f1ec" }}>
-      <div ref={elRef} className="absolute inset-0" aria-label="Trip map" />
+      {/* Inline position: maplibre-gl.css gives .maplibregl-map position:relative,
+          which would beat a class and collapse the canvas to 0px high. */}
+      <div ref={elRef} style={{ position: "absolute", inset: 0 }} aria-label="Trip map" />
       {failed && (
         <div className="absolute inset-0 flex items-center justify-center text-sm" style={{ color: "#94a3b8" }}>
           The map needs WebGL, which this browser doesn't provide — the planner still works.
@@ -379,7 +402,7 @@ export default function TripMap(props: TripMapProps) {
             3D
           </button>
           <button onClick={() => setDark((v) => !v)} aria-label="Toggle dark map" title={dark ? "Light basemap" : "Dark basemap"} className="w-8 h-8 rounded-lg" style={btn()}>
-            ◐
+            {dark ? "☀️" : "🌙"}
           </button>
           <button
             onClick={() => setLive((v) => !v)}
@@ -400,7 +423,7 @@ export default function TripMap(props: TripMapProps) {
       {reach && (
         <div
           className="absolute left-3 rounded-xl p-2.5 text-xs"
-          style={{ zIndex: 2, bottom: inset.bottom + 28, background: chip, color: btn().color, border: btn().border }}
+          style={{ zIndex: 2, top: 128, background: chip, color: btn().color, border: btn().border }}
         >
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <b>◎ Reach from {reach.originName}</b>
