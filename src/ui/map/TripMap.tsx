@@ -9,10 +9,12 @@ import {
   vehiclePositions,
   type LiveSegment,
 } from "../../domain/liveTransit";
+import { legKey, limiter, resolveLegLine } from "../../domain/legs";
 import { tripOverlay, type OverlayTrack } from "../../domain/overlay";
 import type { Poi } from "../../domain/poi";
 import type { ReachBand, ReachMode } from "../../domain/reach";
 import { fetchRoute } from "../../domain/route";
+import { fetchTransitPlan } from "../../domain/transit";
 import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
 import {
@@ -70,6 +72,19 @@ const LIVE_TICK_MS = 500;
 // automatic fit — but only for the page's first map: read at module load,
 // before MapLibre writes its own hash, and consumed by the first instance
 // (TripView remounts the map when the trip changes, and that must fit).
+// Resolved leg geometry, shared by every map instance (the map remounts per
+// trip): legKey → real line, or null when routing failed (keep provisional).
+const legLines = new Map<string, [number, number][] | null>();
+const routeQueue = limiter(2);
+const routers = {
+  route: (from: Place, to: Place, profile: "foot" | "driving") => fetchRoute(from, to, profile),
+  transit: (from: Place, to: Place) => fetchTransitPlan(from, to),
+};
+
+// A track's best current line: each leg's resolved geometry where known.
+const trackLine = (t: OverlayTrack): [number, number][] =>
+  t.legs.flatMap((l, i) => legLines.get(legKey(l)) ?? t.legLines[i]);
+
 let hashViewPending = typeof window !== "undefined" && /[#&]map=/.test(window.location.hash);
 
 const readPref = (key: string, fallback: boolean): boolean => {
@@ -122,11 +137,17 @@ export default function TripMap(props: TripMapProps) {
   );
   const focusDay = scope === "day" ? Math.min(dayIdx, trip.days.length - 1) : null;
 
-  // Real road/foot geometry for active lines (OSRM, best effort), keyed by
-  // track key + endpoints so an edited slot re-routes.
-  const routed = useRef<Map<string, [number, number][]>>(new Map());
+  // Bumped when a leg's real geometry arrives, to redraw. A lookup may finish
+  // after several redraws (or after unmount), so it checks `alive`, not a
+  // per-run flag.
   const [routedGen, setRoutedGen] = useState(0);
-  const routeKey = (t: OverlayTrack) => `${t.key}|${t.from.lat},${t.from.lon}|${t.to.lat},${t.to.lon}|${t.profile}`;
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true; // StrictMode re-runs effects after a simulated unmount
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   // ---- map lifecycle -------------------------------------------------------
   useEffect(() => {
@@ -167,6 +188,24 @@ export default function TripMap(props: TripMapProps) {
       propsRef.current.onActivate(key.slice(0, i), key.slice(i + 1));
     };
     map.on("click", "tracks-alt", activate);
+    // Alternatives stay faint until hovered; the hover lights up the line and
+    // its comparison badge (both carry the track key as feature id).
+    let hovered: string | null = null;
+    const setHover = (key: string | null) => {
+      if (hovered === key) return;
+      for (const source of ["tracks", "badges"]) {
+        if (hovered) map.setFeatureState({ source, id: hovered }, { hover: false });
+        if (key) map.setFeatureState({ source, id: key }, { hover: true });
+      }
+      hovered = key;
+    };
+    for (const layer of ["tracks-alt", "badges"]) {
+      map.on("mousemove", layer, (e) => {
+        const key = keyOf(e);
+        setHover(typeof key === "string" ? key : null);
+      });
+      map.on("mouseleave", layer, () => setHover(null));
+    }
     map.on("click", "badges", activate);
     map.on("click", "stops", (e) => {
       const p = e.features?.[0]?.properties;
@@ -208,26 +247,27 @@ export default function TripMap(props: TripMapProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || styleGen === 0) return;
-    const lines = new Map<string, [number, number][]>();
-    for (const t of overlay.tracks) {
-      const hit = routed.current.get(routeKey(t));
-      if (hit) lines.set(t.key, hit);
-    }
+    const lines = new Map(overlay.tracks.map((t) => [t.key, trackLine(t)]));
     setTracks(map, overlay.tracks, focusDay, ccy, lines);
     setStops(map, overlay.stops, focusDay);
 
-    // Resolve the focused day's active road/foot lines.
-    for (const t of overlay.tracks) {
-      if (!t.active || t.stored || t.profile === "arc") continue;
-      if (focusDay !== null && t.dayIdx !== focusDay) continue;
-      const rk = routeKey(t);
-      if (routed.current.has(rk)) continue;
-      routed.current.set(rk, t.line); // in flight — don't refetch
-      void fetchRoute(t.from, t.to, t.profile).then((geo) => {
-        if (!geo) return;
-        routed.current.set(rk, geo);
-        setRoutedGen((g) => g + 1);
-      });
+    // Route every leg of the focused day (active variants first): footpaths,
+    // roads and transit lines instead of straight placeholders. Queued two at
+    // a time; results are shared across days, trips and remounts.
+    const todo = overlay.tracks
+      .filter((t) => focusDay === null || t.dayIdx === focusDay)
+      .sort((a, b) => Number(b.active) - Number(a.active));
+    for (const t of todo) {
+      for (const leg of t.legs) {
+        const k = legKey(leg);
+        if (leg.stored || leg.profile === "arc" || legLines.has(k)) continue;
+        legLines.set(k, null); // claimed: in flight (or failed) → provisional line
+        void routeQueue(() => resolveLegLine(leg, routers)).then((line) => {
+          if (!line) return;
+          legLines.set(k, line);
+          if (alive.current) setRoutedGen((g) => g + 1);
+        });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleGen, overlay, focusDay, ccy, routedGen]);

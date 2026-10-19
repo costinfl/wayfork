@@ -1,5 +1,6 @@
 import { convert, type RateMatrix } from "./currency";
-import { offsetArc, slotMarkerNumbers, variantGeometry, variantProfile, type RouteProfile } from "./geometry";
+import { slotMarkerNumbers } from "./geometry";
+import { provisionalLine, variantLegs, type VariantLeg } from "./legs";
 import { variantDuration } from "./schedule";
 import type { CurrencyCode, Place, Trip } from "./types";
 
@@ -7,7 +8,9 @@ import type { CurrencyCode, Place, Trip } from "./types";
 // variant of every slot as a drawable track (not just the selected day's
 // active chain), each carrying what it would cost to switch to it — Δtime and
 // Δcost against the slot's active variant — so forks can be compared on the
-// map itself. Pure: the UI only upgrades active road/foot lines with OSRM.
+// map itself. Each track is a chain of legs derived from the variant's
+// micro-steps (legs.ts); the UI swaps each leg's provisional line for real
+// footpath / road / transit geometry. Pure.
 
 export interface OverlayTrack {
   key: string; // `${slotId}:${variantId}` — the feature id on the map
@@ -17,13 +20,14 @@ export interface OverlayTrack {
   name: string;
   active: boolean;
   estimated: boolean; // the variant or either endpoint is unconfirmed
-  profile: RouteProfile;
-  stored: boolean; // drawn from the variant's own step geometry
   from: Place;
   to: Place;
-  line: [number, number][]; // [lat, lon]
+  legs: VariantLeg[];
+  legLines: [number, number][][]; // provisional line per leg, [lat, lon]
+  line: [number, number][]; // the legs' provisional lines joined
   labelAt: [number, number]; // where the comparison badge sits
   color: string;
+  altIndex: number; // 0-based among the slot's alternatives (−1 for the active one)
   durationMin: number;
   cost: number; // in the overlay's view currency
   distanceKm: number | null;
@@ -51,7 +55,6 @@ export const ACTIVE_COLOR = "#3b82f6";
 export const ALT_COLORS = ["#f59e0b", "#a855f7", "#14b8a6", "#f43f5e", "#84cc16"];
 
 const ARC_BEND = 0.16;
-const samePlace = (a: Place, b: Place) => a.lat === b.lat && a.lon === b.lon;
 
 const midpoint = (line: [number, number][]): [number, number] => line[Math.floor(line.length / 2)];
 
@@ -89,26 +92,13 @@ export function tripOverlay(
       let altIdx = 0;
       for (const v of slot.variants) {
         const isActive = v.id === active.id;
-        const stored = variantGeometry(v);
-        const profile = variantProfile(v);
-        if (!stored && samePlace(from, to)) continue; // nothing to draw (origin, or stayed put)
-
-        let line: [number, number][];
-        if (stored) {
-          line = stored;
-        } else if (isActive && profile !== "arc") {
-          line = [
-            [from.lat, from.lon],
-            [to.lat, to.lon],
-          ]; // straight until the UI resolves real road/foot geometry
-        } else {
-          // Alternatives bow to alternating sides so sibling forks separate;
-          // the active arc (rail/air) bows a little so it doesn't read as a bee-line.
-          const bend = isActive
-            ? ARC_BEND
-            : (altIdx % 2 === 0 ? 1 : -1) * ARC_BEND * (1 + Math.floor(altIdx / 2));
-          line = offsetArc(from, to, bend);
-        }
+        const legs = variantLegs(v, from, to);
+        if (legs.length === 0) continue; // nothing to draw (the trip's origin, or stayed put)
+        // Flight arcs of alternatives bow to alternating sides so sibling forks
+        // separate; the active arc bows a little so it doesn't read as a bee-line.
+        const bend = isActive ? ARC_BEND : (altIdx % 2 === 0 ? 1 : -1) * ARC_BEND * (1 + Math.floor(altIdx / 2));
+        const legLines = legs.map((l) => provisionalLine(l, bend));
+        const line = legLines.flat();
         const distances = v.microSteps.map((m) => m.distanceKm).filter((d): d is number => d !== null);
         const durationMin = variantDuration(v);
         const cost = costOf(v);
@@ -120,13 +110,14 @@ export function tripOverlay(
           name: v.name,
           active: isActive,
           estimated: !!v.estimated || !!from.estimated || !!to.estimated,
-          profile,
-          stored: !!stored,
           from,
           to,
+          legs,
+          legLines,
           line,
           labelAt: midpoint(line),
           color: isActive ? ACTIVE_COLOR : ALT_COLORS[altIdx % ALT_COLORS.length],
+          altIndex: isActive ? -1 : altIdx,
           durationMin,
           cost,
           distanceKm: distances.length ? Math.round(distances.reduce((s, d) => s + d, 0) * 10) / 10 : null,

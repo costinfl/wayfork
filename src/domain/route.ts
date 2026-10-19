@@ -2,11 +2,14 @@ import type { RouteProfile } from "./geometry";
 import { distanceM } from "./poi";
 import type { Place } from "./types";
 
-// Best-effort routing via the OSRM public demo server. It is a courtesy
-// service with no SLA, so every call is wrapped: a ~4s timeout, an in-memory
-// cache keyed by endpoints+profile, and `null` on any failure so callers can
-// fall back (straight line on the map, haversine estimate for legs). Never
-// called for the "arc" profile.
+// Best-effort routing via public OSRM servers: FOSSGIS's instances at
+// routing.openstreetmap.de first (the ones openstreetmap.org uses — real
+// foot and car profiles, CORS-open), the OSRM demo server as a fallback (it
+// routes every profile as driving). Both are courtesy services with no SLA,
+// so every call is wrapped: a ~4s timeout per server, an in-memory cache keyed
+// by endpoints+profile, and `null` on any failure so callers can fall back
+// (straight line on the map, haversine estimate for legs). Never called for
+// the "arc" profile.
 
 type RoutableProfile = Exclude<RouteProfile, "arc">;
 
@@ -34,10 +37,22 @@ async function fetchRouteInfo(
   if (cached) return cached;
 
   // OSRM wants lon,lat and returns GeoJSON coordinates as [lon, lat].
-  const url =
-    `https://router.project-osrm.org/route/v1/${profile}/` +
-    `${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
+  const coords = `${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
+  const servers = [
+    `https://routing.openstreetmap.de/routed-${profile === "foot" ? "foot" : "car"}/route/v1/driving/${coords}`,
+    `https://router.project-osrm.org/route/v1/${profile}/${coords}`,
+  ];
+  for (const url of servers) {
+    const info = await fetchOne(url, fetchFn);
+    if (info) {
+      cache.set(key, info); // cache successes only, so transient errors can retry
+      return info;
+    }
+  }
+  return null;
+}
 
+async function fetchOne(url: string, fetchFn: typeof fetch): Promise<RouteInfo | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
   try {
@@ -53,13 +68,11 @@ async function fetchRouteInfo(
     const route = body?.routes?.[0];
     const coords = route?.geometry?.coordinates;
     if (!Array.isArray(coords) || coords.length === 0) return null;
-    const info: RouteInfo = {
+    return {
       line: coords.map(([lon, lat]) => [lat, lon] as [number, number]),
       durationMin: Math.max(1, Math.round((route?.duration ?? 0) / 60)),
       distanceKm: round1((route?.distance ?? 0) / 1000),
     };
-    cache.set(key, info); // cache successes only, so transient errors can retry
-    return info;
   } catch {
     return null;
   } finally {
@@ -81,8 +94,8 @@ export async function fetchRoute(
 // Discover panel. Walkable (≤2.5 km as the crow flies) → walk step; further →
 // car step. Distances come from the routed geometry when OSRM answers, else a
 // haversine × 1.3 detour estimate. Walk durations are always derived from the
-// distance (12 min/km): the demo OSRM routes every profile as driving, so its
-// duration is only trusted for the car leg.
+// distance (12 min/km): the fallback demo server routes every profile as
+// driving, so its duration is only trusted for the car leg.
 export interface PoiLeg {
   type: "walk" | "car";
   durationMin: number;

@@ -93,7 +93,7 @@ describe("tripOverlay", () => {
     expect(taxi.cost).toBeCloseTo(20 * RATES_EUR.RON);
   });
 
-  it("shapes lines: stored step geometry, straight active road line, arcs otherwise", () => {
+  it("builds every variant's line from its micro-step legs — arcs only for flights", () => {
     const stored: [number, number][] = [
       [0, 0],
       [0.5, 0.2],
@@ -101,13 +101,24 @@ describe("tripOverlay", () => {
     ];
     const t2: Trip = structuredClone(trip);
     t2.days[0].slots[1].variants[2].microSteps[0].geometry = stored;
-    const byKey = Object.fromEntries(tripOverlay(t2, { s2: "taxi" }, { rates: RATES_EUR, ccy: "EUR" }).tracks.map((t) => [t.key, t]));
-    expect(byKey["s2:bike"]).toMatchObject({ stored: true, line: stored, labelAt: [0.5, 0.2] });
-    expect(byKey["s2:taxi"].line).toEqual([
+    t2.days[0].slots[1].variants.push(variant("fly", "flight", 60, 90));
+    const byKey = Object.fromEntries(
+      tripOverlay(t2, { s2: "taxi" }, { rates: RATES_EUR, ccy: "EUR" }).tracks.map((t) => [t.key, t])
+    );
+    const straight = [
       [0, 0],
       [1, 1],
-    ]); // active + driving → straight until OSRM
-    expect(byKey["s2:metro"].line.length).toBeGreaterThan(2); // alternative → arc
+    ];
+    expect(byKey["s2:bike"]).toMatchObject({ line: stored, labelAt: [0.5, 0.2] });
+    expect(byKey["s2:bike"].legs[0]).toMatchObject({ profile: "foot", stored });
+    // Ground and transit legs — active or not — start straight; the map routes them.
+    expect(byKey["s2:taxi"]).toMatchObject({ line: straight, legs: [{ profile: "driving" }] });
+    expect(byKey["s2:metro"]).toMatchObject({ line: straight, legs: [{ profile: "transit" }] });
+    // A flight is the only arc.
+    expect(byKey["s2:fly"].legs[0].profile).toBe("arc");
+    expect(byKey["s2:fly"].line.length).toBeGreaterThan(2);
+    expect(byKey["s2:metro"].altIndex).toBe(0);
+    expect(byKey["s2:taxi"].altIndex).toBe(-1);
   });
 
   it("flags estimated variants and estimated endpoints", () => {

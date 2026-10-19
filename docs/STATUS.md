@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.0.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 336 tests green
+## Current version: v2.1.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 349 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -134,6 +134,24 @@ What Wayfork v2 adapted from that:
   back to walking if it fails.
 - The AI prompt contract (`docs/trip-prompt.md`) now requires a place on
   every slot.
+
+**v2.1.0 — micro-step routing + calmer alternatives.**
+- **Legs from micro-steps.** Every variant's line is now built from its
+  micro-steps (`domain/legs.ts`, `variantLegs`). Steps with their own
+  endpoints or geometry become exact legs; runs of steps without them are
+  merged into one leg between the nearest known points.
+- **Routing per leg** (focused day, all variants, active first, two lookups
+  at a time, cached across remounts):
+  - walking → FOSSGIS OSRM foot profile (real footpaths);
+  - car, taxi, shuttle → FOSSGIS car profile;
+  - metro, tram, bus, train → the lines of a Transitous `/plan` itinerary,
+    falling back to a road route;
+  - flights → arc (the only arcs left).
+- **`route.ts`** now tries `routing.openstreetmap.de` first and the OSRM demo
+  server second.
+- **Alternatives** are thin solid lines, faint (30 % in the focused day, 7 %
+  otherwise), offset ±4/8 px so they never hide under the active line, and
+  fully lit on hover together with their Δ badge (badges idle at 45 %).
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is

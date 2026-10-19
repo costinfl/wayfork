@@ -6,6 +6,36 @@
 
 ## Session history
 
+- **v2.1.0** — Micro-step routing and calmer alternatives, from preview
+  feedback: dashed and solid lines mixed cluttered the view, and walks and
+  transit "flew" over buildings as straight lines or arcs.
+  - **New `domain/legs.ts`.**
+    - `variantLegs` turns micro-steps into legs; a step's `from`/`to`/
+      `geometry` split the chain into exact legs.
+    - The profile of a merged run is: flight → arc, else any public
+      transport → transit, else driving beats foot. Movement with no step
+      describing it is inferred as foot (up to 2.5 km) or driving.
+    - `resolveLegLine` routes foot/driving via OSRM, and transit via the
+      leg lines of a Transitous plan with a road fallback.
+    - `limiter(2)` throttles lookups.
+  - **`overlay.ts`.** Tracks carry `legs`/`legLines`/`altIndex` instead of
+    a single profile.
+  - **`TripMap`.**
+    - Routes every leg of every variant in the focused day, not just the
+      active road/foot line, with a module-level cache shared across
+      remounts.
+    - Redraws use an alive ref, so lookups still landing after several
+      redraws aren't dropped.
+    - Hover state is set on both the track and its badge.
+  - **`layers.ts`.** Alternatives are solid, faint (0.3/0.07), offset per
+    alternative, and lit on hover; badges fade to 0.45.
+  - **`route.ts`.** FOSSGIS `routing.openstreetmap.de` foot/car first
+    (verified CORS `*` and real footpaths: 2.1 km on foot vs 3.5 km by car
+    for the same hop), the demo server as fallback.
+  - 336 → 349 tests. Playwright-verified against the live services:
+    Sicily trains follow the coastal railway, the Lisbon tram follows the
+    riverfront, alternatives sit faint beside the active line.
+
 - **v2.0.0** — Map-first canvas, inspired by mnml.ro/radet and /stb. Breaking;
   on branch `claude/stoic-allen-ttugda`. **Research:** the two sites' JS
   bundles use Next.js (Turbopack) on Vercel with Supabase auth/realtime, and

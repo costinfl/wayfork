@@ -68,7 +68,11 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     paint: { "line-color": "#3b82f6", "line-width": 1.5, "line-dasharray": [3, 2] },
   });
 
-  // Alternatives: dashed, each in its own hue; dimmed outside the focused day.
+  // Alternatives: thin solid lines in their own hue, kept faint so the active
+  // journey reads first — and fainter still outside the focused day. Hovering
+  // one lights it up. Each sits a few pixels to the side (`offset`) so a
+  // variant sharing the active route's roads stays visible next to it.
+  const hover: maplibregl.ExpressionSpecification = ["boolean", ["feature-state", "hover"], false];
   map.addLayer({
     id: "tracks-alt",
     type: "line",
@@ -77,9 +81,9 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": ["get", "color"],
-      "line-opacity": focusOpacity(0.9, 0.18),
-      "line-dasharray": [2, 1.6],
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", highlighted, 7, 1.5], 14, ["case", highlighted, 7, 3]],
+      "line-opacity": ["case", ["any", hover, highlighted], 0.95, ["boolean", ["get", "focus"], false], 0.3, 0.07],
+      "line-offset": ["get", "offset"],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", ["any", hover, highlighted], 4, 1.2], 14, ["case", ["any", hover, highlighted], 6, 2.5]],
     },
   });
   // Active chain: a wide blurred glow under a solid line.
@@ -223,7 +227,12 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "text-padding": 4,
       "text-allow-overlap": false,
     },
-    paint: { "text-color": "#ffffff", "text-halo-color": ["get", "color"], "text-halo-width": 3 },
+    paint: {
+      "text-color": "#ffffff",
+      "text-halo-color": ["get", "color"],
+      "text-halo-width": 3,
+      "text-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0.45],
+    },
   });
 
   map.addLayer({
@@ -247,7 +256,7 @@ export function setTracks(
   tracks: OverlayTrack[],
   focusDay: number | null,
   ccy: CurrencyCode,
-  lines: Map<string, [number, number][]> // resolved road/foot geometry, by key
+  lines: Map<string, [number, number][]> // current best line per track key (routed legs where known)
 ): void {
   const focus = (t: OverlayTrack) => focusDay === null || t.dayIdx === focusDay;
   setData(
@@ -257,7 +266,15 @@ export function setTracks(
       tracks.map((t) => ({
         type: "Feature",
         id: t.key,
-        properties: { key: t.key, active: t.active, color: t.color, estimated: t.estimated, focus: focus(t) },
+        properties: {
+          key: t.key,
+          active: t.active,
+          color: t.color,
+          estimated: t.estimated,
+          focus: focus(t),
+          // Alternatives fan out to alternating sides: +4, −4, +8, −8 px…
+          offset: t.active ? 0 : (t.altIndex % 2 === 0 ? 1 : -1) * 4 * (1 + Math.floor(t.altIndex / 2)),
+        },
         geometry: { type: "LineString", coordinates: (lines.get(t.key) ?? t.line).map(ll) },
       }))
     )
@@ -268,11 +285,15 @@ export function setTracks(
     fc(
       tracks
         .filter((t) => !t.active && focusDay !== null && t.dayIdx === focusDay)
-        .map((t) => ({
-          type: "Feature",
-          properties: { key: t.key, color: t.color, label: `${t.name}: ${deltaLabel(t, ccy)}` },
-          geometry: { type: "Point", coordinates: ll(t.labelAt) },
-        }))
+        .map((t) => {
+          const line = lines.get(t.key) ?? t.line;
+          return {
+            type: "Feature",
+            id: t.key, // shares the track's id so hovering either lights both
+            properties: { key: t.key, color: t.color, label: `${t.name}: ${deltaLabel(t, ccy)}` },
+            geometry: { type: "Point", coordinates: ll(line[Math.floor(line.length / 2)] ?? t.labelAt) },
+          };
+        })
     )
   );
 }

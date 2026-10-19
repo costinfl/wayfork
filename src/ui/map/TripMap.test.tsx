@@ -76,7 +76,15 @@ vi.mock("maplibre-gl", () => {
   const L = { Map: MapMock, LngLatBounds, AttributionControl };
   return { default: L, ...L };
 });
-vi.mock("../../domain/route", () => ({ fetchRoute: vi.fn(async () => null) }));
+const { fetchRoute, fetchTransitPlan } = vi.hoisted(() => ({
+  fetchRoute: vi.fn(async (_from: Place, _to: Place, _profile?: string): Promise<[number, number][] | null> => null),
+  fetchTransitPlan: vi.fn(async () => null),
+}));
+vi.mock("../../domain/route", () => ({ fetchRoute }));
+vi.mock("../../domain/transit", async (orig) => ({
+  ...(await orig<typeof import("../../domain/transit")>()),
+  fetchTransitPlan,
+}));
 const { fetchLiveSegments } = vi.hoisted(() => ({ fetchLiveSegments: vi.fn(async () => [] as any[]) }));
 vi.mock("../../domain/liveTransit", async (orig) => ({
   ...(await orig<typeof import("../../domain/liveTransit")>()),
@@ -150,6 +158,32 @@ beforeEach(() => {
 });
 
 describe("TripMap", () => {
+  it("routes every variant's legs in the focused day — alternatives too — by step type", async () => {
+    fetchRoute.mockImplementation(async (from: Place, to: Place) => [
+      [from.lat, from.lon],
+      [0.5, 0.5],
+      [to.lat, to.lon],
+    ] as [number, number][]);
+    renderMap();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    // s2's metro → a transit plan (none here → road fallback); its taxi → roads.
+    expect(fetchTransitPlan).toHaveBeenCalledWith(P("A", 0, 0), P("B", 1, 1));
+    expect(fetchRoute).toHaveBeenCalledWith(P("A", 0, 0), P("B", 1, 1), "driving");
+    // Day 2's train isn't routed until that day is in focus.
+    expect(fetchTransitPlan).not.toHaveBeenCalledWith(P("B", 1, 1), P("C", 2, 2));
+    const taxi = features("tracks").find((f) => f.id === "s2:taxi");
+    expect(taxi.geometry.coordinates).toEqual([
+      [0, 0],
+      [0.5, 0.5],
+      [1, 1],
+    ]);
+    // Alternatives fan out sideways so they never hide under the active line.
+    expect(taxi.properties.offset).toBe(4);
+    expect(features("tracks").find((f) => f.id === "s2:metro").properties.offset).toBe(0);
+  });
+
   it("draws the whole trip with the selected day in focus", () => {
     renderMap();
     const tracks = features("tracks");

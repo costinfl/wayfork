@@ -30,7 +30,7 @@ describe("fetchRoute", () => {
     }) as unknown as typeof fetch;
 
     const line = await fetchRoute(P(41.9, 12.5), P(42.0, 12.6), "driving", fetchFn);
-    expect(url).toContain("/driving/12.5,41.9;12.6,42");
+    expect(url).toContain("routing.openstreetmap.de/routed-car/route/v1/driving/12.5,41.9;12.6,42");
     expect(line).toEqual([
       [41.9, 12.5],
       [42.0, 12.6],
@@ -45,6 +45,19 @@ describe("fetchRoute", () => {
       throw new Error("network");
     }) as unknown as typeof fetch;
     expect(await fetchRoute(P(20, 20), P(21, 21), "foot", boom)).toBeNull();
+  });
+
+  it("falls back to the OSRM demo server when FOSSGIS fails", async () => {
+    const urls: string[] = [];
+    const fetchFn = (async (u: string) => {
+      urls.push(String(u));
+      return urls.length === 1
+        ? ({ ok: false, status: 503, json: async () => ({}) } as Response)
+        : okResponse([[30.1, 40.1]]);
+    }) as unknown as typeof fetch;
+    expect(await fetchRoute(P(40, 30), P(40.2, 30.2), "foot", fetchFn)).toEqual([[40.1, 30.1]]);
+    expect(urls[0]).toContain("routing.openstreetmap.de/routed-foot/");
+    expect(urls[1]).toContain("router.project-osrm.org/route/v1/foot/");
   });
 
   it("caches a successful result so the same route is not fetched twice", async () => {
@@ -64,7 +77,7 @@ describe("estimateLeg", () => {
     // ~1 km apart; OSRM says 1.2 km — walk time comes from distance (12 min/km),
     // never from the demo server's driving-profile duration.
     const fetchFn = (async (u: string) => {
-      expect(String(u)).toContain("/foot/");
+      expect(String(u)).toContain("/routed-foot/");
       return okResponse([[12.5, 41.9]], 99, 1200);
     }) as unknown as typeof fetch;
     const leg = await estimateLeg(P(41.9, 12.5), P(41.909, 12.5), fetchFn);
