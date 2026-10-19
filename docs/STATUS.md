@@ -142,9 +142,12 @@ merging, tag `v2.0.0`.
 
 ## NEXT TASK — decide on merging v2, then follow-ups
 
-1. Have the user review the v2 branch. A preview deploy needs the branch
-   added to `deploy.yml`'s triggers, or a merge. Then merge into
-   `claude/wayfork-setup-github-pages-3pgqfw` and tag `v2.0.0`.
+1. Have the user review the v2 preview at https://www.costinfl.dev/wayfork/v2/
+   (github.io redirects to that custom domain). Every push to this branch
+   redeploys it into `gh-pages/v2/`; a production deploy removes `v2/` until
+   the next preview push. Then merge into
+   `claude/wayfork-setup-github-pages-3pgqfw`, drop the preview branch from
+   `deploy.yml`, and tag `v2.0.0`.
 2. v2 follow-ups, smallest first:
    - limit Discover results to the selected reach ring;
    - use the slot's scheduled departure as the reach/transit `time` (it is
