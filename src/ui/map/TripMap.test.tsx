@@ -169,7 +169,12 @@ describe("TripMap", () => {
       await new Promise((r) => setTimeout(r, 0));
     });
     // s2's metro → a transit plan (none here → road fallback); its taxi → roads.
-    expect(fetchTransitPlan).toHaveBeenCalledWith(P("A", 0, 0), P("B", 1, 1));
+    expect(fetchTransitPlan).toHaveBeenCalledWith(
+      P("A", 0, 0),
+      P("B", 1, 1),
+      expect.anything(),
+      { maxTravelTime: 60 } // 10′ metro → 3×10+30 = 60, the 1-hour floor
+    );
     expect(fetchRoute).toHaveBeenCalledWith(P("A", 0, 0), P("B", 1, 1), "driving");
     // Day 2's train isn't routed until that day is in focus.
     expect(fetchTransitPlan).not.toHaveBeenCalledWith(P("B", 1, 1), P("C", 2, 2));

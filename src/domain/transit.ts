@@ -191,17 +191,66 @@ function parseItinerary(raw: RawItinerary): TransitItinerary | null {
   return { legs, durationMin };
 }
 
-// The best (first-returned) itinerary between two places, or null when the
-// service is unreachable, times out, or returns no usable itinerary.
+// Every transit mode except AIRPLANE: a slot's transit option is never a
+// flight. Without this, MOTIS happily answers FCO → Trastevere with
+// "fly to Cagliari, then Brussels, then trains back to Rome" (verified live).
+export const GROUND_TRANSIT_MODES = [
+  "TRAM",
+  "SUBWAY",
+  "METRO",
+  "FERRY",
+  "BUS",
+  "COACH",
+  "RAIL",
+  "HIGHSPEED_RAIL",
+  "LONG_DISTANCE",
+  "NIGHT_RAIL",
+  "REGIONAL_FAST_RAIL",
+  "REGIONAL_RAIL",
+  "SUBURBAN",
+  "FUNICULAR",
+  "AERIAL_LIFT",
+  "CABLE_CAR",
+] as const;
+
+export interface TransitPlanOptions {
+  time?: Date; // departure; default: tomorrow 10:00 local (a leg's track barely depends on it)
+  maxTravelTime?: number; // minutes
+}
+
+const tomorrowAt10 = (): Date => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(10, 0, 0, 0);
+  return d;
+};
+
+// Whether an itinerary is a believable way between two places: no flight
+// legs, no wild detour (total distance ≤ 3× the straight line, or +5 km for
+// short hops), and within the travel-time cap when one is given.
+export function plausibleItinerary(it: TransitItinerary, from: Place, to: Place, maxMin?: number): boolean {
+  if (it.legs.some((l) => l.type === "flight")) return false;
+  if (maxMin !== undefined && it.durationMin > maxMin) return false;
+  const crowKm = distanceM(from, to) / 1000;
+  const totalKm = it.legs.reduce((sum, l) => sum + (l.distanceKm ?? 0), 0);
+  return totalKm <= Math.max(3 * crowKm, crowKm + 5);
+}
+
+// The first plausible itinerary between two places, or null when the service
+// is unreachable, times out, or returns nothing believable.
 export async function fetchTransitPlan(
   from: Place,
   to: Place,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  opts: TransitPlanOptions = {}
 ): Promise<TransitItinerary | null> {
   const params = new URLSearchParams({
     fromPlace: `${from.lat},${from.lon}`,
     toPlace: `${to.lat},${to.lon}`,
+    time: (opts.time ?? tomorrowAt10()).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    transitModes: GROUND_TRANSIT_MODES.join(","),
   });
+  if (opts.maxTravelTime !== undefined) params.set("maxTravelTime", String(Math.round(opts.maxTravelTime)));
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -212,7 +261,7 @@ export async function fetchTransitPlan(
     if (!Array.isArray(itineraries) || itineraries.length === 0) return null;
     for (const raw of itineraries) {
       const parsed = parseItinerary(raw);
-      if (parsed) return parsed;
+      if (parsed && plausibleItinerary(parsed, from, to, opts.maxTravelTime)) return parsed;
     }
     return null;
   } catch {

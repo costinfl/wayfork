@@ -14,7 +14,7 @@ import { ALT_COLORS, tripOverlay, type OverlayTrack } from "../../domain/overlay
 import type { Poi } from "../../domain/poi";
 import type { ReachBand, ReachMode } from "../../domain/reach";
 import { fetchRoute } from "../../domain/route";
-import { fetchTransitPlan } from "../../domain/transit";
+import { fetchTransitPlan, type TransitPlanOptions } from "../../domain/transit";
 import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
 import {
@@ -78,7 +78,7 @@ const legLines = new Map<string, [number, number][] | null>();
 const routeQueue = limiter(2);
 const routers = {
   route: (from: Place, to: Place, profile: "foot" | "driving") => fetchRoute(from, to, profile),
-  transit: (from: Place, to: Place) => fetchTransitPlan(from, to),
+  transit: (from: Place, to: Place, opts?: TransitPlanOptions) => fetchTransitPlan(from, to, fetch, opts),
 };
 
 // A track's best current line: each leg's resolved geometry where known.

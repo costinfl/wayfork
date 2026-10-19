@@ -6,6 +6,34 @@
 
 ## Session history
 
+- **v2.1.2** — Transit legs only follow believable plans.
+  **Bug:** the built-in Rome trip's "Leonardo Express + tram" (FCO →
+  Trastevere) was drawn via Cagliari, Brussels, Lille/Paris, Lyon, Torino and
+  Genova.
+  **Root cause** (verified live): the leg had no step stations, so it was
+  planned as one transit leg. `fetchTransitPlan` sent no time, mode or
+  duration limits and took itinerary #1. All 5 Transitous answers for that
+  pair start with flights (FCO→CAG→CRL/MUC) and take 20–24 h. Transitous
+  apparently lacks the FCO rail link (excluding AIRPLANE leaves zero
+  itineraries).
+  **Fix:**
+  - **`fetchTransitPlan`.**
+    - `GROUND_TRANSIT_MODES` (no AIRPLANE).
+    - A default `time` of tomorrow 10:00.
+    - An optional `maxTravelTime`.
+    - The first itinerary passing the new `plausibleItinerary` check: no
+      flight legs, distance ≤ max(3× straight line, straight line + 5 km),
+      within the cap.
+    The 🚆 Transit button benefits too.
+  - **`legs.ts`.** `VariantLeg.durationMin` (the summed step minutes);
+    `transitBudgetMin` = clamp(3×min + 30, 60, 600), sent as
+    `maxTravelTime`.
+  - **Fixture.** A trimmed real response
+    (`__fixtures__/motis-plan-fco-detour.json`) drives the regression test.
+
+  352 → 359 tests. Playwright: Rome FCO → Trastevere now comes in by road;
+  Sicily and Lisbon are unchanged where Transitous still has plans.
+
 - **v2.1.1** — Route colours with one meaning each. **Problem:** active
   segments sometimes turned orange, and the first alternative was the same
   orange (`#f59e0b`), so "estimated" and "another option" looked identical.

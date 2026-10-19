@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { legKey, limiter, provisionalLine, resolveLegLine, variantLegs, type VariantLeg } from "./legs";
+import {
+  legKey,
+  limiter,
+  provisionalLine,
+  resolveLegLine,
+  transitBudgetMin,
+  variantLegs,
+  type VariantLeg,
+} from "./legs";
 import type { MicroStep, Place, StepType, VariantNode } from "./types";
 
 const P = (name: string, lat: number, lon: number): Place => ({ name, lat, lon });
@@ -22,6 +30,16 @@ const v = (...microSteps: MicroStep[]): VariantNode => ({
 const profiles = (legs: VariantLeg[]) => legs.map((l) => l.profile);
 
 describe("variantLegs", () => {
+  it("sums the merged steps' minutes into the leg's budget", () => {
+    const S = P("Station", 41.92, 12.52);
+    const legs = variantLegs(
+      v(step("walk", { durationMin: 8, to: S }), step("wait", { durationMin: 5 }), step("metro", { durationMin: 20 })),
+      A,
+      B
+    );
+    expect(legs.map((l) => l.durationMin)).toEqual([8, 20]); // waits don't travel
+  });
+
   it("merges steps without endpoints into one leg with a combined profile", () => {
     expect(profiles(variantLegs(v(step("walk")), A, B))).toEqual(["foot"]);
     expect(profiles(variantLegs(v(step("walk"), step("metro"), step("walk")), A, B))).toEqual(["transit"]);
@@ -69,6 +87,7 @@ describe("provisionalLine", () => {
       to: B,
       profile,
       stored,
+      durationMin: 10,
     });
     expect(provisionalLine(leg("foot", [[1, 2], [3, 4]]), 0.1)).toEqual([[1, 2], [3, 4]]);
     expect(provisionalLine(leg("arc"), 0.1).length).toBeGreaterThan(2);
@@ -80,7 +99,13 @@ describe("provisionalLine", () => {
 });
 
 describe("resolveLegLine", () => {
-  const leg = (profile: VariantLeg["profile"]): VariantLeg => ({ from: A, to: B, profile, stored: null });
+  const leg = (profile: VariantLeg["profile"], durationMin = 20): VariantLeg => ({
+    from: A,
+    to: B,
+    profile,
+    stored: null,
+    durationMin,
+  });
   const routers = (over: Partial<Parameters<typeof resolveLegLine>[1]> = {}) => ({
     route: vi.fn(async () => [[0, 0], [1, 1]] as [number, number][]),
     transit: vi.fn(async () => null),
@@ -114,6 +139,14 @@ describe("resolveLegLine", () => {
     expect(r.route).not.toHaveBeenCalled();
   });
 
+  it("caps the transit plan at ~3× the leg's own budget, between 1 and 10 hours", async () => {
+    const r = routers();
+    await resolveLegLine(leg("transit", 57), r); // Leonardo Express 32′ + tram 25′
+    expect(r.transit).toHaveBeenCalledWith(A, B, { maxTravelTime: 201 });
+    expect(transitBudgetMin(leg("transit", 5))).toBe(60);
+    expect(transitBudgetMin(leg("transit", 400))).toBe(600);
+  });
+
   it("falls back to a road route when no transit plan exists", async () => {
     const r = routers();
     await resolveLegLine(leg("transit"), r);
@@ -130,7 +163,7 @@ describe("resolveLegLine", () => {
 
 describe("legKey / limiter", () => {
   it("keys legs by profile and endpoints", () => {
-    expect(legKey({ from: A, to: B, profile: "foot", stored: null })).toBe("foot:41.9,12.5;41.95,12.55");
+    expect(legKey({ from: A, to: B, profile: "foot", stored: null, durationMin: 5 })).toBe("foot:41.9,12.5;41.95,12.55");
   });
 
   it("runs at most n jobs at once", async () => {

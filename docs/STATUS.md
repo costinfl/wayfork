@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.1.1 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 352 tests green
+## Current version: v2.1.2 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 359 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -162,6 +162,22 @@ What Wayfork v2 adapted from that:
   gold. Amber is reserved for "estimated" stops ("N?").
 - A collapsible legend sits under the map toolbar (`wayfork.mapLegend`).
   The reach panel now stacks in the same column.
+
+**v2.1.2 — believable transit plans only.** `fetchTransitPlan`:
+- always sends `transitModes` without AIRPLANE (`GROUND_TRANSIT_MODES`);
+- departs tomorrow 10:00 by default;
+- passes an optional `maxTravelTime`;
+- takes the first itinerary that passes `plausibleItinerary`: no flight legs,
+  distance ≤ max(3× straight line, +5 km), within the cap.
+
+Map transit legs cap at `transitBudgetMin` = clamp(3× the leg's
+step-minutes + 30, 60, 600). Otherwise → road fallback. This fixes the Rome
+"Leonardo Express via Cagliari/Brussels/Lyon" route: Transitous's only
+answers for FCO → Trastevere were 20–24 h flight detours, and it has no FCO
+rail link. Caveat seen 2026-10-19 ~20:45 UTC: Transitous also stopped
+answering Sibari→Taranto and Taranto→Bari at any hour (it did earlier the
+same day), so those legs currently draw by road. This is upstream data, not
+the app.
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is

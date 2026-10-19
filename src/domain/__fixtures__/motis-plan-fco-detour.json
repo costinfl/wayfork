@@ -1,0 +1,508 @@
+{
+ "itineraries": [
+  {
+   "duration": 86280,
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 60,
+     "distance": 2.0,
+     "from": {
+      "name": "START",
+      "lat": 41.8003,
+      "lon": 12.2389
+     },
+     "to": {
+      "name": "Aeroporto di Roma Fiumicino (FCO)",
+      "lat": 41.800278,
+      "lon": 12.238888999999999
+     }
+    },
+    {
+     "mode": "AIRPLANE",
+     "duration": 3300,
+     "distance": null,
+     "from": {
+      "name": "Aeroporto di Roma Fiumicino (FCO)",
+      "lat": 41.800278,
+      "lon": 12.238888999999999
+     },
+     "to": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "routeShortName": "CAG-FCO"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 0.0,
+     "from": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "to": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     }
+    },
+    {
+     "mode": "AIRPLANE",
+     "duration": 3600,
+     "distance": null,
+     "from": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "to": {
+      "name": "Aeroporto di Bruxelles Charleroi (CRL)",
+      "lat": 50.459199999999996,
+      "lon": 4.45382
+     },
+     "routeShortName": "CAG-CRL"
+    },
+    {
+     "mode": "WALK",
+     "duration": 180,
+     "distance": 409.0,
+     "from": {
+      "name": "Aeroporto di Bruxelles Charleroi (CRL)",
+      "lat": 50.459199999999996,
+      "lon": 4.45382
+     },
+     "to": {
+      "name": "JUMET Monument",
+      "lat": 50.45667999999999,
+      "lon": 4.454949999999999
+     }
+    },
+    {
+     "mode": "BUS",
+     "duration": 540,
+     "distance": null,
+     "from": {
+      "name": "JUMET Monument",
+      "lat": 50.45667999999999,
+      "lon": 4.454949999999999
+     },
+     "to": {
+      "name": "CHARLEROI Gare Centrale",
+      "lat": 50.405422,
+      "lon": 4.436490000000001
+     },
+     "routeShortName": "68"
+    },
+    {
+     "mode": "WALK",
+     "duration": 300,
+     "distance": 273.0,
+     "from": {
+      "name": "CHARLEROI Gare Centrale",
+      "lat": 50.405422,
+      "lon": 4.436490000000001
+     },
+     "to": {
+      "name": "Charleroi-Central",
+      "lat": 50.40471,
+      "lon": 4.43857
+     }
+    },
+    {
+     "mode": "REGIONAL_RAIL",
+     "duration": 3300,
+     "distance": null,
+     "from": {
+      "name": "Charleroi-Central",
+      "lat": 50.40471,
+      "lon": 4.43857
+     },
+     "to": {
+      "name": "Bruxelles-Midi",
+      "lat": 50.835710000000006,
+      "lon": 4.33653
+     },
+     "routeShortName": "IC"
+    },
+    {
+     "mode": "WALK",
+     "duration": 300,
+     "distance": 129.0,
+     "from": {
+      "name": "Bruxelles-Midi",
+      "lat": 50.835710000000006,
+      "lon": 4.33653
+     },
+     "to": {
+      "name": "Bruxelles Midi",
+      "lat": 50.836,
+      "lon": 4.336
+     }
+    },
+    {
+     "mode": "HIGHSPEED_RAIL",
+     "duration": 13800,
+     "distance": null,
+     "from": {
+      "name": "Bruxelles Midi",
+      "lat": 50.836,
+      "lon": 4.336
+     },
+     "to": {
+      "name": "Lyon Part Dieu",
+      "lat": 45.76059600000001,
+      "lon": 4.859409
+     }
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 191.0,
+     "from": {
+      "name": "Lyon Part Dieu",
+      "lat": 45.76059600000001,
+      "lon": 4.859409
+     },
+     "to": {
+      "name": "Lyon-Part-Dieu",
+      "lat": 45.760000000000005,
+      "lon": 4.8597220000000005
+     }
+    },
+    {
+     "mode": "LONG_DISTANCE",
+     "duration": 14220,
+     "distance": null,
+     "from": {
+      "name": "Lyon-Part-Dieu",
+      "lat": 45.760000000000005,
+      "lon": 4.8597220000000005
+     },
+     "to": {
+      "name": "Torino Porta Susa",
+      "lat": 45.073055000000004,
+      "lon": 7.666389
+     },
+     "routeShortName": "Paris-Gare-de-Lyon/Milano Centrale"
+    },
+    {
+     "mode": "WALK",
+     "duration": 540,
+     "distance": null,
+     "from": {
+      "name": "Torino Porta Susa",
+      "lat": 45.073055000000004,
+      "lon": 7.666389
+     },
+     "to": {
+      "name": "Turin (Vittorio Emanuele)",
+      "lat": 45.07016,
+      "lon": 7.657705999999999
+     }
+    },
+    {
+     "mode": "COACH",
+     "duration": 18600,
+     "distance": null,
+     "from": {
+      "name": "Turin (Vittorio Emanuele)",
+      "lat": 45.07016,
+      "lon": 7.657705999999999
+     },
+     "to": {
+      "name": "Florence (Piazzale Montelungo)",
+      "lat": 43.780785,
+      "lon": 11.246646
+     },
+     "routeShortName": "FlixBus N1503"
+    },
+    {
+     "mode": "WALK",
+     "duration": 360,
+     "distance": 541.0,
+     "from": {
+      "name": "Florence (Piazzale Montelungo)",
+      "lat": 43.780785,
+      "lon": 11.246646
+     },
+     "to": {
+      "name": "FIRENZE S.MARIA NOVELLA",
+      "lat": 43.776874,
+      "lon": 11.247382999999997
+     }
+    },
+    {
+     "mode": "HIGHSPEED_RAIL",
+     "duration": 6540,
+     "distance": null,
+     "from": {
+      "name": "FIRENZE S.MARIA NOVELLA",
+      "lat": 43.776874,
+      "lon": 11.247382999999997
+     },
+     "to": {
+      "name": "ROMA TERMINI",
+      "lat": 41.900503,
+      "lon": 12.502027
+     },
+     "routeShortName": "FR"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 317.0,
+     "from": {
+      "name": "ROMA TERMINI",
+      "lat": 41.900503,
+      "lon": 12.502027
+     },
+     "to": {
+      "name": "TERMINI (MA-MB-FS)",
+      "lat": 41.90145999999999,
+      "lon": 12.500309999999999
+     }
+    },
+    {
+     "mode": "BUS",
+     "duration": 1260,
+     "distance": null,
+     "from": {
+      "name": "TERMINI (MA-MB-FS)",
+      "lat": 41.90145999999999,
+      "lon": 12.500309999999999
+     },
+     "to": {
+      "name": "SONNINO/S. GALLICANO (H)",
+      "lat": 41.88965999999999,
+      "lon": 12.474033
+     },
+     "routeShortName": "H"
+    },
+    {
+     "mode": "WALK",
+     "duration": 480,
+     "distance": 521.0,
+     "from": {
+      "name": "SONNINO/S. GALLICANO (H)",
+      "lat": 41.88965999999999,
+      "lon": 12.474033
+     },
+     "to": {
+      "name": "END",
+      "lat": 41.889,
+      "lon": 12.4693
+     }
+    }
+   ]
+  },
+  {
+   "duration": 73920,
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 60,
+     "distance": 2.0,
+     "from": {
+      "name": "START",
+      "lat": 41.8003,
+      "lon": 12.2389
+     },
+     "to": {
+      "name": "Aeroporto di Roma Fiumicino (FCO)",
+      "lat": 41.800278,
+      "lon": 12.238888999999999
+     }
+    },
+    {
+     "mode": "AIRPLANE",
+     "duration": 3300,
+     "distance": null,
+     "from": {
+      "name": "Aeroporto di Roma Fiumicino (FCO)",
+      "lat": 41.800278,
+      "lon": 12.238888999999999
+     },
+     "to": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "routeShortName": "CAG-FCO"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 0.0,
+     "from": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "to": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     }
+    },
+    {
+     "mode": "AIRPLANE",
+     "duration": 7200,
+     "distance": null,
+     "from": {
+      "name": "Aeroporto di Cagliari (CAG) (ELMAS)",
+      "lat": 39.25421,
+      "lon": 9.060435000000002
+     },
+     "to": {
+      "name": "Aeroporto di Monaco/Munich (MUC)",
+      "lat": 48.35379999999999,
+      "lon": 11.7861
+     },
+     "routeShortName": "CAG-MUC"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 10.0,
+     "from": {
+      "name": "Aeroporto di Monaco/Munich (MUC)",
+      "lat": 48.35379999999999,
+      "lon": 11.7861
+     },
+     "to": {
+      "name": "Flughafen München",
+      "lat": 48.353812999999995,
+      "lon": 11.785976999999999
+     }
+    },
+    {
+     "mode": "SUBURBAN",
+     "duration": 2460,
+     "distance": null,
+     "from": {
+      "name": "Flughafen München",
+      "lat": 48.353812999999995,
+      "lon": 11.785976999999999
+     },
+     "to": {
+      "name": "Hackerbrücke",
+      "lat": 48.143707,
+      "lon": 11.548264999999997
+     },
+     "routeShortName": "S8"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 295.0,
+     "from": {
+      "name": "Hackerbrücke",
+      "lat": 48.143707,
+      "lon": 11.548264999999997
+     },
+     "to": {
+      "name": "Munich central bus station",
+      "lat": 48.14248,
+      "lon": 11.55001
+     }
+    },
+    {
+     "mode": "COACH",
+     "duration": 41400,
+     "distance": null,
+     "from": {
+      "name": "Munich central bus station",
+      "lat": 48.14248,
+      "lon": 11.55001
+     },
+     "to": {
+      "name": "Rome Tiburtina Bus station",
+      "lat": 41.909363,
+      "lon": 12.528316999999998
+     },
+     "routeShortName": "FlixBus N531"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 380.0,
+     "from": {
+      "name": "Rome Tiburtina Bus station",
+      "lat": 41.909363,
+      "lon": 12.528316999999998
+     },
+     "to": {
+      "name": "Tiburtina F.s.",
+      "lat": 41.910247999999996,
+      "lon": 12.530286
+     }
+    },
+    {
+     "mode": "SUBWAY",
+     "duration": 720,
+     "distance": null,
+     "from": {
+      "name": "Tiburtina F.s.",
+      "lat": 41.910247999999996,
+      "lon": 12.530286
+     },
+     "to": {
+      "name": "Circo Massimo",
+      "lat": 41.88348799999999,
+      "lon": 12.487731
+     },
+     "routeShortName": "MEB"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 39.0,
+     "from": {
+      "name": "Circo Massimo",
+      "lat": 41.88348799999999,
+      "lon": 12.487731
+     },
+     "to": {
+      "name": "AVENTINO/CIRCO MASSIMO (MB)",
+      "lat": 41.883433999999994,
+      "lon": 12.487908
+     }
+    },
+    {
+     "mode": "BUS",
+     "duration": 960,
+     "distance": null,
+     "from": {
+      "name": "AVENTINO/CIRCO MASSIMO (MB)",
+      "lat": 41.883433999999994,
+      "lon": 12.487908
+     },
+     "to": {
+      "name": "TRASTEVERE/MIN. P.ISTRUZIONE",
+      "lat": 41.88473,
+      "lon": 12.470353
+     },
+     "routeShortName": "3L"
+    },
+    {
+     "mode": "WALK",
+     "duration": 600,
+     "distance": 666.0,
+     "from": {
+      "name": "TRASTEVERE/MIN. P.ISTRUZIONE",
+      "lat": 41.88473,
+      "lon": 12.470353
+     },
+     "to": {
+      "name": "END",
+      "lat": 41.889,
+      "lon": 12.4693
+     }
+    }
+   ]
+  }
+ ]
+}

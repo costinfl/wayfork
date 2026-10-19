@@ -5,7 +5,8 @@ import {
   previousPlace,
   transitItineraryToVariant,
 } from "./transit";
-import type { TransitItinerary } from "./transit";
+import { GROUND_TRANSIT_MODES, plausibleItinerary, type TransitItinerary } from "./transit";
+import fcoDetour from "./__fixtures__/motis-plan-fco-detour.json";
 import { variantGeometry } from "./geometry";
 import type { Day } from "./types";
 
@@ -244,5 +245,78 @@ describe("transitItineraryToVariant", () => {
     const variant = transitItineraryToVariant(noLine, "EUR");
     expect(variant.microSteps[0].geometry).toBeUndefined();
     expect(variantGeometry(variant)).toBeNull();
+  });
+});
+
+describe("fetchTransitPlan — sanity (FCO → Trastevere regression)", () => {
+  // Trimmed, real /api/v6/plan answer for Rome Fiumicino → Trastevere with no
+  // mode filter: both itineraries fly FCO → Cagliari → Brussels/Munich and take
+  // 20–24 h. Drawing the first one sent the "Leonardo Express" through Europe.
+  const fco = { name: "Rome Fiumicino (FCO)", lat: 41.8003, lon: 12.2389 };
+  const trastevere = { name: "Trastevere, Rome", lat: 41.889, lon: 12.4693 };
+  const plan = (body: unknown) => vi.fn(async () => okJson(body));
+
+  it("asks for ground transit only, departing at a daytime hour", async () => {
+    const fetchFn = plan({ itineraries: [] });
+    await fetchTransitPlan(fco, trastevere, fetchFn as unknown as typeof fetch, { maxTravelTime: 201 });
+    const url = new URL((fetchFn.mock.calls[0] as unknown as [string])[0]);
+    const modes = url.searchParams.get("transitModes")!.split(",");
+    expect(modes).toEqual([...GROUND_TRANSIT_MODES]);
+    expect(modes).not.toContain("AIRPLANE");
+    expect(url.searchParams.get("maxTravelTime")).toBe("201");
+    const time = new Date(url.searchParams.get("time")!);
+    expect(time.getTime()).toBeGreaterThan(Date.now());
+    expect(time.getHours()).toBe(10);
+  });
+
+  it("rejects the recorded flight-and-detour itineraries", async () => {
+    expect(await fetchTransitPlan(fco, trastevere, plan(fcoDetour) as unknown as typeof fetch)).toBeNull();
+  });
+
+  it("skips implausible itineraries and keeps the first believable one", async () => {
+    const leonardo = {
+      duration: 57 * 60,
+      legs: [
+        { mode: "REGIONAL_RAIL", duration: 32 * 60, from: fco, to: { name: "Roma Termini", lat: 41.901, lon: 12.5016 }, routeShortName: "FL1" },
+        { mode: "TRAM", duration: 25 * 60, from: { name: "Roma Termini", lat: 41.901, lon: 12.5016 }, to: trastevere, routeShortName: "8" },
+      ],
+    };
+    const it = await fetchTransitPlan(
+      fco,
+      trastevere,
+      plan({ itineraries: [...fcoDetour.itineraries, leonardo] }) as unknown as typeof fetch
+    );
+    expect(it?.legs.map((l) => l.type)).toEqual(["train", "metro"]);
+    expect(it?.durationMin).toBe(57);
+  });
+
+  it("enforces the travel-time cap on the client too", async () => {
+    const slow = {
+      duration: 300 * 60,
+      legs: [{ mode: "BUS", duration: 300 * 60, from: fco, to: trastevere }],
+    };
+    expect(
+      await fetchTransitPlan(fco, trastevere, plan({ itineraries: [slow] }) as unknown as typeof fetch, { maxTravelTime: 200 })
+    ).toBeNull();
+  });
+});
+
+describe("plausibleItinerary", () => {
+  const a = { name: "a", lat: 41.9, lon: 12.5 };
+  const b = { name: "b", lat: 41.91, lon: 12.51 }; // ~1.4 km
+  const leg = (type: TransitItinerary["legs"][number]["type"], distanceKm: number) => ({
+    type,
+    label: type,
+    durationMin: 10,
+    distanceKm,
+    line: null,
+    from: null,
+    to: null,
+  });
+  it("allows modest detours, short-hop slack, and rejects flights and wild detours", () => {
+    expect(plausibleItinerary({ durationMin: 20, legs: [leg("metro", 4)] }, a, b)).toBe(true); // within +5 km
+    expect(plausibleItinerary({ durationMin: 20, legs: [leg("metro", 9)] }, a, b)).toBe(false);
+    expect(plausibleItinerary({ durationMin: 20, legs: [leg("flight", 1)] }, a, b)).toBe(false);
+    expect(plausibleItinerary({ durationMin: 90, legs: [leg("bus", 2)] }, a, b, 60)).toBe(false);
   });
 });

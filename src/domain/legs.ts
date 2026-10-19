@@ -1,6 +1,6 @@
 import { offsetArc } from "./geometry";
 import { distanceM } from "./poi";
-import type { TransitItinerary } from "./transit";
+import type { TransitItinerary, TransitPlanOptions } from "./transit";
 import type { MicroStep, Place, StepType, VariantNode } from "./types";
 
 // How a variant actually travels from its origin to its slot's place, leg by
@@ -17,6 +17,7 @@ export interface VariantLeg {
   to: Place;
   profile: LegProfile;
   stored: [number, number][] | null; // the step's own geometry, drawn as-is
+  durationMin: number; // the merged steps' planned minutes (0 for implied movement)
 }
 
 const STEP_PROFILE: Record<Exclude<StepType, "wait">, LegProfile> = {
@@ -50,6 +51,7 @@ export function variantLegs(v: VariantNode, from: Place, to: Place): VariantLeg[
   const legs: VariantLeg[] = [];
   let cursor = from;
   let pending: LegProfile[] = [];
+  let pendingMin = 0;
   const flush = (target: Place) => {
     if (!same(cursor, target)) {
       legs.push({
@@ -57,9 +59,11 @@ export function variantLegs(v: VariantNode, from: Place, to: Place): VariantLeg[
         to: target,
         profile: pending.length ? combine(pending) : implied(cursor, target),
         stored: null,
+        durationMin: pendingMin,
       });
     }
     pending = [];
+    pendingMin = 0;
     cursor = target;
   };
 
@@ -72,13 +76,13 @@ export function variantLegs(v: VariantNode, from: Place, to: Place): VariantLeg[
     if (geo) {
       const end = step.to ?? pointPlace(geo[geo.length - 1], step.label);
       pending = [];
-      legs.push({ from: cursor, to: end, profile, stored: geo });
+      pendingMin = 0;
+      legs.push({ from: cursor, to: end, profile, stored: geo, durationMin: step.durationMin });
       cursor = end;
-    } else if (step.to) {
-      pending.push(profile);
-      flush(step.to);
     } else {
       pending.push(profile);
+      pendingMin += step.durationMin;
+      if (step.to) flush(step.to);
     }
   }
   if (pending.length || !same(cursor, to)) flush(to);
@@ -101,16 +105,22 @@ export const legKey = (l: VariantLeg): string =>
 
 export interface LegRouters {
   route: (from: Place, to: Place, profile: "foot" | "driving") => Promise<[number, number][] | null>;
-  transit: (from: Place, to: Place) => Promise<TransitItinerary | null>;
+  transit: (from: Place, to: Place, opts?: TransitPlanOptions) => Promise<TransitItinerary | null>;
 }
+
+// A transit plan may take at most ~3× what the variant itself budgets (+30
+// min of slack), between one and ten hours — so a "Leonardo Express, 32 min"
+// leg can never come back as a day-long tour of Europe.
+export const transitBudgetMin = (leg: VariantLeg): number =>
+  Math.min(600, Math.max(60, 3 * leg.durationMin + 30));
 
 // Real geometry for a leg that needs routing, or null to keep its provisional
 // line. Transit legs use a trip plan's leg lines (gaps bridged straight), and
-// fall back to a road route when no plan exists.
+// fall back to a road route when no believable plan exists.
 export async function resolveLegLine(leg: VariantLeg, r: LegRouters): Promise<[number, number][] | null> {
   if (leg.stored || leg.profile === "arc") return null;
   if (leg.profile === "transit") {
-    const plan = await r.transit(leg.from, leg.to);
+    const plan = await r.transit(leg.from, leg.to, { maxTravelTime: transitBudgetMin(leg) });
     const line = plan?.legs.flatMap((l) =>
       l.line && l.line.length ? l.line : l.from && l.to ? [[l.from.lat, l.from.lon] as [number, number], [l.to.lat, l.to.lon] as [number, number]] : []
     );

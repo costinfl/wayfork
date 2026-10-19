@@ -44,6 +44,14 @@ Overpass queries stay cheap by design: narrowed tag selectors (no bare
 `historic=*`), `[timeout:12]` + a matching 12 s client abort per endpoint,
 and an 80-element output cap.
 
+**v2.1.2 — `/plan` request shape.** Always `transitModes` without AIRPLANE
+(MOTIS otherwise proposes flights for short urban hops), a daytime `time`,
+and `maxTravelTime` for map legs. The client also rejects implausible
+itineraries (detour > 3× / +5 km, or over the cap). Transitous coverage
+varies over time: Italian rail answers (Sibari/Taranto/Bari) disappeared
+between two checks on 2026-10-19, and FCO has no rail link in it. Callers
+must tolerate `null`.
+
 **v2.0.0 update — MOTIS verified live.** This session's sandbox could reach
 `api.transitous.org` (and OpenFreeMap) directly, and the OpenAPI spec is in
 the repo at `motis-project/motis/openapi.yaml`. `map/trips` and `one-to-all`
