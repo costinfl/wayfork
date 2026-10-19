@@ -25,6 +25,8 @@ vi.mock("./map/TripMap", () => ({
 
 import { TripView } from "./WayforkApp";
 import { RATES_EUR } from "../domain/currency";
+import { parseTripDetails } from "../domain/liveTransit";
+import nycTrip from "../domain/__fixtures__/motis-trip-nyc-qm32.json";
 import { newTrip } from "../domain/mutate";
 import type { TransitItinerary } from "../domain/transit";
 import type { Checkpoint, Trip, VariantNode } from "../domain/types";
@@ -254,5 +256,62 @@ describe("TripView — trip map wiring", () => {
     expect(mapProps.current.reach.bands.map((b: { maxMin: number }) => b.maxMin)).toEqual([15, 30, 45]);
     act(() => mapProps.current.reach.onClose());
     expect(mapProps.current.reach).toBeNull();
+  });
+});
+
+describe("TripView — use a live trip in the plan", () => {
+  const nyc = () => parseTripDetails("qm32", nycTrip)!;
+  const renderWithSpy = (canEdit = true) => {
+    const onTripChange = vi.fn();
+    render(
+      <TripView
+        trip={fixture()}
+        rates={RATES_EUR}
+        ratesLabel="built-in snapshot"
+        storeLabel="local browser"
+        canEdit={canEdit}
+        onTripChange={onTripChange}
+      />
+    );
+    return onTripChange;
+  };
+
+  it("adds the ride as a new slot right after the chosen one", async () => {
+    const onTripChange = renderWithSpy();
+    await waitFor(() => expect(mapProps.current?.onUseTrip).toBeTypeOf("function"));
+    let errors: string[] = [];
+    act(() => {
+      errors = mapProps.current.onUseTrip({ details: nyc(), fromIdx: 1, toIdx: 3, target: { kind: "slot", afterSlotId: "s1" } });
+    });
+    expect(errors).toEqual([]);
+    const saved: Trip = onTripChange.mock.calls[0][0];
+    const slots = saved.days[0].slots;
+    expect(slots.map((s) => s.title)).toEqual(["Transfer", "Bus QM32: 3 AV/E 43 ST → 3 AV/E 55 ST", "Museum"]);
+    const added = slots[1];
+    expect(added.place).toMatchObject({ name: "3 AV/E 55 ST" });
+    expect(added.variants[0]).toMatchObject({ estimated: true, name: "Bus QM32 3 AV/E 43 ST → 3 AV/E 55 ST" });
+    // The previous slot's place (Testville) is far from New York: no walk is
+    // invented for that gap, just the ride.
+    expect(added.variants[0].microSteps.map((m) => m.type)).toEqual(["bus"]);
+  });
+
+  it("adds the ride as an option for a slot and makes it the active one", async () => {
+    const onTripChange = renderWithSpy();
+    await waitFor(() => expect(mapProps.current?.onUseTrip).toBeTypeOf("function"));
+    act(() => {
+      mapProps.current.onUseTrip({ details: nyc(), fromIdx: 0, toIdx: 2, target: { kind: "variant", slotId: "s2" } });
+    });
+    const saved: Trip = onTripChange.mock.calls[0][0];
+    const museum = saved.days[0].slots.find((s) => s.id === "s2")!;
+    expect(museum.variants).toHaveLength(2);
+    const added = museum.variants[1];
+    expect(added.name).toBe("Bus QM32 3 AV/E 39 ST → 3 AV/E 48 ST");
+    await waitFor(() => expect(mapProps.current.activeVariants.s2).toBe(added.id));
+  });
+
+  it("is not offered to viewers", async () => {
+    renderWithSpy(false);
+    await waitFor(() => expect(mapProps.current).not.toBeNull());
+    expect(mapProps.current.onUseTrip).toBeUndefined();
   });
 });

@@ -21,6 +21,15 @@ export interface VehicleSummary {
   color: string;
 }
 
+// What "Use in my plan" asks the planner to do with the ride.
+export type UseTripTarget = { kind: "slot"; afterSlotId: string | null } | { kind: "variant"; slotId: string };
+export interface UseTripRequest {
+  details: TripDetails;
+  fromIdx: number;
+  toIdx: number;
+  target: UseTripTarget;
+}
+
 export interface CardTheme {
   bg: string;
   fg: string;
@@ -66,6 +75,9 @@ export function VehicleCard({
   onFollow,
   onClose,
   theme,
+  onUse,
+  daySlots = [],
+  dayLabel = "the day",
 }: {
   vehicle: VehicleSummary;
   details: TripDetails | null;
@@ -76,8 +88,13 @@ export function VehicleCard({
   onFollow: (on: boolean) => void;
   onClose: () => void;
   theme: CardTheme;
+  // Given only to editors: add the ride to the plan; returns validation errors.
+  onUse?: (req: UseTripRequest) => string[];
+  daySlots?: { id: string; title: string }[]; // the focused day's slots, in order
+  dayLabel?: string; // e.g. "Day 1"
 }) {
   const [showStops, setShowStops] = useState(false);
+  const [useOpen, setUseOpen] = useState(false);
   const name = details?.name || vehicle.name;
   const color = details?.color ?? vehicle.color;
   const mode = details?.mode ?? vehicle.mode;
@@ -189,6 +206,19 @@ export function VehicleCard({
             )}
           </div>
 
+          {onUse && (
+            <UseInPlan
+              details={details}
+              firstBoardable={progress.finished ? 0 : progress.nextIndex}
+              open={useOpen}
+              onOpen={setUseOpen}
+              onUse={onUse}
+              daySlots={daySlots}
+              dayLabel={dayLabel}
+              theme={theme}
+            />
+          )}
+
           {showStops && (
             <ol className="mt-2 max-h-56 overflow-y-auto pr-1" aria-label="Stops">
               {details.stops.map((s, i) => {
@@ -211,6 +241,152 @@ export function VehicleCard({
         </>
       )}
       {gone && details && <div className="mt-1.5 opacity-60">No longer in the live view.</div>}
+    </div>
+  );
+}
+
+// "＋ Use in my plan": pick where to board and alight, and whether the ride
+// becomes a new slot or an alternative for an existing one.
+function UseInPlan({
+  details,
+  firstBoardable,
+  open,
+  onOpen,
+  onUse,
+  daySlots,
+  dayLabel,
+  theme,
+}: {
+  details: TripDetails;
+  firstBoardable: number; // stops the vehicle has passed can't be boarded
+  open: boolean;
+  onOpen: (open: boolean) => void;
+  onUse: (req: UseTripRequest) => string[];
+  daySlots: { id: string; title: string }[];
+  dayLabel: string;
+  theme: CardTheme;
+}) {
+  const last = details.stops.length - 1;
+  const firstFrom = Math.min(firstBoardable, last - 1);
+  const [fromIdx, setFromIdx] = useState(firstFrom);
+  const [toIdx, setToIdx] = useState(last);
+  const [target, setTarget] = useState("end");
+  const [errors, setErrors] = useState<string[]>([]);
+  const [added, setAdded] = useState(false);
+  const field = { background: "transparent", border: `1px solid ${theme.border}`, color: theme.fg };
+
+  if (!open) {
+    return (
+      <div className="mt-2">
+        <button
+          onClick={() => {
+            onOpen(true);
+            setAdded(false);
+          }}
+          className="px-2 py-1 rounded-md font-semibold"
+          style={{ background: "#3b82f6", color: "#fff" }}
+        >
+          ＋ Use in my plan
+        </button>
+        {added && <span className="ml-2" style={{ color: "#22c55e" }}>Added ✓</span>}
+      </div>
+    );
+  }
+
+  const parseTarget = (v: string): UseTripTarget =>
+    v === "end"
+      ? { kind: "slot", afterSlotId: daySlots.length ? daySlots[daySlots.length - 1].id : null }
+      : v.startsWith("after:")
+        ? { kind: "slot", afterSlotId: v.slice(6) }
+        : { kind: "variant", slotId: v.slice(7) };
+
+  return (
+    <div className="mt-2 p-2 rounded-lg flex flex-col gap-1.5" style={{ border: `1px solid ${theme.border}` }}>
+      <label className="flex items-center gap-2">
+        <span className="w-12 opacity-70">From</span>
+        <select
+          aria-label="Board at"
+          value={fromIdx}
+          onChange={(e) => {
+            const f = Number(e.target.value);
+            setFromIdx(f);
+            if (toIdx <= f) setToIdx(last);
+          }}
+          className="flex-1 min-w-0 rounded px-1 py-0.5"
+          style={field}
+        >
+          {details.stops.slice(firstFrom, last).map((s, k) => (
+            <option key={firstFrom + k} value={firstFrom + k} style={{ color: "#17222c" }}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="w-12 opacity-70">To</span>
+        <select
+          aria-label="Get off at"
+          value={toIdx}
+          onChange={(e) => setToIdx(Number(e.target.value))}
+          className="flex-1 min-w-0 rounded px-1 py-0.5"
+          style={field}
+        >
+          {details.stops.slice(fromIdx + 1).map((s, k) => (
+            <option key={fromIdx + 1 + k} value={fromIdx + 1 + k} style={{ color: "#17222c" }}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="w-12 opacity-70">Add as</span>
+        <select
+          aria-label="Add as"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className="flex-1 min-w-0 rounded px-1 py-0.5"
+          style={field}
+        >
+          <option value="end" style={{ color: "#17222c" }}>
+            New slot at the end of {dayLabel}
+          </option>
+          {daySlots.map((s) => (
+            <option key={`a-${s.id}`} value={`after:${s.id}`} style={{ color: "#17222c" }}>
+              New slot after: {s.title}
+            </option>
+          ))}
+          {daySlots.map((s) => (
+            <option key={`v-${s.id}`} value={`option:${s.id}`} style={{ color: "#17222c" }}>
+              Option for: {s.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex gap-2 mt-0.5">
+        <button
+          onClick={() => {
+            const errs = onUse({ details, fromIdx, toIdx, target: parseTarget(target) });
+            setErrors(errs);
+            if (!errs.length) {
+              setAdded(true);
+              onOpen(false);
+            }
+          }}
+          className="px-2 py-1 rounded-md font-semibold"
+          style={{ background: "#3b82f6", color: "#fff" }}
+        >
+          Add
+        </button>
+        <button onClick={() => onOpen(false)} className="px-2 py-1 rounded-md" style={{ border: `1px solid ${theme.border}` }}>
+          Cancel
+        </button>
+      </div>
+      {errors.map((e) => (
+        <div key={e} style={{ color: "#ef4444" }}>
+          {e}
+        </div>
+      ))}
+      <div className="opacity-60">Times are today's — the ride is added as estimated.</div>
     </div>
   );
 }

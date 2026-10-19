@@ -92,3 +92,41 @@ describe("VehicleCard", () => {
     expect(stopTime(undefined)).toBe("—");
   });
 });
+
+describe("VehicleCard — use in my plan", () => {
+  const daySlots = [
+    { id: "s1", title: "Hotel → Airport" },
+    { id: "s2", title: "Museum" },
+  ];
+
+  it("is offered to editors only", () => {
+    renderCard();
+    expect(screen.queryByRole("button", { name: /Use in my plan/ })).toBeNull();
+  });
+
+  it("boards from the next stop onwards, alights later, and defaults to a new slot at the day's end", () => {
+    const onUse = vi.fn(() => [] as string[]);
+    renderCard({ onUse, daySlots, dayLabel: "Day 1", now: Date.parse("2026-10-19T20:41:00Z") });
+    fireEvent.click(screen.getByRole("button", { name: /Use in my plan/ }));
+    const from = screen.getByRole("combobox", { name: "Board at" }) as HTMLSelectElement;
+    expect([...from.options].map((o) => o.text)).toEqual(["3 AV/E 55 ST", details.stops[4].name]); // passed stops gone
+    const to = screen.getByRole("combobox", { name: "Get off at" }) as HTMLSelectElement;
+    expect(to.value).toBe("5");
+    fireEvent.change(from, { target: { value: "4" } });
+    expect([...to.options].map((o) => o.text)).toEqual(["212 ST/15 AV"]);
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onUse).toHaveBeenCalledWith({ details, fromIdx: 4, toIdx: 5, target: { kind: "slot", afterSlotId: "s2" } });
+    expect(screen.getByText("Added ✓")).toBeInTheDocument();
+  });
+
+  it("can add the ride as an option for a slot, and shows validation errors", () => {
+    const onUse = vi.fn(() => ["slot s1: something is off"]);
+    renderCard({ onUse, daySlots });
+    fireEvent.click(screen.getByRole("button", { name: /Use in my plan/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Add as" }), { target: { value: "option:s1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onUse).toHaveBeenCalledWith(expect.objectContaining({ target: { kind: "variant", slotId: "s1" } }));
+    expect(screen.getByText("slot s1: something is off")).toBeInTheDocument();
+    expect(screen.queryByText("Added ✓")).toBeNull();
+  });
+});

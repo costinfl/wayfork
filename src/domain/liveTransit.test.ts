@@ -8,6 +8,9 @@ import {
   parseTripDetails,
   TRANSITOUS_TRIP_URL,
   tripProgress,
+  tripSegmentLine,
+  tripSlotTitle,
+  tripToVariant,
   parseTripSegments,
   positionAt,
   TRANSITOUS_TRIPS_URL,
@@ -227,5 +230,63 @@ describe("trip details (tap a vehicle)", () => {
     expect(tripProgress(d, at("2026-10-19T23:00:00Z"))).toMatchObject({ nextIndex: 6, finished: true });
     // Without real-time data there is no delay to report.
     expect(tripProgress({ ...d, realTime: false }, at("2026-10-19T20:36:00Z")).delayMin).toBeNull();
+  });
+});
+
+describe("use a live trip in the plan", () => {
+  const d = parseTripDetails("qm32", nycTrip)!;
+
+  it("turns a ride between two stops into an estimated variant with its real line", () => {
+    const v = tripToVariant(d, 1, 5, { currency: "USD" });
+    expect(v).toMatchObject({
+      name: "Bus QM32 3 AV/E 43 ST → 212 ST/15 AV",
+      estimated: true,
+      cost: { amount: 0, currency: "USD" },
+    });
+    expect(v.microSteps).toHaveLength(1);
+    const ride = v.microSteps[0];
+    expect(ride).toMatchObject({
+      type: "bus",
+      label: "Bus QM32 → BAY TERRACE BELL BL via WHITESTONE EXPWY",
+      durationMin: 83, // 20:37Z → 22:00Z
+      from: { name: "3 AV/E 43 ST" },
+      to: { name: "212 ST/15 AV" },
+    });
+    expect(ride.distanceKm).toBeGreaterThan(5);
+    expect(ride.geometry!.length).toBeGreaterThan(2);
+    expect(tripSlotTitle(d, 1, 5)).toBe("Bus QM32: 3 AV/E 43 ST → 212 ST/15 AV");
+  });
+
+  it("cuts the route shape to the ride, in travel order", () => {
+    const whole = tripSegmentLine(d, 0, 5);
+    const part = tripSegmentLine(d, 1, 3);
+    expect(part.length).toBeLessThan(whole.length);
+    const first = d.stops[1];
+    const last = d.stops[3];
+    const near = (p: [number, number], s: { lat: number; lon: number }) =>
+      Math.abs(p[0] - s.lat) < 0.002 && Math.abs(p[1] - s.lon) < 0.002;
+    expect(near(part[0], first)).toBe(true);
+    expect(near(part[part.length - 1], last)).toBe(true);
+    // Without a shape: straight stop → stop.
+    expect(tripSegmentLine({ ...d, line: [] }, 1, 3)).toEqual([
+      [first.lat, first.lon],
+      [last.lat, last.lon],
+    ]);
+  });
+
+  it("adds walks to the boarding stop and on to the slot, only for gaps of 100 m – 3 km", () => {
+    const board = d.stops[1];
+    const farAway = { name: "Hotel", lat: board.lat + 0.005, lon: board.lon }; // ~550 m
+    const nextDoor = { name: "Kiosk", lat: board.lat + 0.0005, lon: board.lon }; // ~55 m
+    const v = tripToVariant(d, 1, 3, { currency: "USD", walkFrom: farAway, walkTo: farAway });
+    expect(v.microSteps.map((m) => [m.type, m.label])).toEqual([
+      ["walk", "Walk to 3 AV/E 43 ST"],
+      ["bus", "Bus QM32 → BAY TERRACE BELL BL via WHITESTONE EXPWY"],
+      ["walk", "Walk to Hotel"],
+    ]);
+    expect(v.microSteps[0].durationMin).toBe(7); // ~555 m at 4.8 km/h
+    expect(tripToVariant(d, 1, 3, { currency: "USD", walkFrom: nextDoor }).microSteps).toHaveLength(1);
+    const otherCity = { name: "Newark", lat: 40.73, lon: -74.17 }; // ~16 km: not a walk
+    expect(tripToVariant(d, 1, 3, { currency: "USD", walkFrom: otherCity }).microSteps).toHaveLength(1);
   });
 });

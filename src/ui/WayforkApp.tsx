@@ -47,6 +47,7 @@ import {
 import type { Poi } from "../domain/poi";
 import { estimateLeg } from "../domain/route";
 import { fetchTransitPlan, previousPlace, transitItineraryToVariant } from "../domain/transit";
+import { tripSlotTitle, tripToVariant } from "../domain/liveTransit";
 import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
 import type { DiscoverQuery } from "./DiscoverPanel";
 import { fetchRatesEUR } from "../domain/rates";
@@ -80,6 +81,7 @@ import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
 import { WeatherBadge } from "./WeatherBadge";
 import type { MapFocus, ReachOverlay } from "./map/TripMap";
+import type { UseTripRequest } from "./map/VehicleCard";
 import { SideSheet } from "./SideSheet";
 
 // MapLibre + its CSS load with the map chunk only (kept out of the entry
@@ -1050,6 +1052,38 @@ export function TripView({
     }
   };
 
+  // "Use in my plan" from a tapped live vehicle: the ride becomes a new slot
+  // (after the chosen one, walking from its place to the boarding stop) or an
+  // alternative variant of a slot (walking from the previous slot and on to
+  // this slot's place). Estimated, like every looked-up itinerary.
+  const addLiveTrip = ({ details, fromIdx, toIdx, target }: UseTripRequest): string[] => {
+    const local = trip.currencies.local;
+    if (target.kind === "slot") {
+      const anchor = target.afterSlotId ? day.slots.find((sl) => sl.id === target.afterSlotId) : undefined;
+      const alight = details.stops[toIdx];
+      const slot = starterSlot(local, { name: alight.name, lat: alight.lat, lon: alight.lon }, tripSlotTitle(details, fromIdx, toIdx));
+      const variant = tripToVariant(details, fromIdx, toIdx, { currency: local, walkFrom: anchor?.place ?? null });
+      slot.variants = [variant];
+      slot.defaultVariantId = variant.id;
+      const errors = applyTrip(insertSlotAfter(trip, day.id, target.afterSlotId, slot));
+      if (!errors.length) focusOnMap(slot.id, variant.id);
+      return errors;
+    }
+    const slot = day.slots.find((sl) => sl.id === target.slotId);
+    if (!slot) return ["That slot no longer exists."];
+    const variant = tripToVariant(details, fromIdx, toIdx, {
+      currency: local,
+      walkFrom: previousPlace(day, slot.id),
+      walkTo: slot.place,
+    });
+    const errors = applyTrip(upsertVariant(trip, slot.id, variant));
+    if (!errors.length) {
+      activateVariant(slot.id, variant.id);
+      focusOnMap(slot.id, variant.id);
+    }
+    return errors;
+  };
+
   const [dayForm, setDayForm] = useState<"new" | Day | null>(null);
 
   const saveDay = (d: Day): string[] => {
@@ -1183,6 +1217,7 @@ export function TripView({
           focus={mapFocus}
           discover={discoverQuery}
           reach={reachOverlay}
+          onUseTrip={canEdit ? addLiveTrip : undefined}
         />
       </Suspense>
 

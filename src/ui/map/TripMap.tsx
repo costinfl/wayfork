@@ -21,7 +21,7 @@ import { fetchRoute } from "../../domain/route";
 import { fetchTransitPlan, type TransitPlanOptions } from "../../domain/transit";
 import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
-import { VehicleCard, type VehicleSummary } from "./VehicleCard";
+import { VehicleCard, type UseTripRequest, type VehicleSummary } from "./VehicleCard";
 import {
   addTripLayers,
   ll,
@@ -67,6 +67,8 @@ export interface TripMapProps {
   focus?: MapFocus | null;
   discover?: { center: Place; radiusM: number; pois: Poi[] } | null;
   reach?: ReachOverlay | null;
+  // Editors only: add a tapped vehicle's ride to the plan (returns validation errors).
+  onUseTrip?: (req: UseTripRequest) => string[];
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -575,6 +577,9 @@ export default function TripMap(props: TripMapProps) {
             onFollow={setFollow}
             onClose={() => selectVehicle(null)}
             theme={{ bg: chip, fg: btn().color, border: btn().border.replace("1px solid ", "") }}
+            onUse={props.onUseTrip}
+            daySlots={(trip.days[dayIdx] ?? trip.days[0]).slots.map((sl) => ({ id: sl.id, title: sl.title }))}
+            dayLabel={`Day ${Math.min(dayIdx, trip.days.length - 1) + 1}`}
           />
         )}
         {legendOpen ? (

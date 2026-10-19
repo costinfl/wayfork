@@ -1,5 +1,7 @@
+import { newId } from "./mutate";
 import { distanceM } from "./poi";
 import { decodePolyline } from "./transit";
+import type { MicroStep, Place, StepType, VariantNode } from "./types";
 
 // Live public-transport vehicles around the trip, from Transitous/MOTIS
 // `GET /api/v6/map/trips` — the endpoint behind transitous.org's moving-vehicle
@@ -425,4 +427,118 @@ export function tripProgress(d: TripDetails, now: number): TripProgress {
   const sched = ref.scheduledArrival ?? ref.scheduledDeparture;
   const delayMin = d.realTime && real !== undefined && sched !== undefined ? Math.round((real - sched) / 60_000) : null;
   return { nextIndex, delayMin, finished };
+}
+
+// ---- use a live trip in the plan --------------------------------------------
+// Turns the ride from one stop to another into a variant: an optional walk to
+// the boarding stop, the ride itself (with its stops and the route shape, so
+// the map draws the real line), and an optional walk on to the slot's place
+// (walks only for gaps of 100 m – 3 km).
+// `estimated` — it was today's vehicle, so the user should confirm the times.
+
+const RIDE_STEP: Record<LiveMode, StepType> = {
+  bus: "bus",
+  tram: "bus",
+  metro: "metro",
+  rail: "train",
+  ferry: "shuttle",
+  other: "transfer",
+};
+const MODE_WORD: Record<LiveMode, string> = {
+  bus: "Bus",
+  tram: "Tram",
+  metro: "Metro",
+  rail: "Train",
+  ferry: "Ferry",
+  other: "Line",
+};
+const WALK_M_PER_MIN = (4.8 * 1000) / 60;
+// Walks are added only for gaps that are walkable but worth showing; a longer
+// gap (another district or city) is left for the user to fill.
+const WALK_MIN_GAP_M = 100;
+const WALK_MAX_GAP_M = 3000;
+
+const stopPlace = (s: TripStop): Place => ({ name: s.name, lat: s.lat, lon: s.lon });
+const lineLengthM = (line: [number, number][]) =>
+  line.reduce((m, p, i) => (i ? m + distanceM({ lat: line[i - 1][0], lon: line[i - 1][1] }, { lat: p[0], lon: p[1] }) : 0), 0);
+
+// The route shape between two stops: from the shape point nearest the
+// boarding stop to the nearest one to the alighting stop, searched forwards
+// so a looping route can't run backwards. Straight stop → stop without a shape.
+export function tripSegmentLine(d: TripDetails, fromIdx: number, toIdx: number): [number, number][] {
+  const a = d.stops[fromIdx];
+  const b = d.stops[toIdx];
+  const straight: [number, number][] = [
+    [a.lat, a.lon],
+    [b.lat, b.lon],
+  ];
+  if (d.line.length < 2) return straight;
+  const nearest = (s: TripStop, start: number) => {
+    let best = start;
+    let bestM = Infinity;
+    for (let i = start; i < d.line.length; i++) {
+      const m = distanceM({ lat: d.line[i][0], lon: d.line[i][1] }, s);
+      if (m < bestM) [best, bestM] = [i, m];
+    }
+    return best;
+  };
+  const i = nearest(a, 0);
+  const j = nearest(b, i);
+  return j > i ? d.line.slice(i, j + 1) : straight;
+}
+
+const walkStep = (from: Place, to: Place, label: string): MicroStep | null => {
+  const m = distanceM(from, to);
+  if (m <= WALK_MIN_GAP_M || m > WALK_MAX_GAP_M) return null;
+  return {
+    id: newId("ms"),
+    type: "walk",
+    label,
+    durationMin: Math.max(1, Math.ceil(m / WALK_M_PER_MIN)),
+    distanceKm: Math.round(m / 100) / 10,
+    from,
+    to,
+  };
+};
+
+export const tripLineLabel = (d: TripDetails): string => `${MODE_WORD[d.mode]} ${d.name}`.trim();
+
+export const tripSlotTitle = (d: TripDetails, fromIdx: number, toIdx: number): string =>
+  `${tripLineLabel(d)}: ${d.stops[fromIdx].name} → ${d.stops[toIdx].name}`;
+
+export function tripToVariant(
+  d: TripDetails,
+  fromIdx: number,
+  toIdx: number,
+  opts: { currency: string; walkFrom?: Place | null; walkTo?: Place | null }
+): VariantNode {
+  const a = d.stops[fromIdx];
+  const b = d.stops[toIdx];
+  const depart = a.departure ?? a.arrival ?? a.scheduledDeparture ?? a.scheduledArrival;
+  const arrive = b.arrival ?? b.departure ?? b.scheduledArrival ?? b.scheduledDeparture;
+  const rideMin =
+    depart !== undefined && arrive !== undefined ? Math.max(1, Math.round((arrive - depart) / 60_000)) : 1;
+  const geometry = tripSegmentLine(d, fromIdx, toIdx);
+  const ride: MicroStep = {
+    id: newId("ms"),
+    type: RIDE_STEP[d.mode],
+    label: `${tripLineLabel(d)} → ${d.headsign || b.name}`,
+    durationMin: rideMin,
+    distanceKm: Math.round(lineLengthM(geometry) / 100) / 10,
+    from: stopPlace(a),
+    to: stopPlace(b),
+    geometry,
+  };
+  const steps = [
+    opts.walkFrom ? walkStep(opts.walkFrom, stopPlace(a), `Walk to ${a.name}`) : null,
+    ride,
+    opts.walkTo ? walkStep(stopPlace(b), opts.walkTo, `Walk to ${opts.walkTo.name}`) : null,
+  ].filter((s): s is MicroStep => s !== null);
+  return {
+    id: newId("v"),
+    name: `${tripLineLabel(d)} ${a.name} → ${b.name}`,
+    cost: { amount: 0, currency: opts.currency },
+    microSteps: steps,
+    estimated: true,
+  };
 }

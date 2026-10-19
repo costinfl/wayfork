@@ -6,6 +6,27 @@
 
 ## Session history
 
+- **v2.3.0** — "＋ Use in my plan" on the live-vehicle card.
+  - **`liveTransit.ts`.**
+    - `tripSegmentLine`: the shape cut between the stops' nearest points,
+      searched forwards; straight line without a shape.
+    - `tripToVariant`: optional walk (100 m – 3 km), a ride step typed by
+      mode, labelled "Tram 23 → headsign", duration from stop times,
+      distance from the segment, with from/to/geometry, then an optional
+      walk; estimated; cost 0.
+    - `tripSlotTitle`, `tripLineLabel`.
+  - **`VehicleCard`.** A `UseInPlan` form: From limited to stops not yet
+    passed, To after From, Add as (end of day / after a slot / option for a
+    slot); errors shown inline; "Added ✓".
+  - **`TripMap`.** `onUseTrip` prop passed through with the focused day's
+    slots.
+  - **`TripView.addLiveTrip`** (editors only).
+
+  370 → 379 tests. Playwright, with stubbed live data (real Bucharest tram 23
+  trip): tram → Use in my plan → after "Hotel → Otopeni Airport" → Add. The
+  slot "Tram 23: Pasaj Marasesti → Zetarilor" (32 min) appears, the day
+  ripples, and the map draws it dashed (estimated) along the tram line.
+
 - **v2.2.0** — Tap a live vehicle for its trip card. Each `map/trips`
   segment carries its `tripId`; MOTIS `/api/v6/trip` returns the whole trip
   as an itinerary (verified live on NYC bus QM32 and Bucharest tram 23).

@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.2.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 370 tests green
+## Current version: v2.3.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 379 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -192,8 +192,22 @@ the app.
 
 On the map, the trip's whole route and stops are drawn (`selected-trip`
 source) and the vehicle gets a white ring. Esc/✕ closes the card, and
-turning Live off clears it. Follow-ups: "use this trip in my plan"; a
-departures board when tapping a stop.
+turning Live off clears it.
+
+**v2.3.0 — "＋ Use in my plan"** on the vehicle card (editors only).
+- **Choose:** From (boardable stops only), To, and Add as — a new slot after
+  any slot of the focused day (default: at the day's end), or an "Option for"
+  an existing slot.
+- **Built by** `tripToVariant` (`domain/liveTransit.ts`):
+  - the ride step, with stop places and the route shape cut to the ride
+    (`tripSegmentLine`);
+  - walks to the boarding stop and on to the slot only for 100 m – 3 km
+    gaps;
+  - `estimated: true`, cost 0.
+- **Applied by** `TripView.addLiveTrip`: new slot via `insertSlotAfter`
+  (title from `tripSlotTitle`), or variant via `upsertVariant` (made
+  active); the map focuses it.
+- **Follow-up:** a departures board when tapping a stop.
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is
