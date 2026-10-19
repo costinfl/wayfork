@@ -2,23 +2,33 @@ name: Deploy to GitHub Pages
 
 # Builds the app and pushes the output to the `gh-pages` branch;
 # GitHub Pages serves the site from that branch (Settings → Pages).
+#
+# The v2 preview branch publishes into gh-pages/v2/ instead
+# (https://costinfl.github.io/wayfork/v2/), leaving the live root untouched.
+# Caveat: a production deploy replaces the whole gh-pages tree, which removes
+# v2/ until the preview branch is pushed again.
 on:
   push:
     branches:
       - main
       - claude/wayfork-setup-github-pages-3pgqfw
+      - claude/stoic-allen-ttugda
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# One gh-pages writer at a time. A preview run queues behind a running
+# production deploy instead of cancelling it.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref_name != 'claude/stoic-allen-ttugda' }}
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      PREVIEW: ${{ github.ref_name == 'claude/stoic-allen-ttugda' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,9 +38,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          VITE_BASE: ${{ env.PREVIEW == 'true' && '/wayfork/v2/' || '/wayfork/' }}
       - run: touch dist/.nojekyll
       - name: Publish to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          destination_dir: ${{ env.PREVIEW == 'true' && 'v2' || '' }}
+          keep_files: ${{ env.PREVIEW == 'true' }}
