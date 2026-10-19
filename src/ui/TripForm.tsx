@@ -1,21 +1,25 @@
 import { useState } from "react";
 import { RATES_EUR } from "../domain/currency";
 import { newId, newTrip, setTripMeta } from "../domain/mutate";
-import type { Participant, Trip, TripCurrencies } from "../domain/types";
+import type { Participant, Place, Trip, TripCurrencies } from "../domain/types";
+import { PlaceInput, type SearchFn } from "./PlaceInput";
 import { C } from "./theme";
 
 const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
 
 // Trip settings (name, currencies, participants) — also used in "new trip"
-// mode, where it additionally asks for the first day's date.
+// mode, where it additionally asks for the first day's date and where the trip
+// starts (every slot needs a place since schema v2).
 export function TripForm({
   initial,
   onSave,
   onCancel,
+  search,
 }: {
   initial: Trip | null; // null = create a new trip from scratch
   onSave: (trip: Trip) => string[];
   onCancel: () => void;
+  search?: SearchFn; // place lookup for "Starts in" (injectable for tests)
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [startDate, setStartDate] = useState("");
@@ -25,12 +29,14 @@ export function TripForm({
   const [participants, setParticipants] = useState<Participant[]>(
     initial?.participants ?? [{ id: newId("p"), name: "" }]
   );
+  const [start, setStart] = useState<Place | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
   const submit = () => {
     const pre: string[] = [];
     if (!name.trim()) pre.push("trip name must not be empty");
     if (!initial && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) pre.push("start date is required");
+    if (!initial && !start) pre.push("pick where the trip starts");
     const cleaned = participants
       .map((p) => ({ ...p, name: p.name.trim() }))
       .filter((p) => p.name !== "");
@@ -41,7 +47,7 @@ export function TripForm({
     }
     const trip = initial
       ? setTripMeta(initial, { name: name.trim(), currencies, participants: cleaned })
-      : newTrip(name.trim(), startDate, cleaned, currencies);
+      : newTrip(name.trim(), startDate, cleaned, currencies, start!);
     setErrors(onSave(trip));
   };
 
@@ -70,6 +76,17 @@ export function TripForm({
               style={inputStyle}
             />
           </label>
+        )}
+        {!initial && (
+          <div className="flex-1 min-w-44">
+            <PlaceInput
+              label="Starts in"
+              placeholder="search a city…"
+              value={start}
+              onChange={setStart}
+              search={search}
+            />
+          </div>
         )}
         {(["home", "local", "intl"] as const).map((k) => (
           <label key={k} className="text-xs" style={{ color: C.sub }}>

@@ -74,10 +74,20 @@ describe("parseTrip — slot place", () => {
     expect(trip?.days[0].slots[0].place).toEqual({ name: "Rome FCO", lat: 41.8, lon: 12.24 });
   });
 
-  it("keeps an absent place absent", () => {
+  it("repairs a v2 slot without a place (e.g. added by the v1 site), as estimated", () => {
     const { trip, errors } = roundTrip((t) => delete t.days[0].slots[0].place);
     expect(errors).toEqual([]);
-    expect(trip?.days[0].slots[0].place).toBeUndefined();
+    expect(trip?.days[0].slots[0].place).toMatchObject({ estimated: true });
+  });
+
+  it("migrates a v1 document, backfilling an absent place as estimated", () => {
+    const { trip, errors } = roundTrip((t) => {
+      delete t.schemaVersion;
+      delete t.days[0].slots[0].place;
+    });
+    expect(errors).toEqual([]);
+    expect(trip?.schemaVersion).toBe(2);
+    expect(trip?.days[0].slots[0].place).toMatchObject({ estimated: true });
   });
 
   it("rejects a place with an out-of-range latitude (semantic)", () => {

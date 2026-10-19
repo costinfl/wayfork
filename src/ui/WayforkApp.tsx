@@ -3,6 +3,14 @@ import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } from "../data/repository";
 import type { TripStore } from "../data/repository";
+import {
+  listV1Backups,
+  migrateStoredTrips,
+  pacedGeocoder,
+  type StoreMigrationResult,
+} from "../data/migrateStore";
+import { searchNear } from "../domain/geocode";
+import type { NearGeocoder } from "../domain/migrate";
 import { slotMarkerNumbers } from "../domain/geometry";
 import { mergeTrip } from "../domain/merge";
 import { createAuthClient } from "../data/supabaseAuth";
@@ -15,6 +23,7 @@ import { computeBalances, settle } from "../domain/ledger";
 import {
   insertSlotAfter,
   moveSlot,
+  guessPlace,
   newId,
   newUid,
   nextDate,
@@ -55,7 +64,7 @@ import { AuthBar } from "./AuthBar";
 import AdminPanel from "./AdminPanel";
 import { InvitesInbox } from "./InvitesInbox";
 import { SharePanel } from "./SharePanel";
-import { MigrationBanner } from "./MigrationBanner";
+import { MigrationBanner, V2MigrationBanner } from "./MigrationBanner";
 import { PlanTripForm } from "./PlanTripForm";
 import { SyncNotice } from "./SyncNotice";
 import { UploadTrip } from "./UploadTrip";
@@ -90,6 +99,26 @@ function useMediaQuery(query: string): boolean {
 
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
+// Save every v1 original kept by the migration pass as one JSON file.
+function downloadV1Backups() {
+  const backups = listV1Backups();
+  const docs = Object.fromEntries(
+    Object.entries(backups).map(([uid, raw]) => {
+      try {
+        return [uid, JSON.parse(raw)];
+      } catch {
+        return [uid, raw];
+      }
+    })
+  );
+  const url = URL.createObjectURL(new Blob([JSON.stringify(docs, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "wayfork-v1-backup.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // A trip's client identity: its surrogate uid, falling back to the logical id
 // for any fixture predating it (production trips always carry a uid). Keying
 // selection by uid keeps trips distinct even once they can be shared across
@@ -104,6 +133,8 @@ const SYNC_INTERVAL_MS = 15000;
 const SYNC_WRITE_GRACE_MS = 4000;
 
 const DEFAULT_LOCAL_STORE = createLocalStorageStore();
+// Refines migrated v1 slot places (Photon, paced to its ~1 req/s fair use).
+const DEFAULT_GEOCODE: NearGeocoder = pacedGeocoder((q, near) => searchNear(q, near));
 // Auth + per-user remote store. Signed-in requests carry the user's JWT so
 // row-level security scopes trips to their account; signed-out users stay on
 // localStorage and never consult the remote store.
@@ -129,6 +160,7 @@ export interface WayforkDeps {
   auth?: AuthClient | null;
   remoteStore?: TripStore | null;
   collab?: ReturnType<typeof createCollabClient> | null;
+  geocode?: NearGeocoder | null; // v1→v2 place refinement; null = backfill only
 }
 
 export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
@@ -136,6 +168,7 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
   const AUTH = deps.auth !== undefined ? deps.auth : DEFAULT_AUTH;
   const REMOTE_STORE = deps.remoteStore !== undefined ? deps.remoteStore : DEFAULT_REMOTE_STORE;
   const COLLAB = deps.collab !== undefined ? deps.collab : DEFAULT_COLLAB;
+  const GEOCODE = deps.geocode !== undefined ? deps.geocode : DEFAULT_GEOCODE;
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripUid, setTripUid] = useState(uidOf(TRIPS[0]));
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -147,6 +180,8 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
   const [migratable, setMigratable] = useState<Trip[]>([]);
   const [migrating, setMigrating] = useState(false);
   const [migrateError, setMigrateError] = useState<string | null>(null);
+  // Outcome of the v1 → v2 write-back pass (null = nothing upgraded to report).
+  const [v2Upgrade, setV2Upgrade] = useState<StoreMigrationResult | null>(null);
   // Transient banner about background reconciliation (a co-editor's change was
   // auto-merged, or an unmergeable edit was reloaded to the latest).
   const [syncNote, setSyncNote] = useState<{ message: string; tone: "info" | "warn" } | null>(null);
@@ -193,6 +228,19 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
     let cancelled = false;
     const signedIn = !!session && !!REMOTE_STORE;
     const active = signedIn ? REMOTE_STORE! : LOCAL_STORE;
+    // Durably upgrade any trips that were read as v1 (they are already v2 in
+    // memory — parseTrip migrates on read). Runs in the background after the
+    // list renders; a no-op once the store holds only v2 documents.
+    const upgradeStored = (s: TripStore, trips: Trip[], myId: string | null) =>
+      migrateStoredTrips(s, trips, { myId, geocode: GEOCODE ?? undefined }).then((res) => {
+        if (cancelled || (!res.upgraded.length && !res.failed.length)) return;
+        markLocalWrite();
+        rememberSynced(res.upgraded);
+        setStoredTrips((prev) =>
+          prev.map((t) => res.upgraded.find((u) => uidOf(u) === uidOf(t)) ?? t)
+        );
+        setV2Upgrade(res);
+      });
     const useLocal = () =>
       LOCAL_STORE.list().then((trips) => {
         if (cancelled) return;
@@ -201,6 +249,7 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
         rememberSynced(trips);
         setStoredTrips(trips);
         setMigratable([]);
+        void upgradeStored(LOCAL_STORE, trips, null);
       });
     active
       .list()
@@ -210,6 +259,7 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
         setStoreLabel(signedIn ? "Supabase (your account)" : "local browser");
         rememberSynced(trips);
         setStoredTrips(trips);
+        void upgradeStored(active, trips, signedIn ? session!.user.id : null);
         if (signedIn) {
           // Offer to import any trips still sitting in this browser.
           const accountIds = new Set(trips.map((t) => t.id));
@@ -634,6 +684,19 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
             }}
           />
         )}
+        {v2Upgrade && (
+          <V2MigrationBanner
+            upgraded={v2Upgrade.upgraded.length}
+            estimatedPlaces={v2Upgrade.estimatedPlaces}
+            failed={v2Upgrade.failed}
+            onReview={(() => {
+              const first = v2Upgrade.upgraded.find((t) => t.days.some((d) => d.slots.some((x) => x.place.estimated)));
+              return first ? () => setTripUid(uidOf(first)) : null;
+            })()}
+            onDownloadBackup={Object.keys(listV1Backups()).length ? downloadV1Backups : null}
+            onDismiss={() => setV2Upgrade(null)}
+          />
+        )}
         {myInvites.length > 0 && (
           <InvitesInbox invites={myInvites} busyId={acceptingId} error={inboxError} onAccept={acceptInvite} />
         )}
@@ -922,8 +985,11 @@ export function TripView({
   // then advances to the new slot so subsequent adds chain onwards.
   const addPoiSlot = async (poi: Poi): Promise<string[]> => {
     const anchor = anchorSlot(day, discoverAnchorId);
-    const slot = starterSlot(trip.currencies.local, poi.name);
-    slot.place = { name: poi.name, lat: poi.lat, lon: poi.lon };
+    const slot = starterSlot(
+      trip.currencies.local,
+      { name: poi.name, lat: poi.lat, lon: poi.lon },
+      poi.name
+    );
     if (anchor?.place) {
       const leg = await estimateLeg(anchor.place, slot.place);
       slot.variants[0].microSteps = [
@@ -1355,7 +1421,13 @@ export function TripView({
         {editMode && (
           <div className="mt-1">
             {slotForm === "new" ? (
-              <SlotForm trip={trip} initial={null} onSave={saveSlot} onCancel={() => setSlotForm(null)} />
+              <SlotForm
+                trip={trip}
+                initial={null}
+                suggestedPlace={guessPlace(trip, day.id)}
+                onSave={saveSlot}
+                onCancel={() => setSlotForm(null)}
+              />
             ) : (
               <button
                 onClick={() => {

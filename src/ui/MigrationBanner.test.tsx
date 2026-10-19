@@ -9,6 +9,7 @@ import { MigrationBanner } from "./MigrationBanner";
 import type { Trip } from "../domain/types";
 
 const trip = (id: string, name: string): Trip => ({
+  schemaVersion: 2,
   id,
   name,
   participants: [],

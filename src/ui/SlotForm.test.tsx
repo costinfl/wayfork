@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TEST_PLACE } from "../test/places";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
@@ -12,12 +13,20 @@ const trip = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], {
   home: "RON",
   local: "EUR",
   intl: "USD",
-});
+}, TEST_PLACE);
 
 const spy = () => vi.fn<(slot: ItinerarySlot) => string[]>(() => []);
 
 const renderForm = (initial: ItinerarySlot | null, onSave = spy()) => {
-  render(<SlotForm trip={trip} initial={initial} onSave={onSave} onCancel={vi.fn()} />);
+  render(
+    <SlotForm
+      trip={trip}
+      initial={initial}
+      suggestedPlace={{ ...TEST_PLACE, estimated: true }}
+      onSave={onSave}
+      onCancel={vi.fn()}
+    />
+  );
   return onSave;
 };
 
@@ -64,7 +73,7 @@ describe("SlotForm", () => {
 
   it("unchecking the checkpoint clears it to null on an existing slot", () => {
     const slot: ItinerarySlot = {
-      ...starterSlot("EUR", "Flight"),
+      ...starterSlot("EUR", TEST_PLACE, "Flight"),
       checkpoint: { label: "Boarding", timeMin: 600, bufferMin: 15, opensMin: null },
     };
     const onSave = renderForm(slot);

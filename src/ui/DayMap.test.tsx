@@ -100,10 +100,9 @@ const variant = (id: string, type: StepType, geometry?: [number, number][] | nul
   id,
   name: id,
   cost: { amount: 0, currency: "EUR" },
-  microSteps: [step(type)],
-  ...(geometry !== undefined ? { geometry } : {}),
+  microSteps: [{ ...step(type), ...(geometry !== undefined ? { geometry } : {}) }],
 });
-const slot = (id: string, place: Place | null, variants: VariantNode[]): ItinerarySlot => ({
+const slot = (id: string, place: Place, variants: VariantNode[]): ItinerarySlot => ({
   id,
   title: id,
   variants,
@@ -112,7 +111,7 @@ const slot = (id: string, place: Place | null, variants: VariantNode[]): Itinera
   place,
 });
 
-// slot1 (A) → slot2 (B, forked) → slot3 (no place, unmapped).
+// slot1 (A) → slot2 (B, forked) → slot3 (estimated place, awaiting review).
 const day: Day = {
   id: "d1",
   date: "2026-07-08",
@@ -120,7 +119,7 @@ const day: Day = {
   slots: [
     slot("s1", P("A", 0, 0), [variant("s1v", "walk")]),
     slot("s2", P("B", 1, 1), [variant("active", "metro"), variant("alt", "car")]),
-    slot("s3", null, [variant("s3v", "walk")]),
+    slot("s3", { ...P("C", 2, 2), estimated: true }, [variant("s3v", "walk")]),
   ],
 };
 
@@ -144,11 +143,11 @@ describe("DayMap wiring", () => {
     expect(onActivate).toHaveBeenCalledWith("s2", "alt");
   });
 
-  it("renders the unmapped-slots hint", () => {
+  it("renders the estimated-places review hint", () => {
     reset();
     render(<DayMap day={day} activeVariants={{}} onActivate={vi.fn()} />);
     expect(
-      screen.getByText(/1 slot have no location|1 slot have no location yet|no location/i)
+      screen.getByText(/1 place is estimated/i)
     ).toBeInTheDocument();
   });
 

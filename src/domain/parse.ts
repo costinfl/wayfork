@@ -1,16 +1,20 @@
 import { STEP_TYPES } from "./types";
 import type { Trip } from "./types";
+import { migrateTrip } from "./migrate";
 import { validateTrip } from "./validate";
 
 // Defensive parser for untrusted trip JSON (in-app uploads, localStorage).
 // Structural pass first (shape + primitive types with readable paths), then
 // the semantic invariants from validateTrip. Returns the typed trip only when
-// both passes are clean.
+// both passes are clean. A v1 document (no `schemaVersion`) is migrated to v2
+// first (migrate.ts), so every trip that leaves here is current — the store-wide
+// pass in data/migrateStore.ts then writes migrated trips back.
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
-export function parseTrip(input: unknown): { trip: Trip | null; errors: string[] } {
+export function parseTrip(raw: unknown): { trip: Trip | null; errors: string[] } {
+  const input = migrateTrip(raw).trip;
   const errors: string[] = [];
   const err = (m: string) => {
     if (errors.length < 50) errors.push(m);
@@ -34,10 +38,34 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
     return o[k];
   };
 
+  const checkPlace = (o: Record<string, unknown>, where: string) => {
+    checkStr(o, "name", where);
+    checkNum(o, "lat", where);
+    checkNum(o, "lon", where);
+    if (o.estimated !== undefined && typeof o.estimated !== "boolean") {
+      err(`${where}.estimated, when present, must be a boolean`);
+    }
+  };
+  const checkLine = (g: unknown, where: string) => {
+    if (g === undefined || g === null) return;
+    if (!Array.isArray(g)) {
+      err(`${where} must be null or an array of [lat, lon] pairs`);
+      return;
+    }
+    g.forEach((pt, gi) => {
+      if (!Array.isArray(pt) || pt.length !== 2 || typeof pt[0] !== "number" || typeof pt[1] !== "number") {
+        err(`${where}[${gi}] must be a [lat, lon] number pair`);
+      }
+    });
+  };
+
   checkStr(input, "id", "trip");
   checkStr(input, "name", "trip");
   if (input.uid !== undefined && (typeof input.uid !== "string" || input.uid === "")) {
     err("trip.uid, when present, must be a non-empty string");
+  }
+  if (input.schemaVersion !== 2) {
+    err(`trip.schemaVersion ${String(input.schemaVersion)} is not supported (expected 2)`);
   }
   if (
     input.version !== undefined &&
@@ -102,14 +130,10 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
           }
         }
       }
-      if (s.place !== undefined && s.place !== null) {
-        if (!isObj(s.place)) {
-          err(`${sw}.place must be null or an object with name/lat/lon`);
-        } else {
-          checkStr(s.place, "name", `${sw}.place`);
-          checkNum(s.place, "lat", `${sw}.place`);
-          checkNum(s.place, "lon", `${sw}.place`);
-        }
+      if (!isObj(s.place)) {
+        err(`${sw}.place must be an object with name/lat/lon (required since schema v2)`);
+      } else {
+        checkPlace(s.place, `${sw}.place`);
       }
       for (const [k, v] of checkArr(s, "variants", sw).entries()) {
         const vw = `${sw}.variants[${k}]`;
@@ -121,22 +145,6 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
         checkStr(v, "name", vw);
         if (v.estimated !== undefined && typeof v.estimated !== "boolean") {
           err(`${vw}.estimated, when present, must be a boolean`);
-        }
-        if (v.geometry !== undefined && v.geometry !== null) {
-          if (!Array.isArray(v.geometry)) {
-            err(`${vw}.geometry must be null or an array of [lat, lon] pairs`);
-          } else {
-            v.geometry.forEach((pt, gi) => {
-              if (
-                !Array.isArray(pt) ||
-                pt.length !== 2 ||
-                typeof pt[0] !== "number" ||
-                typeof pt[1] !== "number"
-              ) {
-                err(`${vw}.geometry[${gi}] must be a [lat, lon] number pair`);
-              }
-            });
-          }
         }
         if (!isObj(v.cost)) {
           err(`${vw}.cost must be an object with amount and currency`);
@@ -166,6 +174,12 @@ export function parseTrip(input: unknown): { trip: Trip | null; errors: string[]
           ) {
             err(`${mw}.tzShiftMin must be a number (minutes) or absent`);
           }
+          for (const k of ["from", "to"] as const) {
+            if (ms[k] === undefined || ms[k] === null) continue;
+            if (!isObj(ms[k])) err(`${mw}.${k} must be null or an object with name/lat/lon`);
+            else checkPlace(ms[k], `${mw}.${k}`);
+          }
+          checkLine(ms.geometry, `${mw}.geometry`);
         }
       }
     }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { newId, starterSlot } from "../domain/mutate";
+import { guessPlace, newId, starterSlot } from "../domain/mutate";
 import { fmtTime } from "../domain/time";
 import type { Day, Trip } from "../domain/types";
 import { C, mono } from "./theme";
@@ -44,6 +44,12 @@ export function DayForm({
     } else {
       location = null;
     }
+    // A new day's starter slot sits at the day's location, else where the trip
+    // was last (estimated) — every slot needs a place since schema v2.
+    const firstPlace = location
+      ? { name: location.name, lat: location.lat, lon: location.lon }
+      : guessPlace(trip, null);
+    if (!initial && !firstPlace) pre.push("set a location — the day's first slot needs a place");
     if (pre.length) {
       setErrors(pre);
       return;
@@ -55,7 +61,7 @@ export function DayForm({
           date,
           startTimeMin: h * 60 + m,
           location,
-          slots: [starterSlot(trip.currencies.local)],
+          slots: [starterSlot(trip.currencies.local, firstPlace!)],
         };
     setErrors(onSave(day));
   };

@@ -1,0 +1,164 @@
+[
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:39_ro-Bucuresti-Ilfov_MREX_LV_970_0_3822",
+    "displayName": "M3"
+   }
+  ],
+  "routeColor": "da251c",
+  "mode": "SUBWAY",
+  "distance": 17677.591796875,
+  "from": {
+   "name": "Dristor 1",
+   "lat": 44.41983999999999,
+   "lon": 26.140150000000002
+  },
+  "to": {
+   "name": "Mihai Bravu",
+   "lat": 44.41177999999999,
+   "lon": 26.12664
+  },
+  "departure": "2026-10-19T16:48:00Z",
+  "arrival": "2026-10-19T16:51:00Z",
+  "scheduledDeparture": "2026-10-19T16:48:00Z",
+  "scheduledArrival": "2026-10-19T16:51:00Z",
+  "realTime": false,
+  "polyline": "_wbnG}np~Cz@Ym@jIk@hGC^C`@Fx@Zj@h@^lIfErH`F`HhInFdJpEvK~DlKAH"
+ },
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:33_ro-Bucuresti-Ilfov_MREX_LV_970_0_3320",
+    "displayName": "M3"
+   }
+  ],
+  "routeColor": "da251c",
+  "mode": "SUBWAY",
+  "distance": 17677.591796875,
+  "from": {
+   "name": "Timpuri Noi",
+   "lat": 44.41629,
+   "lon": 26.113680000000002
+  },
+  "to": {
+   "name": "Piața Unirii",
+   "lat": 44.42826,
+   "lon": 26.101010000000002
+  },
+  "departure": "2026-10-19T16:47:00Z",
+  "arrival": "2026-10-19T16:50:00Z",
+  "scheduledDeparture": "2026-10-19T16:47:00Z",
+  "scheduledArrival": "2026-10-19T16:50:00Z",
+  "realTime": false,
+  "polyline": "y`bnGoik~CX{A{C`EsHlH}@z@_Al@aAj@cAb@yR|F}HfBaAn@u@dA{@rBWbBQzEWzGa@~Gw@fCoCpFi@b@s@Xq@J}@@oB?t@D"
+ },
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:27_ro-Bucuresti-Ilfov_MREX_LV_970_0_3714",
+    "displayName": "M3"
+   }
+  ],
+  "routeColor": "da251c",
+  "mode": "SUBWAY",
+  "distance": 17677.591796875,
+  "from": {
+   "name": "Piața Unirii",
+   "lat": 44.42826,
+   "lon": 26.101010000000002
+  },
+  "to": {
+   "name": "Izvor",
+   "lat": 44.43292,
+   "lon": 26.08997
+  },
+  "departure": "2026-10-19T16:45:00Z",
+  "arrival": "2026-10-19T16:47:00Z",
+  "scheduledDeparture": "2026-10-19T16:45:00Z",
+  "scheduledArrival": "2026-10-19T16:47:00Z",
+  "realTime": false,
+  "polyline": "skdnGizh~Cu@EIBIJOZ]z@a@vAKt@MfCItDEnDAZEXGZKVePnSa@j@_@r@Wj@Sr@Y|CStDArD"
+ },
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:27_ro-Bucuresti-Ilfov_MREX_LV_970_0_3714",
+    "displayName": "M3"
+   }
+  ],
+  "routeColor": "da251c",
+  "mode": "SUBWAY",
+  "distance": 17677.591796875,
+  "from": {
+   "name": "Izvor",
+   "lat": 44.43292,
+   "lon": 26.08997
+  },
+  "to": {
+   "name": "Eroilor",
+   "lat": 44.43536,
+   "lon": 26.074460000000002
+  },
+  "departure": "2026-10-19T16:47:00Z",
+  "arrival": "2026-10-19T16:49:00Z",
+  "scheduledDeparture": "2026-10-19T16:47:00Z",
+  "scheduledArrival": "2026-10-19T16:49:00Z",
+  "realTime": false,
+  "polyline": "whenGiuf~C@sDiCb`AGjAO`AmFhUOjAIlAEdAAnAw@d@"
+ },
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:03_ro-Bucuresti-Ilfov_TRIP_LV_63_1_60",
+    "displayName": "23"
+   }
+  ],
+  "routeColor": "be1622",
+  "mode": "TRAM",
+  "distance": 9462.66015625,
+  "from": {
+   "name": "Bd. Dimitrie Cantemir",
+   "lat": 44.42132,
+   "lon": 26.104360000000003
+  },
+  "to": {
+   "name": "Parcul Carol I",
+   "lat": 44.41869,
+   "lon": 26.09604
+  },
+  "departure": "2026-10-19T16:45:00Z",
+  "arrival": "2026-10-19T16:48:00Z",
+  "scheduledDeparture": "2026-10-19T16:40:00Z",
+  "scheduledArrival": "2026-10-19T16:43:00Z",
+  "realTime": true,
+  "polyline": "g`cnGgoi~ClO~r@"
+ },
+ {
+  "trips": [
+   {
+    "tripId": "20261019_19:14_ro-Bucuresti-Ilfov_TRIP_LV_925_0_101",
+    "displayName": "73"
+   }
+  ],
+  "routeColor": "008d36",
+  "mode": "BUS",
+  "distance": 8062.888671875,
+  "from": {
+   "name": "Colegiul National Gh. Sincai",
+   "lat": 44.41511500000001,
+   "lon": 26.104584000000003
+  },
+  "to": {
+   "name": "Bd. Marasesti",
+   "lat": 44.42006,
+   "lon": 26.104223
+  },
+  "departure": "2026-10-19T16:48:00Z",
+  "arrival": "2026-10-19T16:50:00Z",
+  "scheduledDeparture": "2026-10-19T16:41:00Z",
+  "scheduledArrival": "2026-10-19T16:43:00Z",
+  "realTime": true,
+  "polyline": "oyanGspi~C_AD}@D}BFyFR}FTgFH"
+ }
+]

@@ -1,3 +1,4 @@
+import { TEST_PLACE } from "../test/places";
 import { describe, expect, it } from "vitest";
 import { computeSchedule, variantDuration } from "./schedule";
 import type { Day, MicroStep, VariantNode } from "./types";
@@ -27,6 +28,7 @@ const day: Day = {
       title: "First",
       defaultVariantId: "fast",
       checkpoint: null,
+      place: TEST_PLACE,
       variants: [variant("fast", 10, 20), variant("slow", 60, 30)],
     },
     {
@@ -34,6 +36,7 @@ const day: Day = {
       title: "Second",
       defaultVariantId: "only",
       checkpoint: { label: "Boarding", timeMin: 9 * 60, bufferMin: 20 }, // 09:00
+      place: TEST_PLACE,
       variants: [variant("only", 15)],
     },
   ],
@@ -144,6 +147,7 @@ describe("computeSchedule (timezones)", () => {
         title: "Flight",
         defaultVariantId: "vf",
         checkpoint: null,
+        place: TEST_PLACE,
         variants: [
           {
             id: "vf",
@@ -161,6 +165,7 @@ describe("computeSchedule (timezones)", () => {
         title: "To hotel",
         defaultVariantId: "va",
         checkpoint: null,
+        place: TEST_PLACE,
         variants: [
           {
             id: "va",

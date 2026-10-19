@@ -1,8 +1,10 @@
+import { SCHEMA_VERSION } from "./types";
 import type {
   Day,
   ExpenseItem,
   ItinerarySlot,
   Participant,
+  Place,
   Trip,
   TripCurrencies,
   VariantNode,
@@ -116,12 +118,18 @@ export const removeVariant = (trip: Trip, slotId: string, variantId: string): Tr
   });
 
 // A slot with one starter variant — keeps the >=1-variant/-step invariants
-// intact for freshly created slots, days, and trips.
-export const starterSlot = (localCurrency: string, title = "New slot"): ItinerarySlot => {
+// intact for freshly created slots, days, and trips. Every slot has a place
+// (schema v2); pass a guess (see guessPlace) when the user hasn't picked one.
+export const starterSlot = (
+  localCurrency: string,
+  place: Place,
+  title = "New slot"
+): ItinerarySlot => {
   const vid = newId("v");
   return {
     id: newId("slot"),
     title,
+    place,
     checkpoint: null,
     defaultVariantId: vid,
     variants: [
@@ -135,6 +143,25 @@ export const starterSlot = (localCurrency: string, title = "New slot"): Itinerar
       },
     ],
   };
+};
+
+// Best guess for where a new slot (or a new day's first slot) happens: the day's
+// location, else the last placed slot on or before that day, else the trip's
+// first place — always flagged `estimated` so the map asks to confirm it.
+// `dayId` null/unknown = after the whole trip.
+export const guessPlace = (trip: Trip, dayId: string | null): Place | null => {
+  const est = (p: Place): Place => ({ name: p.name, lat: p.lat, lon: p.lon, estimated: true });
+  const idx = trip.days.findIndex((d) => d.id === dayId);
+  const upTo = idx === -1 ? trip.days : trip.days.slice(0, idx + 1);
+  const day = idx === -1 ? null : trip.days[idx];
+  if (day?.location) return est(day.location);
+  for (let i = upTo.length - 1; i >= 0; i--) {
+    const slots = upTo[i].slots;
+    if (slots.length) return est(slots[slots.length - 1].place);
+    if (upTo[i].location) return est(upTo[i].location!);
+  }
+  const first = trip.days.find((d) => d.slots.length)?.slots[0]?.place;
+  return first ? est(first) : null;
 };
 
 // Replaces the day by id or appends it; days are kept sorted by date so a
@@ -160,8 +187,10 @@ export const newTrip = (
   name: string,
   startDate: string,
   participants: Participant[],
-  currencies: TripCurrencies
+  currencies: TripCurrencies,
+  start: Place
 ): Trip => ({
+  schemaVersion: SCHEMA_VERSION,
   uid: newUid(),
   id: newId("trip"),
   name,
@@ -172,7 +201,8 @@ export const newTrip = (
       id: newId("day"),
       date: startDate,
       startTimeMin: 9 * 60,
-      slots: [starterSlot(currencies.local)],
+      location: { name: start.name, lat: start.lat, lon: start.lon },
+      slots: [starterSlot(currencies.local, start)],
     },
   ],
   expenses: [],

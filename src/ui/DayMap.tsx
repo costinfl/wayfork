@@ -8,6 +8,7 @@ import {
   dayTrack,
   offsetArc,
   slotMarkerNumbers,
+  variantGeometry,
   type TrackSegment,
 } from "../domain/geometry";
 import type { Poi } from "../domain/poi";
@@ -91,7 +92,7 @@ function DayMapImpl(
   const styleReadyRef = useRef(false);
   const [styleReady, setStyleReady] = useState(false);
 
-  const { segments, unmapped } = dayTrack(day, activeVariants);
+  const { segments, estimated } = dayTrack(day, activeVariants);
 
   // Fullscreen = a fixed CSS overlay (not the Fullscreen API — jsdom-testable
   // and consistent across browsers). MapLibre must re-measure after the resize.
@@ -247,7 +248,7 @@ function DayMapImpl(
       const variant = day.slots
         .find((s) => s.id === seg.slotId)
         ?.variants.find((v) => v.id === seg.variantId);
-      const storedGeometry = variant?.geometry;
+      const storedGeometry = variant ? variantGeometry(variant) : null;
 
       extend([seg.from.lat, seg.from.lon]);
 
@@ -407,13 +408,13 @@ function DayMapImpl(
         style={fullscreen ? { flex: 1, width: "100%" } : { height: 420, width: "100%" }}
         aria-label="Day journey map"
       />
-      {unmapped.length > 0 && (
+      {estimated.length > 0 && (
         <div className="px-3 py-2 text-xs" style={{ color: C.sub, background: C.card }}>
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded"
             style={{ background: C.amberBg, color: C.amber }}
           >
-            📍 {unmapped.length} slot{unmapped.length > 1 ? "s" : ""} have no location — add one in Edit
+            📍 {estimated.length} place{estimated.length > 1 ? "s are" : " is"} estimated — confirm in Edit
             mode
           </span>
         </div>

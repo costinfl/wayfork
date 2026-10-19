@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TEST_PLACE } from "../test/places";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
@@ -16,7 +17,7 @@ const trip = newTrip(
     { id: "p2", name: "Bogdan" },
   ],
   { home: "RON", local: "EUR", intl: "USD" }
-);
+, TEST_PLACE);
 
 const spy = () => vi.fn<(exp: ExpenseItem) => string[]>(() => []);
 

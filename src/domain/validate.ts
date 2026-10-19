@@ -14,6 +14,10 @@ export function validateTrip(trip: Trip): string[] {
       seen.add(id);
     }
   };
+  const coords = (lat: number, lon: number, where: string) => {
+    if (!(lat >= -90 && lat <= 90)) err(`${where} lat ${lat} must be in [-90, 90]`);
+    if (!(lon >= -180 && lon <= 180)) err(`${where} lon ${lon} must be in [-180, 180]`);
+  };
   const knownCcy = (ccy: string, where: string) => {
     if (!(ccy in RATES_EUR)) err(`${where}: currency "${ccy}" is not in the rate matrix`);
   };
@@ -65,10 +69,10 @@ export function validateTrip(trip: Trip): string[] {
       if (!slot.variants.some((v) => v.id === slot.defaultVariantId)) {
         err(`slot ${slot.id}: defaultVariantId "${slot.defaultVariantId}" is not one of its variants`);
       }
-      if (slot.place) {
-        const { lat, lon } = slot.place;
-        if (!(lat >= -90 && lat <= 90)) err(`slot ${slot.id}: place lat ${lat} must be in [-90, 90]`);
-        if (!(lon >= -180 && lon <= 180)) err(`slot ${slot.id}: place lon ${lon} must be in [-180, 180]`);
+      if (!slot.place) {
+        err(`slot ${slot.id} has no place (every slot needs one since schema v2)`);
+      } else {
+        coords(slot.place.lat, slot.place.lon, `slot ${slot.id}: place`);
       }
       if (slot.checkpoint) {
         if (slot.checkpoint.timeMin < 0 || !Number.isInteger(slot.checkpoint.timeMin)) {
@@ -95,12 +99,6 @@ export function validateTrip(trip: Trip): string[] {
         if (v.microSteps.length === 0) err(`variant ${v.id} has no micro-steps`);
         if (!(v.cost.amount >= 0)) err(`variant ${v.id}: cost must be >= 0`);
         knownCcy(v.cost.currency, `variant ${v.id}`);
-        if (v.geometry) {
-          v.geometry.forEach(([lat, lon], gi) => {
-            if (!(lat >= -90 && lat <= 90)) err(`variant ${v.id}: geometry[${gi}] lat ${lat} must be in [-90, 90]`);
-            if (!(lon >= -180 && lon <= 180)) err(`variant ${v.id}: geometry[${gi}] lon ${lon} must be in [-180, 180]`);
-          });
-        }
         for (const ms of v.microSteps) {
           if (ms.durationMin <= 0 || !Number.isInteger(ms.durationMin)) {
             err(`micro-step ${ms.id}: durationMin ${ms.durationMin} must be a positive integer`);
@@ -108,6 +106,9 @@ export function validateTrip(trip: Trip): string[] {
           if (ms.tzShiftMin !== undefined && !Number.isInteger(ms.tzShiftMin)) {
             err(`micro-step ${ms.id}: tzShiftMin ${ms.tzShiftMin} must be an integer number of minutes`);
           }
+          if (ms.from) coords(ms.from.lat, ms.from.lon, `micro-step ${ms.id}: from`);
+          if (ms.to) coords(ms.to.lat, ms.to.lon, `micro-step ${ms.id}: to`);
+          ms.geometry?.forEach(([lat, lon], gi) => coords(lat, lon, `micro-step ${ms.id}: geometry[${gi}]`));
         }
       }
     }

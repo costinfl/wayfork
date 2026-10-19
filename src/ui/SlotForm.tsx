@@ -12,11 +12,14 @@ const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
 export function SlotForm({
   trip,
   initial,
+  suggestedPlace = null,
   onSave,
   onCancel,
 }: {
   trip: Trip;
   initial: ItinerarySlot | null;
+  // Pre-filled place for a new slot (an `estimated` guess, e.g. guessPlace).
+  suggestedPlace?: Place | null;
   onSave: (slot: ItinerarySlot) => string[];
   onCancel: () => void;
 }) {
@@ -27,7 +30,7 @@ export function SlotForm({
   const [cpTime, setCpTime] = useState(cp ? fmtTime(cp.timeMin) : "12:00");
   const [cpBuffer, setCpBuffer] = useState(cp ? String(cp.bufferMin) : "15");
   const [cpOpens, setCpOpens] = useState(cp?.opensMin != null ? fmtTime(cp.opensMin) : "");
-  const [place, setPlace] = useState<Place | null>(initial?.place ?? null);
+  const [place, setPlace] = useState<Place | null>(initial?.place ?? suggestedPlace);
   const [errors, setErrors] = useState<string[]>([]);
 
   const submit = () => {
@@ -49,13 +52,14 @@ export function SlotForm({
       }
       checkpoint = { label: cpLabel.trim(), timeMin: (h || 0) * 60 + (m || 0), bufferMin, opensMin };
     }
-    if (pre.length) {
+    if (!place) pre.push("pick a place — every slot is on the map");
+    if (pre.length || !place) {
       setErrors(pre);
       return;
     }
     const base: ItinerarySlot = initial
       ? { ...initial, title: title.trim(), checkpoint }
-      : { ...starterSlot(trip.currencies.local, title.trim()), checkpoint };
+      : { ...starterSlot(trip.currencies.local, place, title.trim()), checkpoint };
     const slot: ItinerarySlot = { ...base, place };
     setErrors(onSave(slot));
   };
@@ -74,8 +78,8 @@ export function SlotForm({
       </label>
       <div className="mb-2">
         <PlaceInput
-          label="Location on map (optional)"
-          placeholder="search a place… — leave blank for none"
+          label={place?.estimated ? "Location on map (estimated — confirm)" : "Location on map"}
+          placeholder="search a place…"
           value={place}
           onChange={setPlace}
         />

@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TEST_PLACE } from "../test/places";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../test/setup-dom";
@@ -35,7 +36,7 @@ const fixture = (checkpoint: Checkpoint | null = null): Trip => {
     home: "RON",
     local: "EUR",
     intl: "USD",
-  });
+  }, TEST_PLACE);
   t.days[0].startTimeMin = 540;
   t.days[0].slots = [
     {
@@ -43,6 +44,7 @@ const fixture = (checkpoint: Checkpoint | null = null): Trip => {
       title: "Transfer",
       defaultVariantId: "fast",
       checkpoint: null,
+      place: TEST_PLACE,
       variants: [variant("fast", "Fast", 30), variant("slow", "Slow", 60)],
     },
     {
@@ -50,6 +52,7 @@ const fixture = (checkpoint: Checkpoint | null = null): Trip => {
       title: "Museum",
       defaultVariantId: "walk2",
       checkpoint,
+      place: TEST_PLACE,
       variants: [variant("walk2", "Walk", 15)],
     },
   ];
@@ -63,6 +66,7 @@ const fixture = (checkpoint: Checkpoint | null = null): Trip => {
         title: "Beach day",
         defaultVariantId: "w3",
         checkpoint: null,
+        place: TEST_PLACE,
         variants: [variant("w3", "Stroll", 10)],
       },
     ],
@@ -138,7 +142,7 @@ describe("TripView", () => {
 });
 
 describe("TripView — 🚆 Transit option", () => {
-  const placedSlot = (id: string, title: string, place: { name: string; lat: number; lon: number } | null) => ({
+  const placedSlot = (id: string, title: string, place: { name: string; lat: number; lon: number }) => ({
     id,
     title,
     defaultVariantId: `${id}v`,
@@ -152,13 +156,11 @@ describe("TripView — 🚆 Transit option", () => {
       home: "RON",
       local: "EUR",
       intl: "USD",
-    });
+    }, TEST_PLACE);
     t.days[0].slots = [
-      // First slot: has a place but no EARLIER placed slot -> button absent.
+      // First slot: no earlier slot -> button absent.
       placedSlot("s1", "Start", { name: "A", lat: 1, lon: 1 }),
-      // No place at all -> button absent regardless of what precedes it.
-      placedSlot("s2", "Waypoint", null),
-      // Has a place AND an earlier placed slot (s1, skipping unplaced s2) -> shown.
+      // Has an earlier slot (s1) -> shown, from s1's place to this one.
       placedSlot("s3", "Destination", { name: "B", lat: 2, lon: 2 }),
     ];
     return t;
@@ -170,16 +172,16 @@ describe("TripView — 🚆 Transit option", () => {
     fetchTransitPlanMock.mockReset();
   });
 
-  it("only offers the button on a placed slot that has an earlier placed slot", () => {
+  it("only offers the button on a slot that has an earlier slot", () => {
     renderView(placedTrip());
     enterEditMode();
-    expect(screen.getAllByText("🚆 Transit")).toHaveLength(1); // s3 only, not s1 or s2
+    expect(screen.getAllByText("🚆 Transit")).toHaveLength(1); // s3 only, not s1
   });
 
   it("fetches from the nearest earlier place to this slot's place, then saves the itinerary as a variant", async () => {
     const itinerary: TransitItinerary = {
       durationMin: 20,
-      legs: [{ type: "metro", label: "M2 → B", durationMin: 20, distanceKm: 5, line: null }],
+      legs: [{ type: "metro", label: "M2 → B", durationMin: 20, distanceKm: 5, line: null, from: null, to: null }],
     };
     fetchTransitPlanMock.mockResolvedValue(itinerary);
     const onTripChange = vi.fn();

@@ -1,4 +1,5 @@
 import { newId, newUid } from "./mutate";
+import { SCHEMA_VERSION } from "./types";
 import type { Day, ItinerarySlot, Place, Trip } from "./types";
 
 // Build a valid, editable *scaffold* trip from a small plan (starting point,
@@ -47,6 +48,7 @@ type StepSpec = { type: "transfer" | "wait"; label: string; durationMin: number 
 // conventions still hold before the AI (or the user) fills in real data.
 const placeholderSlot = (
   title: string,
+  place: Place,
   variantName: string,
   steps: StepSpec[]
 ): ItinerarySlot => {
@@ -54,6 +56,7 @@ const placeholderSlot = (
   return {
     id: newId("slot"),
     title,
+    place: { name: place.name, lat: place.lat, lon: place.lon },
     checkpoint: null,
     defaultVariantId: vid,
     variants: [
@@ -75,23 +78,23 @@ const placeholderSlot = (
 };
 
 const travelSlot = (from: Place, to: Place): ItinerarySlot =>
-  placeholderSlot(`${from.name} → ${to.name}`, "Transfer", [
+  placeholderSlot(`${from.name} → ${to.name}`, to, "Transfer", [
     { type: "transfer", label: `Travel to ${to.name}`, durationMin: 180 },
     { type: "wait", label: "Check in & settle", durationMin: 45 },
   ]);
 
 const arrivalFreeTimeSlot = (dest: Place): ItinerarySlot =>
-  placeholderSlot(`Free time in ${dest.name}`, "Free time", [
+  placeholderSlot(`Free time in ${dest.name}`, dest, "Free time", [
     { type: "wait", label: `Get your bearings in ${dest.name}`, durationMin: 120 },
   ]);
 
 const exploreSlot = (dest: Place): ItinerarySlot =>
-  placeholderSlot(`Explore ${dest.name}`, "Free time", [
+  placeholderSlot(`Explore ${dest.name}`, dest, "Free time", [
     { type: "wait", label: `A day in ${dest.name}`, durationMin: 240 },
   ]);
 
 const returnSlot = (from: Place, startPoint: Place): ItinerarySlot =>
-  placeholderSlot(`Return to ${startPoint.name}`, "Transfer", [
+  placeholderSlot(`Return to ${startPoint.name}`, startPoint, "Transfer", [
     { type: "transfer", label: `Travel from ${from.name} to ${startPoint.name}`, durationMin: 180 },
     { type: "wait", label: "Buffer at the gate", durationMin: 45 },
   ]);
@@ -159,6 +162,7 @@ export function scaffoldTrip(input: PlanInput): Trip {
   }
 
   return {
+    schemaVersion: SCHEMA_VERSION,
     uid: newUid(),
     id: newId("trip"),
     name: tripName(destinations, startDate),

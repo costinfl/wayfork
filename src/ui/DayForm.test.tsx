@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TEST_PLACE } from "../test/places";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup-dom";
@@ -12,7 +13,7 @@ const trip = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], {
   home: "RON",
   local: "EUR",
   intl: "USD",
-});
+}, TEST_PLACE);
 
 describe("DayForm", () => {
   it("submits date + departure with a starter slot and no location", () => {

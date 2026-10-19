@@ -1,3 +1,4 @@
+import { TEST_PLACE } from "../test/places";
 import { describe, expect, it } from "vitest";
 import { TRIPS } from "../data";
 import {
@@ -70,12 +71,12 @@ describe("newTrip", () => {
       home: "RON",
       local: "EUR",
       intl: "USD",
-    });
+    }, TEST_PLACE);
     const b = newTrip("B", "2026-09-10", [{ id: "p1", name: "Ana" }], {
       home: "RON",
       local: "EUR",
       intl: "USD",
-    });
+    }, TEST_PLACE);
     expect(a.uid).toBeTruthy();
     expect(a.uid).not.toBe(b.uid);
   });
@@ -89,6 +90,7 @@ const newSlot: ItinerarySlot = {
   title: "Espresso stop",
   defaultVariantId: "v-espresso",
   checkpoint: null,
+  place: TEST_PLACE,
   variants: [
     {
       id: "v-espresso",
@@ -178,7 +180,7 @@ describe("day mutations", () => {
       id: newId("day"),
       date: "2026-09-11", // between day 1 and 2? equal dates rejected by validator; use sorting check
       startTimeMin: 600,
-      slots: [starterSlot("EUR")],
+      slots: [starterSlot("EUR", TEST_PLACE)],
     };
     // use a date after the last day for a clean append
     const appended = upsertDay(lisbon, { ...middle, date: "2026-09-13" });
@@ -208,7 +210,7 @@ describe("newTrip", () => {
       "2026-08-01",
       [{ id: newId("p"), name: "Andrei" }],
       { home: "RON", local: "EUR", intl: "USD" }
-    );
+    , TEST_PLACE);
     expect(validateTrip(t)).toEqual([]);
     expect(t.days).toHaveLength(1);
     expect(t.days[0].slots[0].variants[0].microSteps).toHaveLength(1);

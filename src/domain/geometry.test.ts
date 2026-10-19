@@ -20,7 +20,7 @@ const variant = (id: string, ...types: StepType[]): VariantNode => ({
   microSteps: types.length ? types.map(step) : [step("wait")],
 });
 
-const slot = (id: string, place: Place | null, variants: VariantNode[]): ItinerarySlot => ({
+const slot = (id: string, place: Place, variants: VariantNode[]): ItinerarySlot => ({
   id,
   title: id,
   variants,
@@ -82,20 +82,14 @@ describe("dayTrack", () => {
     expect(segments[1].to).toEqual(B);
   });
 
-  it("skips slots without a place, connecting across them, and collects unmapped", () => {
-    const A = P("A", 0, 0);
-    const C = P("C", 2, 2);
+  it("collects slots whose place is an unconfirmed estimate", () => {
     const d = day([
-      slot("s1", A, [variant("v1", "walk")]),
-      slot("s2", null, [variant("v2", "walk")]),
-      slot("s3", C, [variant("v3", "car")]),
+      slot("s1", P("A", 0, 0), [variant("v1", "walk")]),
+      slot("s2", { ...P("B", 1, 1), estimated: true }, [variant("v2", "walk")]),
     ]);
-    const { segments, unmapped } = dayTrack(d, {});
-    expect(unmapped).toEqual(["s2"]);
-    expect(segments.map((s) => s.slotId)).toEqual(["s1", "s3"]);
-    // s3 connects back to the last located place (A), skipping s2.
-    expect(segments[1].from).toEqual(A);
-    expect(segments[1].to).toEqual(C);
+    const { segments, estimated } = dayTrack(d, {});
+    expect(estimated).toEqual(["s2"]);
+    expect(segments.map((s) => s.slotId)).toEqual(["s1", "s2"]);
   });
 
   it("falls back to the slot's defaultVariantId when no active is given", () => {
@@ -106,21 +100,14 @@ describe("dayTrack", () => {
 });
 
 describe("slotMarkerNumbers", () => {
-  it("numbers located slots in order, skipping unmapped ones", () => {
-    const A = P("A", 0, 0);
-    const B = P("B", 1, 1);
-    const C = P("C", 2, 2);
+  it("numbers slots in order", () => {
     const d = day([
-      slot("s1", A, [variant("v1", "walk")]),
-      slot("s2", null, [variant("v2", "walk")]),
-      slot("s3", B, [variant("v3", "car")]),
-      slot("s4", C, [variant("v4", "walk")]),
+      slot("s1", P("A", 0, 0), [variant("v1", "walk")]),
+      slot("s2", P("B", 1, 1), [variant("v2", "car")]),
+      slot("s3", P("C", 2, 2), [variant("v3", "walk")]),
     ]);
     const numbers = slotMarkerNumbers(d);
-    expect(numbers.get("s1")).toBe(1);
-    expect(numbers.has("s2")).toBe(false);
-    expect(numbers.get("s3")).toBe(2);
-    expect(numbers.get("s4")).toBe(3);
+    expect([...numbers.values()]).toEqual([1, 2, 3]);
   });
 
   it("gives slots sharing the same place the same number", () => {

@@ -6,6 +6,7 @@ import {
   transitItineraryToVariant,
 } from "./transit";
 import type { TransitItinerary } from "./transit";
+import { variantGeometry } from "./geometry";
 import type { Day } from "./types";
 
 const okJson = (body: unknown): Response =>
@@ -36,14 +37,14 @@ describe("previousPlace", () => {
     startTimeMin: 540,
     slots: [
       { id: "s1", title: "A", variants: [], defaultVariantId: "", checkpoint: null, place: { name: "A", lat: 1, lon: 1 } },
-      { id: "s2", title: "B", variants: [], defaultVariantId: "", checkpoint: null },
+      { id: "s2", title: "B", variants: [], defaultVariantId: "", checkpoint: null, place: { name: "B", lat: 2, lon: 2 } },
       { id: "s3", title: "C", variants: [], defaultVariantId: "", checkpoint: null, place: { name: "C", lat: 3, lon: 3 } },
     ],
   });
 
-  it("finds the nearest earlier placed slot, skipping unplaced ones", () => {
+  it("returns the previous slot's place", () => {
     expect(previousPlace(day(), "s2")?.name).toBe("A");
-    expect(previousPlace(day(), "s3")?.name).toBe("A");
+    expect(previousPlace(day(), "s3")?.name).toBe("B");
   });
 
   it("returns null for the first slot or an unknown id", () => {
@@ -96,13 +97,23 @@ describe("fetchTransitPlan", () => {
     expect(itinerary).toEqual({
       durationMin: 45,
       legs: [
-        { type: "walk", label: "Walk to Unirii M1", durationMin: 5, distanceKm: 0.4, line: null },
+        {
+          type: "walk",
+          label: "Walk to Unirii M1",
+          durationMin: 5,
+          distanceKm: 0.4,
+          line: null,
+          from: { name: "Piata Unirii", lat: 44.43, lon: 26.1 },
+          to: { name: "Unirii M1", lat: 44.431, lon: 26.101 },
+        },
         {
           type: "metro",
           label: "M2 → Pipera",
           durationMin: 30,
           distanceKm: 12,
           line: decodePolyline("_p~iF~ps|U_ulLnnqC"),
+          from: { name: "Unirii M1", lat: 44.431, lon: 26.101 },
+          to: { name: "Pipera", lat: 44.5, lon: 26.09 },
         },
       ],
     });
@@ -185,12 +196,14 @@ describe("transitItineraryToVariant", () => {
   const itinerary: TransitItinerary = {
     durationMin: 35,
     legs: [
-      { type: "walk", label: "Walk to Unirii M1", durationMin: 5, distanceKm: 0.4, line: null },
+      { type: "walk", label: "Walk to Unirii M1", durationMin: 5, distanceKm: 0.4, line: null, from: null, to: null },
       {
         type: "metro",
         label: "M2 → Pipera",
         durationMin: 30,
         distanceKm: 12,
+        from: { name: "Unirii", lat: 44.43, lon: 26.1 },
+        to: { name: "Pipera", lat: 44.5, lon: 26.09 },
         line: [
           [44.43, 26.1],
           [44.5, 26.09],
@@ -199,7 +212,7 @@ describe("transitItineraryToVariant", () => {
     ],
   };
 
-  it("builds an estimated variant with one micro-step per leg and concatenated geometry", () => {
+  it("builds an estimated variant with one micro-step per leg, geometry and endpoints on the steps", () => {
     const variant = transitItineraryToVariant(itinerary, "RON");
     expect(variant.name).toBe("Public transit");
     expect(variant.estimated).toBe(true);
@@ -208,7 +221,16 @@ describe("transitItineraryToVariant", () => {
       ["walk", "Walk to Unirii M1", 5, 0.4],
       ["metro", "M2 → Pipera", 30, 12],
     ]);
-    expect(variant.geometry).toEqual([
+    expect(variant.microSteps[0].geometry).toBeUndefined();
+    expect(variant.microSteps[1]).toMatchObject({
+      from: { name: "Unirii" },
+      to: { name: "Pipera" },
+      geometry: [
+        [44.43, 26.1],
+        [44.5, 26.09],
+      ],
+    });
+    expect(variantGeometry(variant)).toEqual([
       [44.43, 26.1],
       [44.5, 26.09],
     ]);
@@ -217,9 +239,10 @@ describe("transitItineraryToVariant", () => {
   it("omits geometry entirely when no leg carries a line", () => {
     const noLine: TransitItinerary = {
       durationMin: 5,
-      legs: [{ type: "walk", label: "Walk", durationMin: 5, distanceKm: 0.4, line: null }],
+      legs: [{ type: "walk", label: "Walk", durationMin: 5, distanceKm: 0.4, line: null, from: null, to: null }],
     };
     const variant = transitItineraryToVariant(noLine, "EUR");
-    expect(variant.geometry).toBeUndefined();
+    expect(variant.microSteps[0].geometry).toBeUndefined();
+    expect(variantGeometry(variant)).toBeNull();
   });
 });

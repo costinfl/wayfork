@@ -43,6 +43,7 @@ describe("expenseShares", () => {
 
 describe("computeBalances", () => {
   const trip = (expenses: ExpenseItem[]): Trip => ({
+    schemaVersion: 2,
     id: "t",
     name: "t",
     participants,

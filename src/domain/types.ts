@@ -34,6 +34,12 @@ export interface MicroStep {
   // Change in local-clock offset that occurs during this step, in minutes
   // (e.g. a flight Bucharest→Rome loses an hour: -60). Absent/0 = no change.
   tzShiftMin?: number;
+  // v2: where the step starts / ends, and the exact path travelled (e.g. a
+  // transit leg's shape). All optional — a step with none draws as part of its
+  // variant's routed/schematic line. [lat, lon] pairs, like every app geometry.
+  from?: Place | null;
+  to?: Place | null;
+  geometry?: [number, number][] | null;
 }
 
 export interface VariantNode {
@@ -45,12 +51,9 @@ export interface VariantNode {
   // scaffold slot the user has not yet verified). Absent = not claimed either
   // way, so this stays backward compatible with existing trips.
   estimated?: boolean;
-  // Precomputed [lat, lon] route line for the day-journey map — set when the
-  // variant came from a real routing lookup (e.g. a Transitous transit plan)
-  // whose exact path can't be deterministically re-derived from the slot's
-  // place alone. Absent/null: the map draws its usual road/foot route or
-  // schematic arc instead.
-  geometry?: [number, number][] | null;
+  // v1 kept a precomputed route line here; v2 moved it onto the micro-steps
+  // (MicroStep.geometry — the variant's line is their concatenation, see
+  // variantGeometry in geometry.ts). migrateTrip moves old values across.
 }
 
 // Hard guardrail: absolute time milestone the active chain must respect.
@@ -71,6 +74,9 @@ export interface Place {
   lat: number;
   lon: number;
   country?: string;
+  // True when the coordinates are a guess (backfilled by the v1→v2 migration,
+  // or a placeholder) that the user has not yet confirmed. Absent = confirmed.
+  estimated?: boolean;
 }
 
 export interface ItinerarySlot {
@@ -79,10 +85,10 @@ export interface ItinerarySlot {
   variants: VariantNode[]; // >= 1; active one tracked in UI state
   defaultVariantId: string;
   checkpoint: Checkpoint | null;
-  // Where the slot ends / takes place, for the day-journey map. Optional and
-  // absent-by-default so old trips stay valid; the map connects across slots
-  // that have none.
-  place?: Place | null;
+  // Where the slot ends / takes place. Required since schema v2 — the map-first
+  // canvas needs every slot on the map (v1 trips are migrated on load, see
+  // migrate.ts; a guessed place carries `estimated: true`).
+  place: Place;
 }
 
 // Where the day happens, for weather lookups. Optional — days without a
@@ -135,7 +141,12 @@ export interface TripCurrencies {
 
 export type CurrencyView = keyof TripCurrencies;
 
+// Current trip document schema. v1 (absent) = slot places optional and route
+// geometry on variants; v2 = every slot placed, geometry on micro-steps.
+export const SCHEMA_VERSION = 2;
+
 export interface Trip {
+  schemaVersion: typeof SCHEMA_VERSION;
   // Globally-unique surrogate identity, threaded through the client so trips
   // never collide even when shared across accounts (a shared trip belongs to
   // another owner and may reuse a logical `id`). Ensured by parseTrip/newTrip;

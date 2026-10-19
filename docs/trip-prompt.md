@@ -36,6 +36,8 @@ interface MicroStep {
   distanceKm: number | null;  // only for walk/car/train legs where it makes sense
   tzShiftMin?: number;        // clock change during this step (e.g. a flight that
                               // crosses a timezone: destination 1h behind = -60)
+  from?: { name: string; lat: number; lon: number }; // optional: where a moving
+  to?: { name: string; lat: number; lon: number };   // step starts / ends (stations)
 }
 
 interface VariantNode {
@@ -56,7 +58,8 @@ interface ItinerarySlot {
     opensMin?: number;         // optional opening time: turns the deadline into
                                // a window [opensMin, timeMin] (e.g. museum hours)
   } | null;
-  place?: { name: string; lat: number; lon: number } | null; // for the day map
+  place: { name: string; lat: number; lon: number }; // REQUIRED — where the slot
+                               // ends or happens; the map draws every slot
 }
 
 interface Day {
@@ -86,6 +89,7 @@ interface ExpenseItem {
 }
 
 interface Trip {
+  schemaVersion: 2;            // always the number 2
   id: string;                  // FIXED — copy the trip id from the scaffold below
   name: string;                // e.g. "Lisbon · Sep 2026"
   participants: { id: string; name: string }[];
@@ -95,8 +99,8 @@ interface Trip {
 }
 ```
 
-Every field shown is required (except the optional `estimated` and
-`tzShiftMin`). Use `null` (not omission) for absent `checkpoint` and
+Every field shown is required (except the optional `estimated`,
+`tzShiftMin`, `from`/`to` and the day's `location`/`tz`). Use `null` (not omission) for absent `checkpoint` and
 `distanceKm`.
 
 ## Day scaffold — copy verbatim
@@ -206,10 +210,11 @@ at noon.
   currencies, with amounts plausible for the destinations.
 - Flights and prepaid entry tickets get variant cost 0 — their money belongs
   in the pre-trip ledger as expenses instead.
-- Each slot SHOULD carry a `place` with the real `name`/`lat`/`lon` of where it
-  ends or happens (airport, station, museum, neighbourhood) — the day map draws
-  the journey through them. It stays optional: omit it (or use `null`) only when
-  there is genuinely no meaningful point.
+- Every slot MUST carry a `place` with the real `name`/`lat`/`lon` of where it
+  ends or happens (airport, station, museum, neighbourhood) — the map draws the
+  journey through them. For a slot with no specific point (e.g. "Free time"),
+  use the neighbourhood or the previous slot's place. Moving transit steps MAY
+  carry `from`/`to` stations with real coordinates.
 
 ## Style reference (excerpt of a valid document)
 
@@ -219,6 +224,7 @@ at noon.
   "title": "Hotel → Otopeni Airport",
   "defaultVariantId": "lx-v-otp-public",
   "checkpoint": null,
+  "place": { "name": "Henri Coandă Airport (OTP)", "lat": 44.5711, "lon": 26.085 },
   "variants": [
     {
       "id": "lx-v-otp-public",

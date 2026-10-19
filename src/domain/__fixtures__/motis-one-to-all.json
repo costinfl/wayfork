@@ -1,0 +1,411 @@
+{
+ "one": {
+  "name": "",
+  "lat": 44.4355,
+  "lon": 26.1025,
+  "departure": "2026-10-19T16:47:00Z",
+  "vertexType": "NORMAL"
+ },
+ "all": [
+  {
+   "place": {
+    "name": "București Nord Gara A",
+    "lat": 44.4473,
+    "lon": 26.073153,
+    "arrival": "2026-10-19T17:12:00Z"
+   },
+   "duration": 25,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "1 Decembrie 1918",
+    "lat": 44.41059,
+    "lon": 26.172980000000003,
+    "arrival": "2026-10-19T17:13:00Z"
+   },
+   "duration": 26,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "1 Decembrie 1918",
+    "lat": 44.41059,
+    "lon": 26.172980000000003,
+    "arrival": "2026-10-19T17:13:00Z"
+   },
+   "duration": 26,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "1 Decembrie 1918",
+    "lat": 44.41059,
+    "lon": 26.172980000000003,
+    "arrival": "2026-10-19T17:13:00Z"
+   },
+   "duration": 26,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "11 Iunie",
+    "lat": 44.42385,
+    "lon": 26.095029999999998,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "11 Iunie",
+    "lat": 44.424282,
+    "lon": 26.095792999999997,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "11 Iunie",
+    "lat": 44.424507,
+    "lon": 26.09613,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "11 Iunie",
+    "lat": 44.423504,
+    "lon": 26.094433,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "A.N.E.F.S.",
+    "lat": 44.43891500000001,
+    "lon": 26.069599999999998,
+    "arrival": "2026-10-19T17:14:00Z"
+   },
+   "duration": 27,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "A.S.E.",
+    "lat": 44.447599999999994,
+    "lon": 26.099356,
+    "arrival": "2026-10-19T17:07:00Z"
+   },
+   "duration": 20,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "A.S.E.",
+    "lat": 44.447289999999995,
+    "lon": 26.099491,
+    "arrival": "2026-10-19T17:07:00Z"
+   },
+   "duration": 20,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Academia militară",
+    "lat": 44.42988,
+    "lon": 26.062665999999997,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Academia militară",
+    "lat": 44.42988,
+    "lon": 26.062665999999997,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Academia militară",
+    "lat": 44.42988,
+    "lon": 26.062665999999997,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Agricultorilor",
+    "lat": 44.43726699999999,
+    "lon": 26.131834000000005,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Agricultorilor",
+    "lat": 44.43738,
+    "lon": 26.132893000000003,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aleea Raul Targului",
+    "lat": 44.380469999999995,
+    "lon": 26.126396,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Aleea Raul Targului",
+    "lat": 44.379993,
+    "lon": 26.126986000000002,
+    "arrival": "2026-10-19T17:17:00Z"
+   },
+   "duration": 30,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Apărătorii Patriei",
+    "lat": 44.37925,
+    "lon": 26.13563,
+    "arrival": "2026-10-19T17:09:00Z"
+   },
+   "duration": 22,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Apărătorii Patriei",
+    "lat": 44.37925,
+    "lon": 26.13563,
+    "arrival": "2026-10-19T17:09:00Z"
+   },
+   "duration": 22,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Apărătorii Patriei",
+    "lat": 44.37925,
+    "lon": 26.13563,
+    "arrival": "2026-10-19T17:09:00Z"
+   },
+   "duration": 22,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Arcul de Triumf",
+    "lat": 44.466206,
+    "lon": 26.07856,
+    "arrival": "2026-10-19T17:13:00Z"
+   },
+   "duration": 26,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Arcul de Triumf",
+    "lat": 44.46783,
+    "lon": 26.077880000000004,
+    "arrival": "2026-10-19T17:12:00Z"
+   },
+   "duration": 25,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Arcul de Triumf",
+    "lat": 44.467617,
+    "lon": 26.0767,
+    "arrival": "2026-10-19T17:12:00Z"
+   },
+   "duration": 25,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Arcul de Triumf",
+    "lat": 44.466950000000004,
+    "lon": 26.07948,
+    "arrival": "2026-10-19T17:12:00Z"
+   },
+   "duration": 25,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Arhitect Ion Mincu",
+    "lat": 44.458465999999994,
+    "lon": 26.082444999999996,
+    "arrival": "2026-10-19T17:08:00Z"
+   },
+   "duration": 21,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Arhitect Ion Mincu",
+    "lat": 44.46041,
+    "lon": 26.086229999999997,
+    "arrival": "2026-10-19T17:05:00Z"
+   },
+   "duration": 18,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Armeneasca",
+    "lat": 44.436802,
+    "lon": 26.109512,
+    "arrival": "2026-10-19T17:05:00Z"
+   },
+   "duration": 18,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Armeneasca",
+    "lat": 44.43707,
+    "lon": 26.110580000000002,
+    "arrival": "2026-10-19T17:05:00Z"
+   },
+   "duration": 18,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Arthur Verona",
+    "lat": 44.442543,
+    "lon": 26.099021999999998,
+    "arrival": "2026-10-19T17:03:00Z"
+   },
+   "duration": 16,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aurel Vlaicu",
+    "lat": 44.47921,
+    "lon": 26.10021,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aurel Vlaicu",
+    "lat": 44.47921,
+    "lon": 26.10021,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aurel Vlaicu",
+    "lat": 44.47921,
+    "lon": 26.10021,
+    "arrival": "2026-10-19T17:06:00Z"
+   },
+   "duration": 19,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Autogara Filaret",
+    "lat": 44.41459999999999,
+    "lon": 26.091358000000003,
+    "arrival": "2026-10-19T17:15:00Z"
+   },
+   "duration": 28,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Autogara Filaret",
+    "lat": 44.41477,
+    "lon": 26.091731999999997,
+    "arrival": "2026-10-19T17:15:00Z"
+   },
+   "duration": 28,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Autogara Filaret",
+    "lat": 44.41526399999999,
+    "lon": 26.092681999999996,
+    "arrival": "2026-10-19T17:15:00Z"
+   },
+   "duration": 28,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Autogara Filaret",
+    "lat": 44.415386,
+    "lon": 26.092363,
+    "arrival": "2026-10-19T17:15:00Z"
+   },
+   "duration": 28,
+   "k": 2
+  },
+  {
+   "place": {
+    "name": "Aviatorilor",
+    "lat": 44.467110000000005,
+    "lon": 26.086389999999998,
+    "arrival": "2026-10-19T17:04:00Z"
+   },
+   "duration": 17,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aviatorilor",
+    "lat": 44.467110000000005,
+    "lon": 26.086389999999998,
+    "arrival": "2026-10-19T17:04:00Z"
+   },
+   "duration": 17,
+   "k": 1
+  },
+  {
+   "place": {
+    "name": "Aviatorilor",
+    "lat": 44.467110000000005,
+    "lon": 26.086389999999998,
+    "arrival": "2026-10-19T17:04:00Z"
+   },
+   "duration": 17,
+   "k": 1
+  }
+ ]
+}

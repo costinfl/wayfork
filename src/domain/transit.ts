@@ -23,6 +23,8 @@ export interface TransitLeg {
   durationMin: number;
   distanceKm: number | null;
   line: [number, number][] | null;
+  from: Place | null;
+  to: Place | null;
 }
 
 export interface TransitItinerary {
@@ -87,17 +89,13 @@ export function decodePolyline(encoded: string, precision = 6): [number, number]
   return points;
 }
 
-// The place the transit variant should originate from: the nearest earlier
-// slot (in day order) that carries a map place. Null when there is none —
-// the caller uses this to decide whether "add transit option" makes sense.
+// The place the transit variant should originate from: the previous slot's
+// place (every slot is placed since schema v2). Null for the day's first slot
+// or an unknown id — the caller uses this to decide whether "add transit
+// option" makes sense.
 export function previousPlace(day: Day, slotId: string): Place | null {
   const idx = day.slots.findIndex((s) => s.id === slotId);
-  if (idx <= 0) return null;
-  for (let i = idx - 1; i >= 0; i--) {
-    const place = day.slots[i].place;
-    if (place) return place;
-  }
-  return null;
+  return idx > 0 ? day.slots[idx - 1].place : null;
 }
 
 interface RawPlace {
@@ -167,7 +165,19 @@ function parseLeg(raw: RawLeg): TransitLeg | null {
     }
   }
 
-  return { type, label, durationMin, distanceKm, line };
+  const place = (p: RawPlace | undefined, fallback: string): Place | null =>
+    typeof p?.lat === "number" && typeof p?.lon === "number"
+      ? { name: p.name || fallback, lat: p.lat, lon: p.lon }
+      : null;
+  return {
+    type,
+    label,
+    durationMin,
+    distanceKm,
+    line,
+    from: place(from, "Start"),
+    to: place(to, "End"),
+  };
 }
 
 function parseItinerary(raw: RawItinerary): TransitItinerary | null {
@@ -213,17 +223,14 @@ export async function fetchTransitPlan(
 }
 
 // Turns a fetched itinerary into a savable variant: one micro-step per leg,
-// and a whole-route line (legs concatenated in order) for the day map to draw
-// in place of a schematic arc. Always `estimated` — real-world schedule/fare
-// still need the user's confirmation.
+// each carrying its own endpoints and route line (schema v2), so the map draws
+// the real path leg by leg in place of a schematic arc. Always `estimated` —
+// real-world schedule/fare still need the user's confirmation.
 export function transitItineraryToVariant(
   itinerary: TransitItinerary,
   currency: string,
   name = "Public transit"
 ): VariantNode {
-  const geometry = itinerary.legs.some((l) => l.line)
-    ? itinerary.legs.flatMap((l) => l.line ?? [])
-    : null;
   return {
     id: newId("v"),
     name,
@@ -234,8 +241,10 @@ export function transitItineraryToVariant(
       label: l.label,
       durationMin: l.durationMin,
       distanceKm: l.distanceKm,
+      ...(l.from ? { from: l.from } : {}),
+      ...(l.to ? { to: l.to } : {}),
+      ...(l.line ? { geometry: l.line } : {}),
     })),
     estimated: true,
-    ...(geometry ? { geometry } : {}),
   };
 }

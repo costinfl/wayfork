@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TEST_PLACE } from "../test/places";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../test/setup-dom";
@@ -55,8 +56,8 @@ const fixture = (): Trip => {
     "2026-08-01",
     [{ id: "p1", name: "Ana" }],
     { home: "RON", local: "EUR", intl: "USD" }
-  );
-  t.days[0].slots.push(starterSlot("EUR", "Second stop"));
+  , TEST_PLACE);
+  t.days[0].slots.push(starterSlot("EUR", TEST_PLACE, "Second stop"));
   return { ...t, uid: "uid-shared", version: 1 };
 };
 
@@ -190,5 +191,55 @@ describe("WayforkApp sync-poll guards (v0.26 regressions)", () => {
 
     await vi.advanceTimersByTimeAsync(15_000); // t+31s: tick at 30s is past it
     expect(list.mock.calls.length).toBeGreaterThan(callsAfterWrite);
+  });
+});
+
+describe("WayforkApp v1 → v2 upgrade on load", () => {
+  it("writes a v1 local trip back as v2 and offers to review its estimated places", async () => {
+    const { createLocalStorageStore } = await import("../data/localStorageStore");
+    const m = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    };
+    // A v1 document: no schemaVersion; the first slot has no place (the
+    // migration borrows the next slot's, flagged estimated).
+    const slot = (id: string, place?: typeof TEST_PLACE) => ({
+      id,
+      title: id,
+      defaultVariantId: `${id}-v`,
+      checkpoint: null,
+      ...(place ? { place } : {}),
+      variants: [
+        {
+          id: `${id}-v`,
+          name: "Walk",
+          cost: { amount: 0, currency: "EUR" },
+          microSteps: [{ id: `${id}-m`, type: "walk", label: "Walk", durationMin: 5, distanceKm: null }],
+        },
+      ],
+    });
+    const v1 = {
+      id: "old",
+      uid: "uid-old",
+      name: "Old v1 trip",
+      participants: [{ id: "p1", name: "Ana" }],
+      currencies: { home: "RON", local: "EUR", intl: "USD" },
+      days: [{ id: "d1", date: "2026-08-01", startTimeMin: 540, slots: [slot("first"), slot("placed", TEST_PLACE)] }],
+      expenses: [],
+    };
+    storage.setItem("wayfork.trips", JSON.stringify([v1]));
+    const localStore = createLocalStorageStore(storage);
+
+    render(<WayforkApp deps={{ auth: null, remoteStore: null, localStore, collab: null, geocode: null }} />);
+
+    expect(await screen.findByText(/1 trip upgraded to the new map format/)).toBeInTheDocument();
+    expect(screen.getByText(/place estimated/)).toBeInTheDocument();
+    const stored = JSON.parse(m.get("wayfork.trips")!);
+    expect(stored[0].schemaVersion).toBe(2);
+    expect(stored[0].days[0].slots[0].place).toMatchObject({ name: TEST_PLACE.name, estimated: true });
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/upgraded to the new map format/)).toBeNull();
   });
 });

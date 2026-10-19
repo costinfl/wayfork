@@ -23,6 +23,7 @@ const expense = (id: string, amount: number): ExpenseItem => ({
 const person = (id: string, name: string): Participant => ({ id, name });
 
 const base: Trip = {
+  schemaVersion: 2,
   uid: "u-1",
   owner: "owner-1",
   version: 5,

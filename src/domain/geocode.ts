@@ -53,3 +53,44 @@ export async function searchPlaces(
     return [];
   }
 }
+
+// POI-aware lookup biased toward a point, for refining migrated slot places
+// (migrate.ts). Photon (komoot) is keyless and CORS-open, indexes OSM POIs —
+// unlike Open-Meteo's city-level index — and takes a lat/lon location bias.
+// Best effort: any failure or empty result is null.
+interface PhotonFeature {
+  geometry?: { coordinates?: [number, number] };
+  properties?: { name?: string; city?: string; country?: string };
+}
+
+export async function searchNear(
+  query: string,
+  near: { lat: number; lon: number },
+  fetchFn: typeof fetch = fetch
+): Promise<Place | null> {
+  const q = query.trim();
+  if (q.length < 2) return null;
+  const url =
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}` +
+    `&lat=${near.lat}&lon=${near.lon}&limit=1&lang=en`;
+  try {
+    const res = await fetchFn(url);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { features?: PhotonFeature[] };
+    const f = body?.features?.[0];
+    const c = f?.geometry?.coordinates;
+    const name = f?.properties?.name;
+    if (!Array.isArray(c) || typeof c[0] !== "number" || typeof c[1] !== "number" || !name) {
+      return null;
+    }
+    const city = f?.properties?.city;
+    return {
+      name: city && city !== name ? `${name}, ${city}` : name,
+      lat: c[1],
+      lon: c[0],
+      ...(f?.properties?.country ? { country: f.properties.country } : {}),
+    };
+  } catch {
+    return null;
+  }
+}

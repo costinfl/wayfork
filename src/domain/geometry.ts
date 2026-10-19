@@ -17,7 +17,7 @@ export interface TrackSegment {
 
 export interface DayTrack {
   segments: TrackSegment[];
-  unmapped: string[]; // ids of slots that carry no place (the track skips them)
+  estimated: string[]; // ids of slots whose place is a guess awaiting confirmation
 }
 
 // A variant's dominant travel profile = its first non-wait step. Roads
@@ -39,19 +39,24 @@ export function variantProfile(v: VariantNode): RouteProfile {
   }
 }
 
+// A variant's stored route line (schema v2: per micro-step) — the steps'
+// geometries concatenated in order, or null when none carries one (the map
+// then routes or arcs between the slot places instead).
+export function variantGeometry(v: VariantNode): [number, number][] | null {
+  const line = v.microSteps.flatMap((m) => m.geometry ?? []);
+  return line.length >= 2 ? line : null;
+}
+
 // Walk the day's slots in schedule order, emitting one segment per variant of
-// each located slot. Slots without a place are skipped (the track connects
-// across them) and collected in `unmapped`.
+// each slot (every slot is placed since schema v2). Slots whose place is still
+// an unconfirmed guess are collected in `estimated` for the review hint.
 export function dayTrack(day: Day, activeVariants: Record<string, string>): DayTrack {
   const segments: TrackSegment[] = [];
-  const unmapped: string[] = [];
+  const estimated: string[] = [];
   let prev: Place | null = null;
 
   for (const slot of day.slots) {
-    if (!slot.place) {
-      unmapped.push(slot.id);
-      continue;
-    }
+    if (slot.place.estimated) estimated.push(slot.id);
     const to = slot.place;
     const from = prev ?? to; // first located slot: degenerate origin at its own place
     const activeId = activeVariants[slot.id] ?? slot.defaultVariantId;
@@ -68,19 +73,17 @@ export function dayTrack(day: Day, activeVariants: Record<string, string>): DayT
     prev = to;
   }
 
-  return { segments, unmapped };
+  return { segments, estimated };
 }
 
-// The day map draws one numbered marker per distinct located-slot place, in
-// schedule order (see DayMap.tsx) — so a slot's marker number depends only on
-// which slots have a place and their order, not on the active-variant
-// selection. Exposed separately so the timeline can show the same number
+// The day map draws one numbered marker per distinct slot place, in schedule
+// order (see DayMap.tsx) — so a slot's marker number depends only on the
+// slots' places and order, not on the active-variant selection. Exposed separately so the timeline can show the same number
 // next to each slot, letting the user match a map marker back to its slot.
 export function slotMarkerNumbers(day: Day): Map<string, number> {
   const numbers = new Map<string, number>();
   const placeKeyToNumber = new Map<string, number>();
   for (const slot of day.slots) {
-    if (!slot.place) continue;
     const key = `${slot.place.lat},${slot.place.lon}`;
     let n = placeKeyToNumber.get(key);
     if (n === undefined) {
