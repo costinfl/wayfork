@@ -97,20 +97,40 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "line-color": ["get", "color"],
       "line-width": ["case", highlighted, 22, 14],
       "line-blur": 10,
-      "line-opacity": focusOpacity(0.45, 0.12),
+      // Much fainter under estimated (dashed) segments, so the gaps stay visible.
+      "line-opacity": [
+        "case",
+        ["boolean", ["get", "estimated"], false],
+        focusOpacity(0.12, 0.04),
+        focusOpacity(0.45, 0.12),
+      ],
     },
   });
+  // The active route is always blue. A segment whose variant or endpoint is
+  // only estimated is dashed — the one meaning dashes have on this map — and
+  // its stop shows the amber "N?" marker. Two layers because line-dasharray
+  // can't vary per feature.
+  const activePaint = {
+    "line-color": ["get", "color"],
+    "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", highlighted, 8, 2.5], 14, ["case", highlighted, 8, 5]],
+    "line-opacity": focusOpacity(1, 0.3),
+  } satisfies maplibregl.LineLayerSpecification["paint"];
+  const estimated: maplibregl.ExpressionSpecification = ["boolean", ["get", "estimated"], false];
   map.addLayer({
     id: "tracks-active",
     type: "line",
     source: "tracks",
-    filter: ["==", ["get", "active"], true],
+    filter: ["all", ["==", ["get", "active"], true], ["!", estimated]],
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: {
-      "line-color": ["case", ["boolean", ["get", "estimated"], false], ESTIMATED_COLOR, ["get", "color"]],
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", highlighted, 8, 2.5], 14, ["case", highlighted, 8, 5]],
-      "line-opacity": focusOpacity(1, 0.3),
-    },
+    paint: activePaint,
+  });
+  map.addLayer({
+    id: "tracks-active-estimated",
+    type: "line",
+    source: "tracks",
+    filter: ["all", ["==", ["get", "active"], true], estimated],
+    layout: { "line-join": "round" },
+    paint: { ...activePaint, "line-dasharray": [1.6, 1.2] },
   });
 
   // Live vehicles: 3D boxes up close, glowing dots further out.

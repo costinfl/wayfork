@@ -6,6 +6,23 @@
 
 ## Session history
 
+- **v2.1.1** — Route colours with one meaning each. **Problem:** active
+  segments sometimes turned orange, and the first alternative was the same
+  orange (`#f59e0b`), so "estimated" and "another option" looked identical.
+  **Fix:**
+  - The active route is always blue.
+  - Estimated active segments are dashed blue, on a separate filtered layer
+    (`line-dasharray` isn't data-driven), with a dimmed glow so the gaps
+    stay visible.
+  - `ALT_COLORS` drops orange (purple, teal, rose, lime, gold).
+  - New collapsible legend in `TripMap`: SVG swatches for your route,
+    estimated and alternatives.
+  - The reach panel moved into the toolbar column.
+
+  349 → 352 tests. Playwright-verified:
+  - Lisbon day 2: blue route, purple alternative, no orange lines.
+  - An upgraded v1 Rome trip: the guessed leg is drawn dashed blue.
+
 - **v2.1.0** — Micro-step routing and calmer alternatives, from preview
   feedback: dashed and solid lines mixed cluttered the view, and walks and
   transit "flew" over buildings as straight lines or arcs.

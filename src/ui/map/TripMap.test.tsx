@@ -198,6 +198,32 @@ describe("TripMap", () => {
     expect(features("badges").map((f) => f.properties.key)).toEqual(["s2:taxi"]);
   });
 
+  it("draws the active route blue, dashing only estimated segments", () => {
+    renderMap();
+    const layer = (id: string) => h.layers.find((l) => l.id === id);
+    const solid = layer("tracks-active");
+    const dashed = layer("tracks-active-estimated");
+    expect(solid.paint["line-color"]).toEqual(["get", "color"]);
+    expect(solid.paint["line-dasharray"]).toBeUndefined();
+    expect(dashed.paint["line-color"]).toEqual(["get", "color"]);
+    expect(dashed.paint["line-dasharray"]).toBeDefined();
+    // Disjoint filters: an active segment lands in exactly one of the two.
+    expect(JSON.stringify(solid.filter)).toContain('["!",["boolean",["get","estimated"],false]]');
+    expect(JSON.stringify(dashed.filter)).toContain('["boolean",["get","estimated"],false]');
+    expect(layer("tracks-alt").paint["line-dasharray"]).toBeUndefined();
+  });
+
+  it("shows a collapsible legend for the line styles", () => {
+    renderMap();
+    expect(screen.getByText("Your route")).toBeInTheDocument();
+    expect(screen.getByText("Estimated — confirm")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hide legend" }));
+    expect(screen.queryByText("Your route")).toBeNull();
+    expect(localStorage.getItem("wayfork.mapLegend")).toBe("0");
+    fireEvent.click(screen.getByRole("button", { name: "Show legend" }));
+    expect(screen.getByText("Your route")).toBeInTheDocument();
+  });
+
   it("the 'Whole trip' scope focuses every day", () => {
     renderMap();
     fireEvent.click(screen.getByRole("button", { name: "Whole trip" }));

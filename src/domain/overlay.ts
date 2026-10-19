@@ -51,8 +51,9 @@ export interface TripOverlay {
 
 export const ACTIVE_COLOR = "#3b82f6";
 // Alternatives get distinct hues in slot order, so two forks of the same slot
-// never share a colour (wraps after five, which no real slot reaches).
-export const ALT_COLORS = ["#f59e0b", "#a855f7", "#14b8a6", "#f43f5e", "#84cc16"];
+// never share a colour (wraps after five, which no real slot reaches). No
+// orange/amber: on the map that colour means "estimated — confirm".
+export const ALT_COLORS = ["#a855f7", "#14b8a6", "#f43f5e", "#84cc16", "#eab308"];
 
 const ARC_BEND = 0.16;
 

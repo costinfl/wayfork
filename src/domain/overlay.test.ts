@@ -137,6 +137,14 @@ describe("tripOverlay", () => {
   });
 });
 
+describe("ALT_COLORS", () => {
+  it("never uses the map's 'estimated' orange/amber for an alternative", () => {
+    expect(ALT_COLORS).not.toContain("#f59e0b");
+    expect(ALT_COLORS).not.toContain(ACTIVE_COLOR);
+    expect(new Set(ALT_COLORS).size).toBe(ALT_COLORS.length);
+  });
+});
+
 describe("deltaLabel", () => {
   it("formats signed minutes and money, or 'same'", () => {
     expect(deltaLabel({ deltaMin: 25, deltaCost: 12.4 }, "EUR")).toBe("+25 min · +€12");

@@ -10,7 +10,7 @@ import {
   type LiveSegment,
 } from "../../domain/liveTransit";
 import { legKey, limiter, resolveLegLine } from "../../domain/legs";
-import { tripOverlay, type OverlayTrack } from "../../domain/overlay";
+import { ALT_COLORS, tripOverlay, type OverlayTrack } from "../../domain/overlay";
 import type { Poi } from "../../domain/poi";
 import type { ReachBand, ReachMode } from "../../domain/reach";
 import { fetchRoute } from "../../domain/route";
@@ -110,6 +110,18 @@ const tripIsNow = (trip: Trip): boolean => {
   return trip.days.length > 0 && today >= trip.days[0].date && today <= trip.days[trip.days.length - 1].date;
 };
 
+// One legend line: a small SVG swatch drawn like the map line it explains.
+function LegendRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <svg width="28" height="10" aria-hidden="true">
+        {children}
+      </svg>
+      {label}
+    </div>
+  );
+}
+
 export default function TripMap(props: TripMapProps) {
   const { trip, dayIdx, activeVariants, rates, ccy, focus = null, discover = null, reach = null } = props;
   const inset = useSheetInset();
@@ -122,6 +134,8 @@ export default function TripMap(props: TripMapProps) {
   const [is3d, setIs3d] = useState(() => readPref("wayfork.map3d", true));
   const [scope, setScope] = useState<"day" | "trip">("day");
   const [live, setLive] = useState(() => tripIsNow(trip));
+  const [legendOpen, setLegendOpen] = useState(() => readPref("wayfork.mapLegend", true));
+  useEffect(() => writePref("wayfork.mapLegend", legendOpen), [legendOpen]);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -459,40 +473,73 @@ export default function TripMap(props: TripMapProps) {
             {liveStatus}
           </div>
         )}
-      </div>
-      {reach && (
-        <div
-          className="absolute left-3 rounded-xl p-2.5 text-xs"
-          style={{ zIndex: 2, top: 128, background: chip, color: btn().color, border: btn().border }}
-        >
-          <div className="flex items-center justify-between gap-3 mb-1.5">
-            <b>◎ Reach from {reach.originName}</b>
-            <button onClick={reach.onClose} aria-label="Close reach rings" className="px-1">
-              ✕
-            </button>
-          </div>
-          <div className="flex gap-1 mb-1.5">
-            {(["walk", "transit"] as const).map((m) => (
-              <button key={m} onClick={() => reach.onMode(m)} className="px-2 py-1 rounded-md font-semibold" style={btn(reach.mode === m)}>
-                {m === "walk" ? "🚶 Walk" : "🚇 Transit"}
+        {legendOpen ? (
+          <div
+            className="rounded-xl px-2.5 py-2 text-[11px] self-start flex flex-col gap-1"
+            style={{ background: chip, color: btn().color, border: btn().border }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <b>Legend</b>
+              <button onClick={() => setLegendOpen(false)} aria-label="Hide legend" className="px-1">
+                ✕
               </button>
-            ))}
+            </div>
+            <LegendRow label="Your route">
+              <line x1="1" y1="5" x2="27" y2="5" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+            </LegendRow>
+            <LegendRow label="Estimated — confirm">
+              <line x1="1" y1="5" x2="27" y2="5" stroke="#3b82f6" strokeWidth="3" strokeDasharray="5 3.5" />
+            </LegendRow>
+            <LegendRow label="Alternatives — hover to compare">
+              <line x1="1" y1="3" x2="27" y2="3" stroke={ALT_COLORS[0]} strokeWidth="2" opacity="0.55" />
+              <line x1="1" y1="8" x2="27" y2="8" stroke={ALT_COLORS[1]} strokeWidth="2" opacity="0.55" />
+            </LegendRow>
           </div>
-          {reach.bands === null ? (
-            <div>computing…</div>
-          ) : (
-            <div className="flex gap-2">
-              {reach.bands.map((b, i) => (
-                <span key={b.maxMin} className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm" style={{ background: REACH_COLORS[i], opacity: 0.8 }} />
-                  {b.maxMin}′
-                </span>
+        ) : (
+          <button
+            onClick={() => setLegendOpen(true)}
+            aria-label="Show legend"
+            title="What do the lines mean?"
+            className="w-8 h-8 rounded-lg text-xs font-bold self-start"
+            style={btn()}
+          >
+            ?
+          </button>
+        )}
+        {reach && (
+          <div
+            className="rounded-xl p-2.5 text-xs self-start"
+            style={{ background: chip, color: btn().color, border: btn().border }}
+          >
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <b>◎ Reach from {reach.originName}</b>
+              <button onClick={reach.onClose} aria-label="Close reach rings" className="px-1">
+                ✕
+              </button>
+            </div>
+            <div className="flex gap-1 mb-1.5">
+              {(["walk", "transit"] as const).map((m) => (
+                <button key={m} onClick={() => reach.onMode(m)} className="px-2 py-1 rounded-md font-semibold" style={btn(reach.mode === m)}>
+                  {m === "walk" ? "🚶 Walk" : "🚇 Transit"}
+                </button>
               ))}
             </div>
-          )}
-          {reach.note && <div className="mt-1 opacity-80">{reach.note}</div>}
-        </div>
-      )}
+            {reach.bands === null ? (
+              <div>computing…</div>
+            ) : (
+              <div className="flex gap-2">
+                {reach.bands.map((b, i) => (
+                  <span key={b.maxMin} className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm" style={{ background: REACH_COLORS[i], opacity: 0.8 }} />
+                    {b.maxMin}′
+                  </span>
+                ))}
+              </div>
+            )}
+            {reach.note && <div className="mt-1 opacity-80">{reach.note}</div>}
+          </div>
+        )}
+      </div>
       {tip && (
         <div
           className="absolute pointer-events-none text-xs px-2 py-1 rounded-md"

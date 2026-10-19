@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.1.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 349 tests green
+## Current version: v2.1.1 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 352 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -152,6 +152,16 @@ What Wayfork v2 adapted from that:
 - **Alternatives** are thin solid lines, faint (30 % in the focused day, 7 %
   otherwise), offset ±4/8 px so they never hide under the active line, and
   fully lit on hover together with their Δ badge (badges idle at 45 %).
+
+**v2.1.1 — one meaning per line style.**
+- The active route is always solid blue.
+- An estimated active segment (its variant, or an endpoint, is a guess) is
+  **dashed blue** with a dimmed glow, on its own layer
+  `tracks-active-estimated`. Dashes mean nothing else on routes.
+- Alternatives never use orange: `ALT_COLORS` is purple, teal, rose, lime,
+  gold. Amber is reserved for "estimated" stops ("N?").
+- A collapsible legend sits under the map toolbar (`wayfork.mapLegend`).
+  The reach panel now stacks in the same column.
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is
