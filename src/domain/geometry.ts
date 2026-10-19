@@ -76,10 +76,11 @@ export function dayTrack(day: Day, activeVariants: Record<string, string>): DayT
   return { segments, estimated };
 }
 
-// The day map draws one numbered marker per distinct slot place, in schedule
-// order (see DayMap.tsx) — so a slot's marker number depends only on the
-// slots' places and order, not on the active-variant selection. Exposed separately so the timeline can show the same number
-// next to each slot, letting the user match a map marker back to its slot.
+// The trip map draws one numbered stop per distinct slot place, in schedule
+// order (see map/layers.ts) — so a slot's number depends only on the slots'
+// places and order, not on the active-variant selection. Exposed separately so
+// the timeline can show the same number next to each slot, letting the user
+// match a map stop back to its slot.
 export function slotMarkerNumbers(day: Day): Map<string, number> {
   const numbers = new Map<string, number>();
   const placeKeyToNumber = new Map<string, number>();

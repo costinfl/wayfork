@@ -10,6 +10,13 @@ import {
   type StoreMigrationResult,
 } from "../data/migrateStore";
 import { searchNear } from "../domain/geocode";
+import {
+  fetchReachableStops,
+  REACH_BANDS,
+  reachBands,
+  type ReachBand,
+  type ReachMode,
+} from "../domain/reach";
 import type { NearGeocoder } from "../domain/migrate";
 import { slotMarkerNumbers } from "../domain/geometry";
 import { mergeTrip } from "../domain/merge";
@@ -72,31 +79,15 @@ import type { AddTripResult } from "./UploadTrip";
 import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
 import { WeatherBadge } from "./WeatherBadge";
-import type { DayMapHandle } from "./DayMap";
+import type { MapFocus, ReachOverlay } from "./map/TripMap";
+import { SideSheet } from "./SideSheet";
 
-// Leaflet + its CSS load only when the map actually renders (kept out of the
-// entry bundle). See DayMap.tsx.
-const DayMap = lazy(() => import("./DayMap"));
+// MapLibre + its CSS load with the map chunk only (kept out of the entry
+// bundle). See map/TripMap.tsx.
+const TripMap = lazy(() => import("./map/TripMap"));
 
 // Reactive media query — drives the timeline/map two-column split. Guards
 // against environments without matchMedia (jsdom).
-function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia(query).matches
-      : false
-  );
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mql = window.matchMedia(query);
-    const onChange = () => setMatches(mql.matches);
-    onChange();
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
-}
-
 const CCY_VIEWS: CurrencyView[] = ["home", "local", "intl"];
 
 // Save every v1 original kept by the migration pass as one JSON file.
@@ -638,28 +629,9 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
   const isAdmin =
     !!session && (session.user.email ?? "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-  // Desktop wide view: ~92% of the window instead of the mobile-first 672px
-  // column. Default on (persisted per browser); the toggle hides below lg.
-  const [wide, setWide] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("wayfork.wideView") !== "0";
-    } catch {
-      return true;
-    }
-  });
-  const toggleWide = () =>
-    setWide((w) => {
-      try {
-        localStorage.setItem("wayfork.wideView", w ? "0" : "1");
-      } catch {
-        /* storage unavailable — session-only toggle */
-      }
-      return !w;
-    });
-
   return (
-    <div className="min-h-screen py-6 px-4" style={{ background: C.bg, color: C.ink }}>
-      <div className={wide ? "w-[92%] max-w-none mx-auto" : "max-w-2xl mx-auto"}>
+    <SideSheet>
+      <div>
         {AUTH && (
           <AuthBar
             session={session}
@@ -708,14 +680,6 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
           />
         )}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
-          <button
-            onClick={toggleWide}
-            title={wide ? "Center the app in a narrow column" : "Use the whole window width"}
-            className="hidden lg:inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold"
-            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
-          >
-            {wide ? "⇥ Narrow" : "⇔ Wide"}
-          </button>
           {allTrips.length > 1 && (
             <select
               value={uidOf(trip)}
@@ -843,7 +807,7 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
           onTripChange={saveTrip}
         />
       </div>
-    </div>
+    </SideSheet>
   );
 }
 
@@ -896,8 +860,8 @@ export function TripView({
     () => computeSchedule({ ...day, startTimeMin: dayStart }, activeVariants),
     [day, dayStart, activeVariants]
   );
-  // Same numbering as the day map's numbered markers (slotMarkerNumbers is
-  // shared with DayMap.tsx) — lets the timeline show which marker a slot is.
+  // Same numbering as the map's numbered stops (slotMarkerNumbers is
+  // shared with the trip map) — lets the timeline show which stop a slot is.
   const markerNumbers = useMemo(() => slotMarkerNumbers(day), [day]);
 
   // Projection covers the active variants of ALL days, not just the visible one.
@@ -933,17 +897,61 @@ export function TripView({
   const [variantForm, setVariantForm] = useState<{ slotId: string; variant: VariantNode | null } | null>(null);
   const [editError, setEditError] = useState<string[]>([]);
 
-  // Day-journey map: always shown beside the timeline on wide viewports, a
-  // toggleable panel below the breakpoint.
-  const isWide = useMediaQuery("(min-width: 1024px)");
-  const [mapOpen, setMapOpen] = useState(false);
-  const showMap = isWide || mapOpen;
-  const dayMapRef = useRef<DayMapHandle>(null);
-  const focusVariant = (slotId: string, variantId: string) => {
-    setMapOpen(true);
-    // Let the (lazy) map mount/paint before panning to the segment.
-    setTimeout(() => dayMapRef.current?.focusSegment(slotId, variantId), 60);
+  // The trip map behind the planner sheet: focus requests fly it to a slot's
+  // stop or a variant's track; clicking a stop brings its slot into view here.
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
+  const focusOnMap = (slotId: string, variantId?: string) =>
+    setMapFocus((f) => ({ slotId, variantId, nonce: (f?.nonce ?? 0) + 1 }));
+  const focusVariant = (slotId: string, variantId: string) => focusOnMap(slotId, variantId);
+  const selectSlotFromMap = (slotId: string, idx: number) => {
+    setDayIdx(idx);
+    focusOnMap(slotId);
+    setTimeout(() => document.getElementById(`slot-${slotId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
   };
+
+  // Reachability rings from one slot's place (◎): walking is computed locally;
+  // transit asks Transitous one-to-all and falls back to walking if it fails.
+  const [reachReq, setReachReq] = useState<{ slotId: string; mode: ReachMode } | null>(null);
+  const [reachBandsState, setReachBands] = useState<{ bands: ReachBand[] | null; note: string | null }>({
+    bands: null,
+    note: null,
+  });
+  const reachSlot = reachReq
+    ? trip.days.flatMap((d) => d.slots).find((sl) => sl.id === reachReq.slotId) ?? null
+    : null;
+  useEffect(() => {
+    if (!reachReq || !reachSlot) return;
+    let cancelled = false;
+    const origin = reachSlot.place;
+    setReachBands({ bands: null, note: null });
+    if (reachReq.mode === "walk") {
+      setReachBands({ bands: reachBands(origin, []), note: null });
+      return;
+    }
+    void fetchReachableStops(origin, Math.max(...REACH_BANDS)).then((stops) => {
+      if (cancelled) return;
+      setReachBands(
+        stops
+          ? { bands: reachBands(origin, stops), note: "departing now · Transitous" }
+          : { bands: reachBands(origin, []), note: "transit unavailable — showing walking only" }
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reachReq?.slotId, reachReq?.mode, reachSlot?.place.lat, reachSlot?.place.lon]);
+  const reachOverlay: ReachOverlay | null =
+    reachReq && reachSlot
+      ? {
+          originName: reachSlot.place.name,
+          mode: reachReq.mode,
+          bands: reachBandsState.bands,
+          note: reachBandsState.note,
+          onMode: (mode) => setReachReq((r) => (r ? { ...r, mode } : r)),
+          onClose: () => setReachReq(null),
+        }
+      : null;
   const activateVariant = (slotId: string, variantId: string) =>
     setActiveVariants((s) => ({ ...s, [slotId]: variantId }));
 
@@ -1162,54 +1170,32 @@ export function TripView({
         />
       )}
 
-      {/* Mobile map toggle (desktop shows the map beside the timeline) */}
-      <div className="lg:hidden mb-3">
-        <button
-          onClick={() => setMapOpen((o) => !o)}
-          className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{
-            border: `1px solid ${mapOpen ? C.line : C.border}`,
-            background: mapOpen ? C.lineSoft : C.card,
-            color: C.line,
-          }}
-        >
-          🗺 {mapOpen ? "Hide map" : "Show journey map"}
-        </button>
-      </div>
+      {/* The trip map fills the viewport behind the planner sheet. */}
+      <Suspense fallback={null}>
+        <TripMap
+          trip={trip}
+          dayIdx={dayIdx}
+          activeVariants={activeVariants}
+          rates={rates}
+          ccy={trip.currencies[ccyView]}
+          onActivate={activateVariant}
+          onSelectSlot={selectSlotFromMap}
+          focus={mapFocus}
+          discover={discoverQuery}
+          reach={reachOverlay}
+        />
+      </Suspense>
 
-      {/* Timeline + day-journey map (two columns on wide viewports) */}
-      <div className="flex flex-col lg:flex-row lg:gap-6 lg:items-start mb-6">
-        {showMap && (
-          <div className="order-first lg:order-2 lg:w-2/5 lg:sticky lg:top-4 mb-4 lg:mb-0">
-            <Suspense
-              fallback={
-                <div
-                  className="rounded-xl flex items-center justify-center text-sm"
-                  style={{ height: 420, border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
-                >
-                  Loading map…
-                </div>
-              }
-            >
-              <DayMap
-                ref={dayMapRef}
-                day={day}
-                activeVariants={activeVariants}
-                onActivate={activateVariant}
-                discover={discoverQuery}
-              />
-            </Suspense>
-            <DiscoverPanel
-              day={day}
-              canEdit={canEdit}
-              anchorId={discoverAnchorId}
-              onAnchorChange={setDiscoverAnchorId}
-              onAdd={addPoiSlot}
-              onResults={setDiscoverQuery}
-            />
-          </div>
-        )}
-      <section className="rounded-xl p-4 lg:order-1 lg:flex-1 lg:min-w-0" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+      <div className="mb-6">
+        <DiscoverPanel
+          day={day}
+          canEdit={canEdit}
+          anchorId={discoverAnchorId}
+          onAnchorChange={setDiscoverAnchorId}
+          onAdd={addPoiSlot}
+          onResults={setDiscoverQuery}
+        />
+      <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-bold flex items-center gap-2 flex-wrap">
             Day {dayIdx + 1} — {day.date}
@@ -1260,7 +1246,7 @@ export function TripView({
 
         <div className="relative" style={{ borderLeft: `3px solid ${C.line}`, marginLeft: 8 }}>
           {schedule.map((row) => (
-            <div key={row.slot.id} className="relative pl-5 pb-6">
+            <div key={row.slot.id} id={`slot-${row.slot.id}`} className="relative pl-5 pb-6">
               <span
                 className="absolute rounded-full"
                 style={{ left: -8, top: 4, width: 13, height: 13, background: C.card, border: `3px solid ${C.line}` }}
@@ -1278,16 +1264,46 @@ export function TripView({
                     🕓 {fmtOffset(row.tzOffsetMin)}
                   </span>
                 )}
-                {showMap && markerNumbers.has(row.slot.id) && (
-                  <span
-                    title={`Map marker ${markerNumbers.get(row.slot.id)}`}
+                {markerNumbers.has(row.slot.id) && (
+                  <button
+                    onClick={() => focusOnMap(row.slot.id)}
+                    title={`Map stop ${markerNumbers.get(row.slot.id)} — show on the map`}
                     className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
-                    style={{ width: 18, height: 18, background: C.line, color: "#fff" }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      background: row.slot.place.estimated ? C.amber : C.line,
+                      color: "#fff",
+                    }}
                   >
                     {markerNumbers.get(row.slot.id)}
-                  </span>
+                  </button>
                 )}
                 <span className="font-semibold">{row.slot.title}</span>
+                {row.slot.place.estimated && (
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: C.amberBg, color: C.amber }}
+                    title="This location is a guess (e.g. from the v2 upgrade) — edit the slot to confirm it"
+                  >
+                    📍 estimated place
+                  </span>
+                )}
+                <button
+                  onClick={() =>
+                    setReachReq((r) => (r?.slotId === row.slot.id ? null : { slotId: row.slot.id, mode: r?.mode ?? "walk" }))
+                  }
+                  title="Show what's reachable from here in 15/30/45 minutes"
+                  aria-pressed={reachReq?.slotId === row.slot.id}
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{
+                    border: `1px solid ${reachReq?.slotId === row.slot.id ? C.line : C.border}`,
+                    background: reachReq?.slotId === row.slot.id ? C.lineSoft : C.card,
+                    color: C.line,
+                  }}
+                >
+                  ◎ reach
+                </button>
                 <span className="text-xs" style={{ color: C.sub, ...mono }}>
                   {fmtDur(row.duration)}
                 </span>
@@ -1312,7 +1328,7 @@ export function TripView({
                       rates={rates}
                       rainRisk={!!dayWeather && dayWeather.precipProb >= RAIN_RISK_THRESHOLD}
                       onSelect={() => setActiveVariants((s) => ({ ...s, [row.slot.id]: v.id }))}
-                      onFocus={row.slot.place ? () => focusVariant(row.slot.id, v.id) : undefined}
+                      onFocus={() => focusVariant(row.slot.id, v.id)}
                     />
                   ))}
                 </div>

@@ -3,7 +3,7 @@
  */
 import { TEST_PLACE } from "../test/places";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../test/setup-dom";
 
 // Stub the Transitous adapter — network/parsing is exercised in transit.test.ts.
@@ -11,6 +11,16 @@ const { fetchTransitPlanMock } = vi.hoisted(() => ({ fetchTransitPlanMock: vi.fn
 vi.mock("../domain/transit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../domain/transit")>()),
   fetchTransitPlan: fetchTransitPlanMock,
+}));
+
+// The map is WebGL-bound (its own wiring is covered in map/TripMap.test.tsx);
+// here a stub records the props TripView hands it.
+const { mapProps } = vi.hoisted(() => ({ mapProps: { current: null as any } }));
+vi.mock("./map/TripMap", () => ({
+  default: (props: unknown) => {
+    mapProps.current = props;
+    return null;
+  },
 }));
 
 import { TripView } from "./WayforkApp";
@@ -216,5 +226,33 @@ describe("TripView — 🚆 Transit option", () => {
     enterEditMode();
     fireEvent.click(screen.getByText("🚆 Transit"));
     expect(await screen.findByText(/No transit options found/)).toBeInTheDocument();
+  });
+});
+
+describe("TripView — trip map wiring", () => {
+  it("hands the map the trip, selected day and active variants", async () => {
+    renderView(fixture());
+    await waitFor(() => expect(mapProps.current).not.toBeNull());
+    expect(mapProps.current).toMatchObject({ dayIdx: 0, ccy: "EUR", activeVariants: { s1: "fast", s2: "walk2" } });
+  });
+
+  it("a stop clicked on the map selects its day", async () => {
+    renderView(fixture());
+    await waitFor(() => expect(mapProps.current).not.toBeNull());
+    expect(screen.queryByText("Beach day")).toBeNull();
+    act(() => mapProps.current.onSelectSlot("s3", 1));
+    expect(await screen.findByText("Beach day")).toBeInTheDocument();
+    expect(mapProps.current.dayIdx).toBe(1);
+    expect(mapProps.current.focus).toMatchObject({ slotId: "s3" });
+  });
+
+  it("◎ reach shows walking rings from the slot, switchable and closable", async () => {
+    renderView(fixture());
+    fireEvent.click(screen.getAllByRole("button", { name: /reach/ })[1]); // the Museum slot
+    await waitFor(() => expect(mapProps.current.reach?.bands).toBeTruthy());
+    expect(mapProps.current.reach).toMatchObject({ originName: TEST_PLACE.name, mode: "walk" });
+    expect(mapProps.current.reach.bands.map((b: { maxMin: number }) => b.maxMin)).toEqual([15, 30, 45]);
+    act(() => mapProps.current.reach.onClose());
+    expect(mapProps.current.reach).toBeNull();
   });
 });

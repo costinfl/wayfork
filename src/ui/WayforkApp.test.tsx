@@ -14,6 +14,9 @@ vi.mock("../domain/rates", () => ({
   }),
 }));
 
+// The WebGL map is out of scope for these wiring tests (see map/TripMap.test.tsx).
+vi.mock("./map/TripMap", () => ({ default: () => null }));
+
 import WayforkApp from "./WayforkApp";
 import { TripConflictError } from "../data/repository";
 import type { TripStore } from "../data/repository";
