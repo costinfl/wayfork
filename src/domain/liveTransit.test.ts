@@ -4,7 +4,13 @@ import nycTrip from "./__fixtures__/motis-trip-nyc-qm32.json";
 import lisbonStops from "./__fixtures__/motis-map-stops-lisbon.json";
 import lisbonStopTimes from "./__fixtures__/motis-stoptimes-lisbon.json";
 import {
+  countByCategory,
   fetchDepartures,
+  filterVehicles,
+  isTrolleybusRouteType,
+  lineKey,
+  vehicleCategory,
+  type Vehicle,
   fetchLiveSegments,
   fetchStopsInView,
   fetchTripDetails,
@@ -377,5 +383,54 @@ describe("stops and departures board", () => {
       ],
     })!;
     expect(d.stops.map((s) => s.stopId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("filter by transport type", () => {
+  const v = (id: string, name: string, mode: Vehicle["mode"]): Vehicle => ({
+    id,
+    name,
+    mode,
+    color: "#000",
+    lat: 44.43,
+    lon: 26.1,
+    bearing: 0,
+    realTime: true,
+  });
+  const bus = v("20261020_16:30_ro-Bucuresti-Ilfov_TRIP_A", "100", "bus");
+  const trolley = v("20261020_16:30_ro-Bucuresti-Ilfov_TRIP_B", "66", "bus");
+  const tram = v("20261020_16:31_ro-Bucuresti-Ilfov_TRIP_C", "23", "tram");
+  const metro = v("20261020_16:32_ro-Bucuresti-Ilfov_TRIP_D", "M3", "metro");
+  const all = [bus, trolley, tram, metro];
+  const trolleyLines = new Map([[lineKey(trolley.id, "66"), true], [lineKey(bus.id, "100"), false]]);
+
+  it("recognises trolleybus route types (GTFS 11 and extended 800–899)", () => {
+    expect([11, 800, 899].map(isTrolleybusRouteType)).toEqual([true, true, true]);
+    expect([3, 700, 900, undefined].map(isTrolleybusRouteType)).toEqual([false, false, false, false]);
+  });
+
+  it("keys lines by dataset and name", () => {
+    expect(lineKey(trolley.id, "66")).toBe("ro-Bucuresti-Ilfov|66");
+    expect(lineKey("weird-id", "66")).toBe("|66");
+  });
+
+  it("splits trolleybuses from buses and counts each type", () => {
+    expect(vehicleCategory(trolley, trolleyLines)).toBe("trolleybus");
+    expect(vehicleCategory(trolley, new Map())).toBe("bus"); // not looked up yet → bus
+    expect(countByCategory(all, trolleyLines)).toEqual({ bus: 1, trolleybus: 1, tram: 1, metro: 1 });
+  });
+
+  it("filters additively: none = all, one = only it, two = both", () => {
+    expect(filterVehicles(all, new Set(), trolleyLines)).toHaveLength(4);
+    expect(filterVehicles(all, new Set(["tram"]), trolleyLines)).toEqual([tram]);
+    expect(filterVehicles(all, new Set(["tram", "trolleybus"]), trolleyLines)).toEqual([trolley, tram]);
+  });
+
+  it("marks a trip with a trolleybus route type as a trolleybus", () => {
+    const d = parseTripDetails("t", {
+      legs: [{ mode: "BUS", routeType: 11, routeShortName: "66", from: { name: "A", lat: 1, lon: 1 }, to: { name: "B", lat: 2, lon: 2 } }],
+    })!;
+    expect(d).toMatchObject({ mode: "trolleybus", routeType: 11, color: MODE_COLORS.trolleybus });
+    expect(tripSlotTitle(d, 0, 1)).toBe("Trolleybus 66: A → B");
   });
 });

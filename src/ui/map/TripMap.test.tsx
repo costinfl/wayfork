@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "../../test/setup-dom";
 import { RATES_EUR } from "../../domain/currency";
 import type { ItinerarySlot, Place, StepType, Trip, VariantNode } from "../../domain/types";
@@ -310,6 +310,54 @@ describe("TripMap", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close vehicle info" }));
     expect(screen.queryByRole("dialog", { name: /Vehicle/ })).toBeNull();
     expect(features("selected-trip")).toEqual([]);
+  });
+
+  it("live filter: the N live chip opens per-type toggles that filter additively", async () => {
+    const now = Date.now();
+    const seg = (tripId: string, name: string, mode: string) => ({
+      id: `${tripId}-0`, tripId, name, mode, color: "#123456",
+      departure: now - 60_000, arrival: now + 600_000, realTime: true,
+      line: [[44.45, 26.1], [44.46, 26.11]], cumM: [0, 1300],
+    });
+    const tag = (n: string) => `20261020_10:00_ro-Test_${n}`;
+    fetchLiveSegments.mockResolvedValue([
+      seg(tag("t1"), "41", "tram"),
+      seg(tag("b1"), "336", "bus"),
+      seg(tag("b2"), "66", "bus"),
+      seg(tag("m1"), "M2", "metro"),
+    ]);
+    fetchTripDetails.mockImplementation(async (id: string) =>
+      ({ tripId: id, routeType: id === tag("b2") ? 11 : 3 }) as any
+    );
+    renderMap();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Live/ })));
+    const chip = await screen.findByRole("button", { name: /4 live/ }, { timeout: 2000 });
+    fireEvent.click(chip);
+    const group = screen.getByRole("group", { name: "Filter by transport type" });
+    expect(group).toHaveTextContent("1 tram");
+    expect(group).toHaveTextContent("1 subway");
+    expect(group).toHaveTextContent("0 trains");
+    // Bus lines are looked up once; 66 turns out to be a trolleybus line.
+    await waitFor(() => expect(group).toHaveTextContent("1 trolleybus"), { timeout: 2000 });
+    expect(group).toHaveTextContent("1 bus");
+    expect(fetchTripDetails).toHaveBeenCalledWith(tag("b1"));
+    const dots = () => features("vehicles");
+    await waitFor(() => expect(dots().find((f) => f.properties.name === "66")?.properties.color).toBe("#14b8a6"));
+
+    fireEvent.click(screen.getByRole("button", { name: /1 tram/ }));
+    expect(screen.getByRole("button", { name: /1 tram/ })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(dots().map((f) => f.properties.name)).toEqual(["41"]));
+    fireEvent.click(screen.getByRole("button", { name: /1 trolleybus/ }));
+    await waitFor(() => expect(dots().map((f) => f.properties.name).sort()).toEqual(["41", "66"]));
+    expect(JSON.parse(localStorage.getItem("wayfork.liveModes")!).sort()).toEqual(["tram", "trolleybus"]);
+    expect(screen.getByRole("button", { name: /2 of 4 live/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    await waitFor(() => expect(dots()).toHaveLength(4));
+    fetchLiveSegments.mockReset();
+    fetchLiveSegments.mockResolvedValue([]);
+    fetchTripDetails.mockReset();
+    fetchTripDetails.mockResolvedValue(null);
   });
 
   it("shows stops in view at z15+ with Live on, and a tapped stop's departures", async () => {

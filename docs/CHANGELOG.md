@@ -6,6 +6,24 @@
 
 ## Session history
 
+- **v2.5.0** — Live vehicles: filter by transport type.
+  - **`liveTransit.ts`.**
+    - New `trolleybus` mode, and a distinct per-type `MODE_COLORS`
+      palette.
+    - `TripDetails.routeType`, with mode set to trolleybus for GTFS 11 or
+      800–899.
+    - `isTrolleybusRouteType`, `lineKey`, `vehicleCategory`,
+      `countByCategory`, `filterVehicles`.
+  - **`layers.ts`.** `setVehicles(..., { trolleyLines, show })` filters
+    vehicles and colours them by category.
+  - **`TripMap`.**
+    - The "N live" chip opens per-type toggles with counts (additive, saved
+      to localStorage) and a "Show all" button.
+    - Bus lines are classified as trolleybus via one `/trip` lookup per
+      line (`limiter(2)`, cached) while the panel is open.
+  - Tests: 389 → 396. Playwright-checked with a re-timed Bucharest feed
+    (197 vehicles, 51 trolleybuses detected).
+
 - **v2.4.0** — Departures board.
   - **`liveTransit.ts`.**
     - `parseStops`/`fetchStopsInView` (MOTIS `map/stops`, de-duplicated,

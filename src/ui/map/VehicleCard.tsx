@@ -9,6 +9,7 @@ export const MODE_ICON: Record<LiveMode, string> = {
   metro: "🚇",
   tram: "🚊",
   bus: "🚌",
+  trolleybus: "🚎",
   rail: "🚆",
   ferry: "⛴️",
   other: "🚐",

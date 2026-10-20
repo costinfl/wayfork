@@ -1,8 +1,11 @@
 import type maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
 import {
+  filterVehicles,
   MODE_COLORS,
   STOPS_MIN_ZOOM,
+  vehicleCategory,
+  type LiveMode,
   tripProgress,
   vehicleFootprint,
   type TransitStop,
@@ -416,14 +419,24 @@ export function setStops(map: maplibregl.Map, stops: OverlayStop[], focusDay: nu
   );
 }
 
-export function setVehicles(map: maplibregl.Map, vehicles: Vehicle[], selectedTripId: string | null = null): void {
+// Vehicles are drawn in their transport type's colour (matching the Live
+// filter toggles), filtered to the selected types (none selected = all).
+export function setVehicles(
+  map: maplibregl.Map,
+  vehicles: Vehicle[],
+  selectedTripId: string | null = null,
+  opts: { trolleyLines?: ReadonlyMap<string, boolean>; show?: ReadonlySet<LiveMode> } = {}
+): void {
+  const trolleyLines = opts.trolleyLines ?? new Map<string, boolean>();
   const boxes: Feature[] = [];
-  const dots: Feature[] = vehicles.map((v) => {
+  const dots: Feature[] = filterVehicles(vehicles, opts.show ?? new Set(), trolleyLines).map((v) => {
+    const category = vehicleCategory(v, trolleyLines);
+    const color = MODE_COLORS[category];
     const ring = vehicleFootprint(v);
     if (ring) {
       boxes.push({
         type: "Feature",
-        properties: { tripId: v.id, color: v.color },
+        properties: { tripId: v.id, color },
         geometry: { type: "Polygon", coordinates: [ring.map(ll)] },
       });
     }
@@ -432,8 +445,9 @@ export function setVehicles(map: maplibregl.Map, vehicles: Vehicle[], selectedTr
       properties: {
         tripId: v.id,
         name: v.name,
-        mode: v.mode,
-        color: v.color,
+        mode: category,
+        color,
+        lineColor: v.color,
         realTime: v.realTime,
         box: !!ring,
         selected: v.id === selectedTripId,

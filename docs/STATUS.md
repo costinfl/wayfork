@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.4.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 389 tests green
+## Current version: v2.5.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 396 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -219,6 +219,22 @@ turning Live off clears it.
 - **Picking a departure** opens that trip's card under the board, so you can
   come back. The card's `presence` is "waiting" (not on the road yet: no
   Follow, no "left the view" note), "live" or "gone".
+
+**v2.5.0 — live filter by transport type.**
+- **The "N live" chip is a button.** It opens toggles in fixed order:
+  trains, subways, trams, buses, trolleybuses (plus ferry/other when
+  present). Each has a border in the type colour and a count ("5 trams").
+- **Filtering is additive.** No toggle shows everything; any selection shows
+  only those types. The selection is saved in `wayfork.liveModes`, and the
+  chip reads "N of M live".
+- **Vehicles are coloured by type** (`MODE_COLORS`, one palette). The line's
+  own colour stays on the card and its route.
+- **Trolleybuses.** The live feed reports them as BUS. While the panel is
+  open, each bus line in view is looked up once via `/api/v6/trip` (two at a
+  time); GTFS `routeType` 11 or 800–899 means trolleybus. Results are cached
+  in `wayfork.trolleyLines`, keyed `dataset|line`. Domain helpers:
+  `lineKey`, `vehicleCategory`, `countByCategory`, `filterVehicles`. The
+  card shows 🚎.
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is

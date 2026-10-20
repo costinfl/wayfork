@@ -4,6 +4,10 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { RateMatrix } from "../../domain/currency";
 import {
+  countByCategory,
+  isTrolleybusRouteType,
+  lineKey,
+  MODE_COLORS,
   fetchDepartures,
   fetchLiveSegments,
   fetchStopsInView,
@@ -19,6 +23,7 @@ import {
   type Vehicle,
 } from "../../domain/liveTransit";
 import { legKey, limiter, resolveLegLine } from "../../domain/legs";
+import { MODE_ICON } from "./VehicleCard";
 import { ALT_COLORS, tripOverlay, type OverlayTrack } from "../../domain/overlay";
 import type { Poi } from "../../domain/poi";
 import type { ReachBand, ReachMode } from "../../domain/reach";
@@ -87,6 +92,41 @@ const LIVE_TICK_MS = 500;
 // automatic fit — but only for the page's first map: read at module load,
 // before MapLibre writes its own hash, and consumed by the first instance
 // (TripView remounts the map when the trip changes, and that must fit).
+// Live filter: transport types in toggle order, with their labels.
+const FILTER_ORDER: LiveMode[] = ["rail", "metro", "tram", "bus", "trolleybus", "ferry", "other"];
+const FILTER_ALWAYS: LiveMode[] = ["rail", "metro", "tram", "bus", "trolleybus"]; // shown even at 0
+const TYPE_LABEL: Record<LiveMode, [string, string]> = {
+  rail: ["train", "trains"],
+  metro: ["subway", "subways"],
+  tram: ["tram", "trams"],
+  bus: ["bus", "buses"],
+  trolleybus: ["trolleybus", "trolleybuses"],
+  ferry: ["ferry", "ferries"],
+  other: ["other", "other"],
+};
+const readJson = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const writeJson = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* per-session only */
+  }
+};
+// Bus line → is it a trolleybus line? Looked up once per line (GTFS route
+// type via the trip endpoint) and remembered across visits.
+const trolleyLines = new Map<string, boolean>(
+  Object.entries(readJson<Record<string, boolean>>("wayfork.trolleyLines", {}))
+);
+const trolleyInFlight = new Set<string>();
+const classifyQueue = limiter(2);
+
 // Resolved leg geometry, shared by every map instance (the map remounts per
 // trip): legKey → real line, or null when routing failed (keep provisional).
 const legLines = new Map<string, [number, number][] | null>();
@@ -184,6 +224,24 @@ export default function TripMap(props: TripMapProps) {
   const selectStopRef = useRef(setSelectedStop);
   selectStopRef.current = setSelectedStop;
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  // Live filter by transport type (additive; empty = all), its panel, the
+  // per-type counts in view, and trolleybus classification progress.
+  const [liveFilter, setLiveFilter] = useState<Set<LiveMode>>(
+    () => new Set(readJson<LiveMode[]>("wayfork.liveModes", []))
+  );
+  const liveFilterRef = useRef(liveFilter);
+  liveFilterRef.current = liveFilter;
+  useEffect(() => writeJson("wayfork.liveModes", [...liveFilter]), [liveFilter]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [counts, setCounts] = useState<Partial<Record<LiveMode, number>>>({});
+  const [classifying, setClassifying] = useState<{ done: number; total: number } | null>(null);
+  const toggleType = (m: LiveMode) =>
+    setLiveFilter((f) => {
+      const next = new Set(f);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
   // Handlers registered once on the map read the latest props through refs.
@@ -493,7 +551,9 @@ export default function TripMap(props: TripMapProps) {
       const vs = vehiclePositions(segments, Date.now());
       lastVehicles.current = vs;
       const sel = selectedRef.current;
-      setVehicles(map, vs, sel?.tripId ?? null);
+      setVehicles(map, vs, sel?.tripId ?? null, { trolleyLines, show: liveFilterRef.current });
+      const c = countByCategory(vs, trolleyLines);
+      setCounts((prev) => (JSON.stringify(prev) === JSON.stringify(c) ? prev : c));
       if (sel) {
         const v = vs.find((x) => x.id === sel.tripId);
         setPresence((p) => (v ? "live" : p === "waiting" ? "waiting" : "gone"));
@@ -612,6 +672,39 @@ export default function TripMap(props: TripMapProps) {
     };
   }, [selectedStop?.stopId]);
 
+  // While the filter panel is open, find out which bus lines in view are
+  // trolleybus lines: one trip lookup per unknown line, two at a time.
+  useEffect(() => {
+    if (!filterOpen || !live) {
+      setClassifying(null);
+      return;
+    }
+    let cancelled = false;
+    const sweep = () => {
+      const keys = new Map<string, string>(); // line key → a tripId on it
+      for (const v of lastVehicles.current) if (v.mode === "bus") keys.set(lineKey(v.id, v.name), v.id);
+      const known = [...keys.keys()].filter((k) => trolleyLines.has(k)).length;
+      setClassifying(known < keys.size ? { done: known, total: keys.size } : null);
+      for (const [key, tripId] of keys) {
+        if (trolleyLines.has(key) || trolleyInFlight.has(key)) continue;
+        trolleyInFlight.add(key);
+        void classifyQueue(() => fetchTripDetails(tripId)).then((d) => {
+          trolleyInFlight.delete(key);
+          if (!d) return; // unknown for now — counted as bus, retried next time
+          trolleyLines.set(key, isTrolleybusRouteType(d.routeType));
+          writeJson("wayfork.trolleyLines", Object.fromEntries(trolleyLines));
+          if (!cancelled) sweep();
+        });
+      }
+    };
+    sweep();
+    const id = setInterval(sweep, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [filterOpen, live]);
+
   // ---- chrome ----------------------------------------------------------------
   const btn = (active = false) => ({
     background: active ? "#3b82f6" : dark ? "rgba(17,24,33,0.92)" : "rgba(255,255,255,0.95)",
@@ -664,9 +757,62 @@ export default function TripMap(props: TripMapProps) {
             🚋 Live
           </button>
         </div>
-        {live && liveStatus && (
+        {live && liveStatus && !liveStatus.endsWith(" live") && (
           <div className="text-[11px] px-2 py-1 rounded-md self-start" style={{ background: chip, color: btn().color }}>
             {liveStatus}
+          </div>
+        )}
+        {live && liveStatus?.endsWith(" live") && (
+          <button
+            onClick={() => setFilterOpen((o) => !o)}
+            aria-expanded={filterOpen}
+            title="Filter live vehicles by type"
+            className="text-[11px] px-2 py-1 rounded-md self-start font-semibold"
+            style={{ background: chip, color: btn().color, border: btn().border }}
+          >
+            {liveFilter.size ? `${[...liveFilter].reduce((n, m) => n + (counts[m] ?? 0), 0)} of ` : ""}
+            {liveStatus} {filterOpen ? "▴" : "▾"}
+          </button>
+        )}
+        {live && filterOpen && (
+          <div
+            className="rounded-xl p-2 text-xs self-start flex flex-col gap-1"
+            style={{ background: chip, color: btn().color, border: btn().border }}
+            role="group"
+            aria-label="Filter by transport type"
+          >
+            <div className="flex flex-wrap gap-1 max-w-64">
+              {FILTER_ORDER.filter((m) => FILTER_ALWAYS.includes(m) || (counts[m] ?? 0) > 0 || liveFilter.has(m)).map((m) => {
+                const n = counts[m] ?? 0;
+                const on = liveFilter.has(m);
+                return (
+                  <button
+                    key={m}
+                    onClick={() => toggleType(m)}
+                    aria-pressed={on}
+                    className="px-2 py-1 rounded-lg font-semibold flex items-center gap-1"
+                    style={{
+                      border: `2px solid ${MODE_COLORS[m]}`,
+                      background: on ? `${MODE_COLORS[m]}40` : "transparent",
+                      opacity: n === 0 && !on ? 0.5 : 1,
+                    }}
+                  >
+                    <span aria-hidden="true">{MODE_ICON[m]}</span>
+                    {n} {TYPE_LABEL[m][n === 1 ? 0 : 1]}
+                  </button>
+                );
+              })}
+            </div>
+            {liveFilter.size > 0 && (
+              <button onClick={() => setLiveFilter(new Set())} className="self-start underline opacity-80">
+                Show all
+              </button>
+            )}
+            {classifying && (
+              <div className="opacity-70">
+                Checking bus lines for trolleybuses… {classifying.done}/{classifying.total}
+              </div>
+            )}
           </div>
         )}
         {selectedStop && (

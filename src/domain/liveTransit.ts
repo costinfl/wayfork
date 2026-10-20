@@ -14,7 +14,9 @@ import type { MicroStep, Place, StepType, VariantNode } from "./types";
 // Parsing is defensive like transit.ts: malformed segments are dropped, unknown
 // modes become "other", a missing routeColor falls back to the mode colour.
 
-export type LiveMode = "metro" | "tram" | "bus" | "rail" | "ferry" | "other";
+// "trolleybus" never comes from the live feed (MOTIS reports trolleybuses as
+// BUS); it is derived per line from the GTFS route type — see vehicleCategory.
+export type LiveMode = "metro" | "tram" | "bus" | "trolleybus" | "rail" | "ferry" | "other";
 
 export interface LiveSegment {
   id: string; // tripId + departure: unique per segment
@@ -40,12 +42,15 @@ export interface Vehicle {
   realTime: boolean;
 }
 
+// One distinct colour per transport type: vehicles are drawn in their type's
+// colour so they match the Live filter toggles.
 export const MODE_COLORS: Record<LiveMode, string> = {
   metro: "#e11d48",
   tram: "#f59e0b",
   bus: "#22c55e",
+  trolleybus: "#14b8a6",
   rail: "#60a5fa",
-  ferry: "#06b6d4",
+  ferry: "#818cf8",
   other: "#a1a1aa",
 };
 
@@ -214,6 +219,7 @@ export function vehiclePositions(segments: LiveSegment[], t: number): Vehicle[] 
 // underground, so it stays a dot — a box on the street would be misleading.
 const FOOTPRINT_M: Partial<Record<LiveMode, [number, number]>> = {
   bus: [12, 2.6],
+  trolleybus: [12, 2.6],
   tram: [30, 2.5],
   rail: [60, 3],
   ferry: [30, 8],
@@ -274,6 +280,7 @@ export interface TripDetails {
   headsign?: string;
   agency?: string;
   mode: LiveMode;
+  routeType?: number; // GTFS route type (11 / 800–899 = trolleybus)
   color: string;
   realTime: boolean;
   cancelled: boolean;
@@ -307,6 +314,7 @@ interface RawTripLeg {
   displayName?: string;
   agencyName?: string;
   routeColor?: string;
+  routeType?: number;
   realTime?: boolean;
   cancelled?: boolean;
   wheelchairAccessible?: string;
@@ -362,7 +370,9 @@ export function parseTripDetails(tripId: string, body: unknown): TripDetails | n
     }
   });
   if (stops.length < 2) return null;
-  const mode = MODE_MAP[first.mode ?? ""] ?? "other";
+  const routeType = typeof first.routeType === "number" ? first.routeType : undefined;
+  const fed = MODE_MAP[first.mode ?? ""] ?? "other";
+  const mode: LiveMode = fed === "bus" && isTrolleybusRouteType(routeType) ? "trolleybus" : fed;
   const access = first.wheelchairAccessible;
   return {
     tripId,
@@ -371,6 +381,7 @@ export function parseTripDetails(tripId: string, body: unknown): TripDetails | n
     ...(first.headsign ? { headsign: first.headsign } : {}),
     ...(first.agencyName ? { agency: first.agencyName } : {}),
     mode,
+    ...(routeType !== undefined ? { routeType } : {}),
     color: hexColor(first.routeColor) ?? MODE_COLORS[mode],
     realTime: legs.some((l) => l.realTime === true),
     cancelled: legs.every((l) => l.cancelled === true),
@@ -441,6 +452,7 @@ export function tripProgress(d: TripDetails, now: number): TripProgress {
 
 const RIDE_STEP: Record<LiveMode, StepType> = {
   bus: "bus",
+  trolleybus: "bus",
   tram: "bus",
   metro: "metro",
   rail: "train",
@@ -449,6 +461,7 @@ const RIDE_STEP: Record<LiveMode, StepType> = {
 };
 const MODE_WORD: Record<LiveMode, string> = {
   bus: "Bus",
+  trolleybus: "Trolleybus",
   tram: "Tram",
   metro: "Metro",
   rail: "Train",
@@ -673,4 +686,42 @@ export async function fetchDepartures(
   if (opts.time) params.set("time", opts.time.toISOString().replace(/\.\d{3}Z$/, "Z"));
   const body = await getJson(`${TRANSITOUS_STOPTIMES_URL}?${params}`, fetchFn);
   return body === null ? null : parseDepartures(body);
+}
+
+// ---- filter by transport type ------------------------------------------------
+// The Live panel toggles vehicles by category. Trolleybuses arrive as BUS; a
+// line is a trolleybus line when one of its trips' GTFS route type says so
+// (looked up once per line, remembered by the UI — see TripMap).
+
+export const isTrolleybusRouteType = (rt: number | undefined): boolean =>
+  rt === 11 || (rt !== undefined && rt >= 800 && rt < 900);
+
+// "<dataset tag>|<line name>": MOTIS trip ids look like
+// "20261020_16:30_ro-Bucuresti-Ilfov_TRIP_…", so line "61" in two cities
+// (datasets) can't collide. Unknown shapes fall back to the name alone.
+export function lineKey(tripId: string, name: string): string {
+  const m = /^\d{8}_\d{2}:\d{2}_([^_]+)_/.exec(tripId);
+  return `${m ? m[1] : ""}|${name}`;
+}
+
+export function vehicleCategory(v: Pick<Vehicle, "id" | "name" | "mode">, trolleyLines: ReadonlyMap<string, boolean>): LiveMode {
+  return v.mode === "bus" && trolleyLines.get(lineKey(v.id, v.name)) === true ? "trolleybus" : v.mode;
+}
+
+export function countByCategory(vehicles: Vehicle[], trolleyLines: ReadonlyMap<string, boolean>): Partial<Record<LiveMode, number>> {
+  const out: Partial<Record<LiveMode, number>> = {};
+  for (const v of vehicles) {
+    const c = vehicleCategory(v, trolleyLines);
+    out[c] = (out[c] ?? 0) + 1;
+  }
+  return out;
+}
+
+// Additive filter: an empty selection shows everything.
+export function filterVehicles(
+  vehicles: Vehicle[],
+  selected: ReadonlySet<LiveMode>,
+  trolleyLines: ReadonlyMap<string, boolean>
+): Vehicle[] {
+  return selected.size === 0 ? vehicles : vehicles.filter((v) => selected.has(vehicleCategory(v, trolleyLines)));
 }

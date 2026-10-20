@@ -82,6 +82,11 @@ describe("VehicleCard", () => {
     expect(screen.queryByText(/No longer in the live view/)).toBeNull();
   });
 
+  it("labels a trolleybus trip with its own icon", () => {
+    renderCard({ details: { ...details, mode: "trolleybus", routeType: 11 } as TripDetails });
+    expect(screen.getByText(/🚎/)).toBeInTheDocument();
+  });
+
   it("follow and close call back", () => {
     const p = renderCard();
     fireEvent.click(screen.getByRole("button", { name: "Follow" }));
