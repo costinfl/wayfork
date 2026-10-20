@@ -4,9 +4,14 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { RateMatrix } from "../../domain/currency";
 import {
+  fetchDepartures,
   fetchLiveSegments,
+  fetchStopsInView,
   fetchTripDetails,
   LIVE_MIN_ZOOM,
+  STOPS_MIN_ZOOM,
+  type Departure,
+  type TransitStop,
   vehiclePositions,
   type LiveMode,
   type LiveSegment,
@@ -21,6 +26,7 @@ import { fetchRoute } from "../../domain/route";
 import { fetchTransitPlan, type TransitPlanOptions } from "../../domain/transit";
 import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
+import { DeparturesBoard } from "./DeparturesBoard";
 import { VehicleCard, type UseTripRequest, type VehicleSummary } from "./VehicleCard";
 import {
   addTripLayers,
@@ -30,6 +36,7 @@ import {
   setReach,
   setSelectedTrip,
   setStops,
+  setTransitStops,
   setTracks,
   setVehicles,
 } from "./layers";
@@ -149,7 +156,10 @@ export default function TripMap(props: TripMapProps) {
     status: "loading",
   });
   const [follow, setFollow] = useState(false);
-  const [gone, setGone] = useState(false);
+  // Where the selected vehicle is relative to the live view: "waiting" until
+  // it first appears (e.g. picked from a departures board before it leaves),
+  // "live" while on the map, "gone" once it disappears (trip over / panned away).
+  const [presence, setPresence] = useState<"waiting" | "live" | "gone">("waiting");
   const [cardNow, setCardNow] = useState(() => Date.now());
   const selectedRef = useRef<VehicleSummary | null>(null);
   selectedRef.current = selected;
@@ -159,12 +169,20 @@ export default function TripMap(props: TripMapProps) {
   const selectVehicle = (v: VehicleSummary | null) => {
     setSelected(v);
     setFollow(false);
-    setGone(false);
+    setPresence("waiting");
   };
   const selectVehicleRef = useRef(selectVehicle);
   selectVehicleRef.current = selectVehicle;
   const [legendOpen, setLegendOpen] = useState(() => readPref("wayfork.mapLegend", true));
   useEffect(() => writePref("wayfork.mapLegend", legendOpen), [legendOpen]);
+  // The tapped stop and its departures board (see DeparturesBoard).
+  const [selectedStop, setSelectedStop] = useState<TransitStop | null>(null);
+  const [board, setBoard] = useState<{ departures: Departure[]; status: "loading" | "ready" | "error" }>({
+    departures: [],
+    status: "loading",
+  });
+  const selectStopRef = useRef(setSelectedStop);
+  selectStopRef.current = setSelectedStop;
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -231,6 +249,26 @@ export default function TripMap(props: TripMapProps) {
       propsRef.current.onActivate(key.slice(0, i), key.slice(i + 1));
     };
     map.on("click", "tracks-alt", activate);
+    // Tap a stop (in view, or on a tapped vehicle's route) → its departures.
+    const pickStop = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      const p = f?.properties;
+      const coords = (f?.geometry as { coordinates?: [number, number] } | undefined)?.coordinates;
+      if (!p || typeof p.stopId !== "string" || !p.stopId || !coords) return;
+      selectStopRef.current({
+        stopId: p.stopId,
+        name: String(p.name ?? "Stop"),
+        lat: coords[1],
+        lon: coords[0],
+        ...(p.tz ? { tz: String(p.tz) } : {}),
+        modes: (String(p.modes ?? "") || "other").split(",") as LiveMode[],
+      });
+    };
+    for (const layer of ["transit-stops", "selected-trip-stops"]) {
+      map.on("click", layer, pickStop);
+      map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+    }
     // Tap a live vehicle (dot or 3D box) → its trip card.
     for (const layer of ["vehicles-dots", "vehicles-dots-unboxed", "vehicles-3d"]) {
       map.on("click", layer, (e) => {
@@ -458,7 +496,7 @@ export default function TripMap(props: TripMapProps) {
       setVehicles(map, vs, sel?.tripId ?? null);
       if (sel) {
         const v = vs.find((x) => x.id === sel.tripId);
-        setGone(!v);
+        setPresence((p) => (v ? "live" : p === "waiting" ? "waiting" : "gone"));
         if (v && followRef.current) map.easeTo({ center: [v.lon, v.lat], duration: LIVE_TICK_MS - 50 });
       }
       setLiveStatus((s) => (segments.length && (s === null || s.endsWith("live")) ? `${vs.length} live` : s));
@@ -499,6 +537,7 @@ export default function TripMap(props: TripMapProps) {
       setCardNow(Date.now());
       if (mapRef.current && vehicleTrip.details) setSelectedTrip(mapRef.current, vehicleTrip.details);
     }, 10_000);
+    // Esc closes the top panel: the trip card first, the board under it next.
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && selectVehicle(null);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -508,9 +547,70 @@ export default function TripMap(props: TripMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.tripId, vehicleTrip.details]);
   useEffect(() => {
-    if (!live) selectVehicle(null);
+    if (!live) {
+      selectVehicle(null);
+      setSelectedStop(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
+
+  // Stops in view while Live is on (z15+): fetched on moveend, debounced.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || styleGen === 0) return;
+    if (!live) {
+      setTransitStops(map, []);
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = async () => {
+      if (map.getZoom() < STOPS_MIN_ZOOM) {
+        setTransitStops(map, []);
+        return;
+      }
+      const b = map.getBounds();
+      const stops = await fetchStopsInView({
+        min: { lat: b.getSouth(), lon: b.getWest() },
+        max: { lat: b.getNorth(), lon: b.getEast() },
+      });
+      if (!cancelled && stops) setTransitStops(map, stops);
+    };
+    const onMove = () => {
+      clearTimeout(timer);
+      timer = setTimeout(load, 700);
+    };
+    void load();
+    map.on("moveend", onMove);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      map.off("moveend", onMove);
+    };
+  }, [live, styleGen]);
+
+  // The tapped stop's departures, refreshed every 30 s while it's open.
+  useEffect(() => {
+    if (!selectedStop) return;
+    let cancelled = false;
+    setBoard({ departures: [], status: "loading" });
+    const load = async () => {
+      if (document.hidden) return;
+      const departures = await fetchDepartures(selectedStop.stopId);
+      if (cancelled) return;
+      setCardNow(Date.now());
+      setBoard((b) => (departures ? { departures, status: "ready" } : b.departures.length ? b : { departures: [], status: "error" }));
+    };
+    void load();
+    const id = setInterval(load, 30_000);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !selectedRef.current && setSelectedStop(null);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [selectedStop?.stopId]);
 
   // ---- chrome ----------------------------------------------------------------
   const btn = (active = false) => ({
@@ -530,7 +630,10 @@ export default function TripMap(props: TripMapProps) {
           The map needs WebGL, which this browser doesn't provide — the planner still works.
         </div>
       )}
-      <div className="absolute top-3 left-3 flex flex-col gap-1.5" style={{ zIndex: 2 }}>
+      <div
+        className="absolute top-3 left-3 flex flex-col gap-1.5 overflow-y-auto"
+        style={{ zIndex: 2, maxHeight: `calc(100% - ${inset.bottom + 24}px)` }}
+      >
         <div className="flex rounded-lg overflow-hidden text-xs font-semibold" style={{ border: btn().border }}>
           {(["day", "trip"] as const).map((s) => (
             <button key={s} onClick={() => setScope(s)} className="px-2.5 py-1.5" style={{ ...btn(scope === s), border: "none" }}>
@@ -566,13 +669,24 @@ export default function TripMap(props: TripMapProps) {
             {liveStatus}
           </div>
         )}
+        {selectedStop && (
+          <DeparturesBoard
+            stop={selectedStop}
+            departures={board.departures}
+            status={board.status}
+            now={cardNow}
+            onPickTrip={(v) => selectVehicle(v)}
+            onClose={() => setSelectedStop(null)}
+            theme={{ bg: chip, fg: btn().color, border: btn().border.replace("1px solid ", "") }}
+          />
+        )}
         {selected && (
           <VehicleCard
             vehicle={selected}
             details={vehicleTrip.details}
             status={vehicleTrip.status}
             now={cardNow}
-            gone={gone}
+            presence={presence}
             follow={follow}
             onFollow={setFollow}
             onClose={() => selectVehicle(null)}
@@ -603,6 +717,11 @@ export default function TripMap(props: TripMapProps) {
               <line x1="1" y1="3" x2="27" y2="3" stroke={ALT_COLORS[0]} strokeWidth="2" opacity="0.55" />
               <line x1="1" y1="8" x2="27" y2="8" stroke={ALT_COLORS[1]} strokeWidth="2" opacity="0.55" />
             </LegendRow>
+            {live && (
+              <LegendRow label="Stop — tap for departures">
+                <circle cx="14" cy="5" r="3.5" fill={dark ? "#0b0f14" : "#ffffff"} stroke="#22c55e" strokeWidth="2" />
+              </LegendRow>
+            )}
           </div>
         ) : (
           <button

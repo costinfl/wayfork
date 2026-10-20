@@ -1,6 +1,14 @@
 import type maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
-import { tripProgress, vehicleFootprint, type TripDetails, type Vehicle } from "../../domain/liveTransit";
+import {
+  MODE_COLORS,
+  STOPS_MIN_ZOOM,
+  tripProgress,
+  vehicleFootprint,
+  type TransitStop,
+  type TripDetails,
+  type Vehicle,
+} from "../../domain/liveTransit";
 import { deltaLabel, type OverlayStop, type OverlayTrack } from "../../domain/overlay";
 import type { ReachBand } from "../../domain/reach";
 import { circlePolygon } from "../../domain/geometry";
@@ -24,6 +32,7 @@ export const SOURCES = [
   "tracks",
   "badges",
   "selected-trip",
+  "transit-stops",
   "vehicles",
   "vehicles-3d",
   "stops",
@@ -157,6 +166,35 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "circle-opacity": ["case", ["get", "passed"], 0.35, 1],
       "circle-stroke-opacity": ["case", ["get", "passed"], 0.35, 1],
     },
+  });
+
+  // Public-transport stops in view (with 🚋 Live on, from z15): tap → departures.
+  map.addLayer({
+    id: "transit-stops",
+    type: "circle",
+    source: "transit-stops",
+    minzoom: STOPS_MIN_ZOOM,
+    paint: {
+      "circle-color": halo,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 15, 3.5, 18, 6],
+      "circle-stroke-color": ["get", "color"],
+      "circle-stroke-width": 2,
+    },
+  });
+  map.addLayer({
+    id: "transit-stops-label",
+    type: "symbol",
+    source: "transit-stops",
+    minzoom: 16.5,
+    layout: {
+      "text-field": ["get", "name"],
+      "text-font": ["Noto Sans Regular"],
+      "text-size": 10,
+      "text-offset": [0, 1.1],
+      "text-anchor": "top",
+      "text-allow-overlap": false,
+    },
+    paint: { "text-color": dark ? "#9fb0c3" : "#475569", "text-halo-color": halo, "text-halo-width": 1.2 },
   });
 
   // Live vehicles: 3D boxes up close, glowing dots further out.
@@ -428,10 +466,30 @@ export function setSelectedTrip(map: maplibregl.Map, trip: TripDetails | null, n
         : []),
       ...trip.stops.map((st, i) => ({
         type: "Feature" as const,
-        properties: { color: trip.color, name: st.name, passed: i < nextIndex },
+        properties: { color: trip.color, name: st.name, passed: i < nextIndex, stopId: st.stopId ?? "" },
         geometry: { type: "Point" as const, coordinates: llp(st) },
       })),
     ])
+  );
+}
+
+export function setTransitStops(map: maplibregl.Map, stops: TransitStop[]): void {
+  setData(
+    map,
+    "transit-stops",
+    fc(
+      stops.map((st) => ({
+        type: "Feature" as const,
+        properties: {
+          stopId: st.stopId,
+          name: st.name,
+          tz: st.tz ?? "",
+          modes: st.modes.join(","),
+          color: MODE_COLORS[st.modes[0] ?? "other"],
+        },
+        geometry: { type: "Point" as const, coordinates: llp(st) },
+      }))
+    )
   );
 }
 

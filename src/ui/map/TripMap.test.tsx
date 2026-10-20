@@ -85,14 +85,18 @@ vi.mock("../../domain/transit", async (orig) => ({
   ...(await orig<typeof import("../../domain/transit")>()),
   fetchTransitPlan,
 }));
-const { fetchLiveSegments, fetchTripDetails } = vi.hoisted(() => ({
+const { fetchLiveSegments, fetchTripDetails, fetchStopsInView, fetchDepartures } = vi.hoisted(() => ({
   fetchLiveSegments: vi.fn(async () => [] as any[]),
   fetchTripDetails: vi.fn(async (_id: string): Promise<any> => null),
+  fetchStopsInView: vi.fn(async (_b: unknown): Promise<any> => []),
+  fetchDepartures: vi.fn(async (_id: string): Promise<any> => []),
 }));
 vi.mock("../../domain/liveTransit", async (orig) => ({
   ...(await orig<typeof import("../../domain/liveTransit")>()),
   fetchLiveSegments,
   fetchTripDetails,
+  fetchStopsInView,
+  fetchDepartures,
 }));
 
 import TripMap from "./TripMap";
@@ -306,6 +310,39 @@ describe("TripMap", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close vehicle info" }));
     expect(screen.queryByRole("dialog", { name: /Vehicle/ })).toBeNull();
     expect(features("selected-trip")).toEqual([]);
+  });
+
+  it("shows stops in view at z15+ with Live on, and a tapped stop's departures", async () => {
+    h.zoom = 16;
+    const stop = { stopId: "s-1", name: "Sul e Sueste", lat: 38.707, lon: -9.133, tz: "Europe/Lisbon", modes: ["bus"] };
+    fetchStopsInView.mockResolvedValue([stop]);
+    fetchDepartures.mockResolvedValue([
+      { tripId: "trip-711", name: "711", mode: "bus", color: "#22c55e", headsign: "Alto Damaia", departure: Date.now() + 5 * 60_000, delayMin: null, realTime: false, cancelled: false },
+    ]);
+    renderMap();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Live/ })));
+    expect(fetchStopsInView).toHaveBeenCalled();
+    expect(features("transit-stops").map((f) => f.properties.name)).toEqual(["Sul e Sueste"]);
+    expect(screen.getByText("Stop — tap for departures")).toBeInTheDocument();
+
+    await act(async () => {
+      h.handlers["click:transit-stops"]({
+        features: [{ properties: { stopId: "s-1", name: "Sul e Sueste", tz: "Europe/Lisbon", modes: "bus" }, geometry: { coordinates: [-9.133, 38.707] } }],
+      });
+    });
+    expect(fetchDepartures).toHaveBeenCalledWith("s-1");
+    expect(await screen.findByText("→ Alto Damaia")).toBeInTheDocument();
+
+    // A departure opens that trip's card, keeping the board underneath.
+    await act(async () => fireEvent.click(screen.getByTitle("Show this trip")));
+    expect(fetchTripDetails).toHaveBeenCalledWith("trip-711");
+    expect(screen.getByRole("dialog", { name: "Vehicle 711" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Departures from Sul e Sueste" })).toBeInTheDocument();
+
+    // Live off clears both, and the stops.
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Live/ })));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(features("transit-stops")).toEqual([]);
   });
 
   it("renders reach bands and their legend", () => {

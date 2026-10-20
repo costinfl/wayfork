@@ -1,0 +1,66 @@
+[
+ {
+  "name": "Sul e Sueste",
+  "stopId": "pt-Carris_4503",
+  "lat": 38.70726,
+  "lon": -9.133297999999998,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "BUS"
+  ],
+  "stopCode": "4503"
+ },
+ {
+  "name": "Sul e Sueste",
+  "stopId": "pt-Carris_4502",
+  "lat": 38.70845800000001,
+  "lon": -9.133317999999997,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "BUS"
+  ],
+  "stopCode": "4502"
+ },
+ {
+  "name": "Costa Castelo",
+  "stopId": "pt-Carris_13808",
+  "lat": 38.711792,
+  "lon": -9.132878999999999,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "BUS"
+  ],
+  "stopCode": "13808"
+ },
+ {
+  "name": "Terreiro do Paço",
+  "stopId": "pt-Metro-Lisboa_TP",
+  "lat": 38.707207,
+  "lon": -9.133350999999998,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "SUBWAY"
+  ]
+ },
+ {
+  "name": "Lisboa Rossio",
+  "stopId": "pt-Comboios-de-Portugal(CP)_94_59006",
+  "lat": 38.714233,
+  "lon": -9.141459999999999,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "SUBURBAN"
+  ]
+ },
+ {
+  "name": "Sul e Sueste",
+  "stopId": "pt-Carris_4503",
+  "lat": 38.70726,
+  "lon": -9.133297999999998,
+  "tz": "Europe/Lisbon",
+  "modes": [
+   "BUS"
+  ],
+  "stopCode": "4503"
+ }
+]

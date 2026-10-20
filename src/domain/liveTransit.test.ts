@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import fixture from "./__fixtures__/motis-map-trips.json";
 import nycTrip from "./__fixtures__/motis-trip-nyc-qm32.json";
+import lisbonStops from "./__fixtures__/motis-map-stops-lisbon.json";
+import lisbonStopTimes from "./__fixtures__/motis-stoptimes-lisbon.json";
 import {
+  fetchDepartures,
   fetchLiveSegments,
+  fetchStopsInView,
   fetchTripDetails,
+  parseDepartures,
+  parseStops,
+  TRANSITOUS_STOPS_URL,
+  TRANSITOUS_STOPTIMES_URL,
   MODE_COLORS,
   parseTripDetails,
   TRANSITOUS_TRIP_URL,
@@ -288,5 +296,86 @@ describe("use a live trip in the plan", () => {
     expect(tripToVariant(d, 1, 3, { currency: "USD", walkFrom: nextDoor }).microSteps).toHaveLength(1);
     const otherCity = { name: "Newark", lat: 40.73, lon: -74.17 }; // ~16 km: not a walk
     expect(tripToVariant(d, 1, 3, { currency: "USD", walkFrom: otherCity }).microSteps).toHaveLength(1);
+  });
+});
+
+describe("stops and departures board", () => {
+  // Real Lisbon responses (2026-10-20), trimmed; the stops list ends with a
+  // repeat of its first stop to exercise de-duplication.
+
+  it("parses stops in view, de-duplicated, with their modes", () => {
+    const stops = parseStops(lisbonStops);
+    expect(stops.map((s) => [s.name, s.modes])).toEqual([
+      ["Sul e Sueste", ["bus"]],
+      ["Sul e Sueste", ["bus"]],
+      ["Costa Castelo", ["bus"]],
+      ["Terreiro do Paço", ["metro"]],
+      ["Lisboa Rossio", ["rail"]],
+    ]);
+    expect(new Set(stops.map((s) => s.stopId)).size).toBe(5);
+    expect(stops[0]).toMatchObject({ tz: "Europe/Lisbon" });
+    expect(parseStops({ nope: true })).toEqual([]);
+  });
+
+  it("parses departures, sorted, with delay only when real-time", () => {
+    const deps = parseDepartures(lisbonStopTimes);
+    expect(deps).toHaveLength(6);
+    expect(deps[0]).toMatchObject({
+      name: "711",
+      mode: "bus",
+      headsign: "Alto Damaia",
+      departure: Date.parse("2026-10-20T05:00:00Z"),
+      realTime: false,
+      delayMin: null,
+      cancelled: false,
+      tz: "Europe/Lisbon",
+    });
+    expect(deps.map((d) => d.departure)).toEqual([...deps.map((d) => d.departure)].sort((a, b) => a - b));
+    const late = parseDepartures({
+      stopTimes: [
+        {
+          tripId: "t",
+          mode: "TRAM",
+          realTime: true,
+          routeShortName: "28E",
+          place: { departure: "2026-10-20T10:04:00Z", scheduledDeparture: "2026-10-20T10:00:00Z", track: "2" },
+        },
+      ],
+    });
+    expect(late[0]).toMatchObject({ mode: "tram", delayMin: 4, track: "2" });
+    expect(parseDepartures(null)).toEqual([]);
+  });
+
+  it("requests the bbox and the stop's next departures; null on failure", async () => {
+    const stopsFetch = vi.fn(async () => new Response(JSON.stringify(lisbonStops), { status: 200 }));
+    await fetchStopsInView({ min: { lat: 38.705, lon: -9.145 }, max: { lat: 38.715, lon: -9.13 } }, stopsFetch as unknown as typeof fetch);
+    const su = new URL((stopsFetch.mock.calls[0] as unknown as [string])[0]);
+    expect(`${su.origin}${su.pathname}`).toBe(TRANSITOUS_STOPS_URL);
+    expect(su.searchParams.get("min")).toBe("38.70500,-9.14500");
+
+    const depFetch = vi.fn(async () => new Response(JSON.stringify(lisbonStopTimes), { status: 200 }));
+    expect(await fetchDepartures("pt-Carris_4509", depFetch as unknown as typeof fetch, { n: 8 })).toHaveLength(6);
+    const du = new URL((depFetch.mock.calls[0] as unknown as [string])[0]);
+    expect(`${du.origin}${du.pathname}`).toBe(TRANSITOUS_STOPTIMES_URL);
+    expect(Object.fromEntries(du.searchParams)).toEqual({ stopId: "pt-Carris_4509", n: "8" });
+
+    const boom = vi.fn(async () => {
+      throw new TypeError("network");
+    });
+    expect(await fetchDepartures("x", boom as unknown as typeof fetch)).toBeNull();
+    expect(await fetchStopsInView({ min: { lat: 0, lon: 0 }, max: { lat: 1, lon: 1 } }, boom as unknown as typeof fetch)).toBeNull();
+  });
+
+  it("keeps stop ids on a trip's stops, so they can open the board", () => {
+    const d = parseTripDetails("x", {
+      legs: [
+        {
+          mode: "BUS",
+          from: { stopId: "a", name: "A", lat: 1, lon: 1 },
+          to: { stopId: "b", name: "B", lat: 2, lon: 2 },
+        },
+      ],
+    })!;
+    expect(d.stops.map((s) => s.stopId)).toEqual(["a", "b"]);
   });
 });

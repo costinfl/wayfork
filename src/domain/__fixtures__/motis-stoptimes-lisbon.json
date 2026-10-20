@@ -1,0 +1,131 @@
+{
+ "place": {
+  "name": "Sul e Sueste",
+  "stopId": "pt-Carris_4503",
+  "lat": 38.70726,
+  "lon": -9.133297999999998,
+  "tz": "Europe/Lisbon"
+ },
+ "stopTimes": [
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Alto Damaia",
+   "tripId": "20261020_06:00_pt-Carris_3454_20260606_101_0_2",
+   "routeShortName": "711",
+   "displayName": "711",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4509",
+    "lat": 38.707188,
+    "lon": -9.133465,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:00:00Z",
+    "scheduledDeparture": "2026-10-20T05:00:00Z"
+   }
+  },
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Estação Oriente (Interface)",
+   "tripId": "20261020_05:55_pt-Carris_6984_20260606_144_0_3",
+   "routeShortName": "759",
+   "displayName": "759",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4503",
+    "lat": 38.70726,
+    "lon": -9.133297999999998,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:01:00Z",
+    "scheduledDeparture": "2026-10-20T05:01:00Z"
+   }
+  },
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Estação Oriente (Interface)",
+   "tripId": "20261020_06:04_pt-Carris_8054_20260606_115_0_3",
+   "routeShortName": "794",
+   "displayName": "794",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4507",
+    "lat": 38.707382,
+    "lon": -9.133027999999998,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:04:00Z",
+    "scheduledDeparture": "2026-10-20T05:04:00Z"
+   }
+  },
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Portela - Av. Descobrimentos",
+   "tripId": "20261020_05:50_pt-Carris_4681_20260606_204_3_2",
+   "routeShortName": "728",
+   "displayName": "728",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4505",
+    "lat": 38.708290000000005,
+    "lon": -9.133492,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:04:00Z",
+    "scheduledDeparture": "2026-10-20T05:04:00Z"
+   }
+  },
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Restauradores",
+   "tripId": "20261020_05:31_pt-Carris_6928_20260606_144_0_2",
+   "routeShortName": "759",
+   "displayName": "759",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4577",
+    "lat": 38.708054000000004,
+    "lon": -9.132166,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:10:00Z",
+    "scheduledDeparture": "2026-10-20T05:10:00Z"
+   }
+  },
+  {
+   "mode": "BUS",
+   "realTime": false,
+   "headsign": "Cais Sodré",
+   "tripId": "20261020_05:50_pt-Carris_5182_20260606_172_1_2",
+   "routeShortName": "735",
+   "displayName": "735",
+   "cancelled": false,
+   "tripCancelled": false,
+   "agencyName": "Carris",
+   "place": {
+    "name": "Sul e Sueste",
+    "stopId": "pt-Carris_4577",
+    "lat": 38.708054000000004,
+    "lon": -9.132166,
+    "tz": "Europe/Lisbon",
+    "departure": "2026-10-20T05:10:00Z",
+    "scheduledDeparture": "2026-10-20T05:10:00Z"
+   }
+  }
+ ]
+}

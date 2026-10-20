@@ -70,7 +70,7 @@ export function VehicleCard({
   details,
   status,
   now,
-  gone,
+  presence,
   follow,
   onFollow,
   onClose,
@@ -83,7 +83,9 @@ export function VehicleCard({
   details: TripDetails | null;
   status: "loading" | "ready" | "error";
   now: number;
-  gone: boolean; // the vehicle has left the live feed (trip over, or out of view)
+  // "waiting": not on the map yet (picked from a departures board before it
+  // leaves); "live": on the map (Follow works); "gone": it was, and left.
+  presence: "waiting" | "live" | "gone";
   follow: boolean;
   onFollow: (on: boolean) => void;
   onClose: () => void;
@@ -194,7 +196,7 @@ export function VehicleCard({
             >
               {showStops ? "Hide stops" : `All stops (${details.stops.length})`}
             </button>
-            {!gone && (
+            {presence === "live" && (
               <button
                 onClick={() => onFollow(!follow)}
                 aria-pressed={follow}
@@ -240,7 +242,7 @@ export function VehicleCard({
           )}
         </>
       )}
-      {gone && details && <div className="mt-1.5 opacity-60">No longer in the live view.</div>}
+      {presence === "gone" && details && <div className="mt-1.5 opacity-60">No longer in the live view.</div>}
     </div>
   );
 }

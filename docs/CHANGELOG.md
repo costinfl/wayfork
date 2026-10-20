@@ -6,6 +6,36 @@
 
 ## Session history
 
+- **v2.4.0** — Departures board.
+  - **`liveTransit.ts`.**
+    - `parseStops`/`fetchStopsInView` (MOTIS `map/stops`, de-duplicated,
+      modes mapped).
+    - `parseDepartures`/`fetchDepartures` (`stoptimes`: line, headsign,
+      real/scheduled time, delay only when real-time, track, tz,
+      cancellation; sorted).
+    - `TripStop.stopId`, so a vehicle's route stops can open the board.
+  - **`layers.ts`.** `transit-stops` circles (z15+, mode-coloured ring)
+    and labels (z16.5+); `setTransitStops`; `stopId` on `selected-trip`
+    stops.
+  - **`TripMap`.**
+    - Stops are fetched on `moveend` while Live is on (debounced; cleared
+      below z15 or with Live off).
+    - Stop clicks open the board; departures refresh every 30 s while the
+      tab is visible.
+    - A departure opens the trip card stacked under the board; Esc closes
+      the card first.
+    - The panel column scrolls.
+    - The legend gains a "Stop" entry.
+  - **New `DeparturesBoard.tsx`.**
+  - **Card fix.** `presence` (waiting/live/gone) replaces `gone`, so a trip
+    picked before it departs doesn't say "No longer in the live view".
+  - **Fixtures.** Real, trimmed Lisbon `map/stops` and `stoptimes`.
+
+  379 → 389 tests. Playwright (stubbed with real Lisbon data re-timed to
+  now): tap "Sul e Sueste" → six departures (711 → Alto Damaia in 3 min, a
+  live "+4 min" on the 794); tap the 711 → its Carris trip card (35 stops)
+  with its route drawn.
+
 - **v2.3.0** — "＋ Use in my plan" on the live-vehicle card.
   - **`liveTransit.ts`.**
     - `tripSegmentLine`: the shape cut between the stops' nearest points,

@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.3.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 379 tests green
+## Current version: v2.4.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 389 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -207,7 +207,18 @@ turning Live off clears it.
 - **Applied by** `TripView.addLiveTrip`: new slot via `insertSlotAfter`
   (title from `tripSlotTitle`), or variant via `upsertVariant` (made
   active); the map focuses it.
-- **Follow-up:** a departures board when tapping a stop.
+
+**v2.4.0 — departures board.**
+- **Stops in view.** With 🚋 Live on, from z15, the stops in view are drawn
+  (`transit-stops` layer, MOTIS `/api/v6/map/stops`, refetched on
+  `moveend`, debounced).
+- **Tapping a stop** — or a stop on a tapped vehicle's route — opens
+  `ui/map/DeparturesBoard.tsx`, fed by `/api/v6/stoptimes`
+  (`fetchDepartures`, refreshed every 30 s): line, → headsign, local time,
+  "in N min", delay, track, cancelled.
+- **Picking a departure** opens that trip's card under the board, so you can
+  come back. The card's `presence` is "waiting" (not on the road yet: no
+  Follow, no "left the view" note), "live" or "gone".
 
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is

@@ -254,6 +254,7 @@ export function vehicleFootprint(v: Vehicle): [number, number][] | null {
 export const TRANSITOUS_TRIP_URL = "https://api.transitous.org/api/v6/trip";
 
 export interface TripStop {
+  stopId?: string;
   name: string;
   lat: number;
   lon: number;
@@ -284,6 +285,7 @@ export interface TripDetails {
 }
 
 interface RawStop {
+  stopId?: string;
   name?: string;
   lat?: number;
   lon?: number;
@@ -324,6 +326,7 @@ const ms = (iso: string | undefined): number | undefined => {
 function parseStop(s: RawStop | undefined): TripStop | null {
   if (!s || typeof s.lat !== "number" || typeof s.lon !== "number") return null;
   return {
+    ...(s.stopId ? { stopId: s.stopId } : {}),
     name: s.name || "Stop",
     lat: s.lat,
     lon: s.lon,
@@ -541,4 +544,133 @@ export function tripToVariant(
     microSteps: steps,
     estimated: true,
   };
+}
+
+// ---- stops & departures board ---------------------------------------------
+// MOTIS `GET /api/v6/map/stops?min=&max=` lists the stops in view;
+// `GET /api/v6/stoptimes?stopId=&n=` their next departures (each with the
+// tripId, so a departure opens the same trip card as a tapped vehicle).
+
+export const TRANSITOUS_STOPS_URL = "https://api.transitous.org/api/v6/map/stops";
+export const TRANSITOUS_STOPTIMES_URL = "https://api.transitous.org/api/v6/stoptimes";
+// Stops only show from this zoom on — below it they would carpet the map.
+export const STOPS_MIN_ZOOM = 15;
+
+export interface TransitStop {
+  stopId: string;
+  name: string;
+  lat: number;
+  lon: number;
+  tz?: string;
+  modes: LiveMode[];
+}
+
+export interface Departure {
+  tripId: string;
+  name: string;
+  mode: LiveMode;
+  color: string;
+  headsign?: string;
+  departure: number; // epoch ms (real-time when available)
+  scheduled?: number;
+  delayMin: number | null; // null without real-time data
+  realTime: boolean;
+  cancelled: boolean;
+  track?: string;
+  tz?: string;
+}
+
+async function getJson(url: string, fetchFn: typeof fetch): Promise<unknown | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(url, { signal: controller.signal });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function parseStops(body: unknown): TransitStop[] {
+  if (!Array.isArray(body)) return [];
+  const seen = new Set<string>();
+  const out: TransitStop[] = [];
+  for (const raw of body as (RawStop & { modes?: string[] })[]) {
+    if (!raw?.stopId || seen.has(raw.stopId) || typeof raw.lat !== "number" || typeof raw.lon !== "number") continue;
+    seen.add(raw.stopId);
+    const modes = [...new Set((raw.modes ?? []).map((m) => MODE_MAP[m] ?? "other"))];
+    out.push({
+      stopId: raw.stopId,
+      name: raw.name || "Stop",
+      lat: raw.lat,
+      lon: raw.lon,
+      ...(raw.tz ? { tz: raw.tz } : {}),
+      modes: modes.length ? modes : ["other"],
+    });
+  }
+  return out;
+}
+
+export async function fetchStopsInView(bbox: Bbox, fetchFn: typeof fetch = fetch): Promise<TransitStop[] | null> {
+  const params = new URLSearchParams({
+    min: `${bbox.min.lat.toFixed(5)},${bbox.min.lon.toFixed(5)}`,
+    max: `${bbox.max.lat.toFixed(5)},${bbox.max.lon.toFixed(5)}`,
+  });
+  const body = await getJson(`${TRANSITOUS_STOPS_URL}?${params}`, fetchFn);
+  return body === null ? null : parseStops(body);
+}
+
+interface RawStopTime {
+  mode?: string;
+  realTime?: boolean;
+  headsign?: string;
+  routeColor?: string;
+  tripId?: string;
+  routeShortName?: string;
+  displayName?: string;
+  cancelled?: boolean;
+  tripCancelled?: boolean;
+  place?: RawStop;
+}
+
+export function parseDepartures(body: unknown): Departure[] {
+  const list = (body as { stopTimes?: RawStopTime[] } | null)?.stopTimes;
+  if (!Array.isArray(list)) return [];
+  const out: Departure[] = [];
+  for (const raw of list) {
+    const departure = ms(raw?.place?.departure) ?? ms(raw?.place?.scheduledDeparture);
+    if (!raw?.tripId || departure === undefined) continue;
+    const scheduled = ms(raw.place?.scheduledDeparture);
+    const realTime = raw.realTime === true;
+    const mode = MODE_MAP[raw.mode ?? ""] ?? "other";
+    const track = raw.place?.track ?? raw.place?.scheduledTrack;
+    out.push({
+      tripId: raw.tripId,
+      name: raw.routeShortName || raw.displayName || raw.mode || "",
+      mode,
+      color: hexColor(raw.routeColor) ?? MODE_COLORS[mode],
+      ...(raw.headsign ? { headsign: raw.headsign } : {}),
+      departure,
+      ...(scheduled !== undefined ? { scheduled } : {}),
+      delayMin: realTime && scheduled !== undefined ? Math.round((departure - scheduled) / 60_000) : null,
+      realTime,
+      cancelled: raw.cancelled === true || raw.tripCancelled === true,
+      ...(track ? { track } : {}),
+      ...(raw.place?.tz ? { tz: raw.place.tz } : {}),
+    });
+  }
+  return out.sort((a, b) => a.departure - b.departure);
+}
+
+export async function fetchDepartures(
+  stopId: string,
+  fetchFn: typeof fetch = fetch,
+  opts: { n?: number; time?: Date } = {}
+): Promise<Departure[] | null> {
+  const params = new URLSearchParams({ stopId, n: String(opts.n ?? 12) });
+  if (opts.time) params.set("time", opts.time.toISOString().replace(/\.\d{3}Z$/, "Z"));
+  const body = await getJson(`${TRANSITOUS_STOPTIMES_URL}?${params}`, fetchFn);
+  return body === null ? null : parseDepartures(body);
 }

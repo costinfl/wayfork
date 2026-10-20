@@ -18,7 +18,7 @@ const renderCard = (over: Partial<Parameters<typeof VehicleCard>[0]> = {}) => {
     details,
     status: "ready" as const,
     now: Date.parse("2026-10-19T20:36:00Z"),
-    gone: false,
+    presence: "live" as const,
     follow: false,
     onFollow: vi.fn(),
     onClose: vi.fn(),
@@ -66,7 +66,7 @@ describe("VehicleCard", () => {
 
   it("shows a cancelled banner, arrival, loading and error states", () => {
     const { unmount } = render(
-      <VehicleCard vehicle={vehicle} details={{ ...details, cancelled: true }} status="ready" now={Date.parse("2026-10-20T00:00:00Z")} gone follow={false} onFollow={vi.fn()} onClose={vi.fn()} theme={theme} />
+      <VehicleCard vehicle={vehicle} details={{ ...details, cancelled: true }} status="ready" now={Date.parse("2026-10-20T00:00:00Z")} presence="gone" follow={false} onFollow={vi.fn()} onClose={vi.fn()} theme={theme} />
     );
     expect(screen.getByText("Cancelled")).toBeInTheDocument();
     expect(screen.getByText("Arrived")).toBeInTheDocument();
@@ -74,6 +74,12 @@ describe("VehicleCard", () => {
     unmount();
     renderCard({ details: null, status: "loading" });
     expect(screen.getByText("Loading trip…")).toBeInTheDocument();
+  });
+
+  it("a vehicle not on the road yet offers no Follow and no 'left the view' note", () => {
+    renderCard({ presence: "waiting" });
+    expect(screen.queryByRole("button", { name: "Follow" })).toBeNull();
+    expect(screen.queryByText(/No longer in the live view/)).toBeNull();
   });
 
   it("follow and close call back", () => {
