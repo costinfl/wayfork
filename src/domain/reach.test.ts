@@ -5,6 +5,8 @@ import {
   fetchReachableStops,
   parseOneToAll,
   reachBands,
+  reachMinutes,
+  reachRadiusM,
   TRANSITOUS_ONE_TO_ALL_URL,
   WALK_KMH,
   type ReachBand,
@@ -63,6 +65,27 @@ describe("reachBands", () => {
       const lon = origin.lon + (Math.random() - 0.5) * 0.1;
       expect(bands.filter((b) => covers(b, lat, lon)).length).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("reachMinutes / reachRadiusM", () => {
+  const bands = reachBands(origin, [], [15, 30], 60);
+  const mPerMin = (WALK_KMH * 1000) / 60;
+  const north = (m: number) => ({ lat: origin.lat + m / 111_320, lon: origin.lon });
+
+  it("gives the band a point falls in, or null outside", () => {
+    expect(reachMinutes(bands, north(5 * mPerMin))).toBe(15);
+    expect(reachMinutes(bands, north(22 * mPerMin))).toBe(30);
+    expect(reachMinutes(bands, north(40 * mPerMin))).toBeNull();
+  });
+
+  it("covers every band up to the limit, and grows with it", () => {
+    const r15 = reachRadiusM(origin, bands, 15);
+    const r30 = reachRadiusM(origin, bands, 30);
+    expect(r15).toBeGreaterThanOrEqual(15 * mPerMin);
+    expect(r15).toBeLessThan(15 * mPerMin * 1.6);
+    expect(r30).toBeGreaterThan(r15);
+    expect(reachRadiusM(origin, bands, 10)).toBe(0);
   });
 });
 

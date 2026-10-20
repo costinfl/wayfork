@@ -19,6 +19,7 @@ vi.mock("../domain/poi", async (importOriginal) => ({
 }));
 
 import DiscoverPanel, { anchorSlot, searchCenter } from "./DiscoverPanel";
+import { reachBands } from "../domain/reach";
 
 const POI: Poi = {
   id: "node/1",
@@ -161,5 +162,44 @@ describe("DiscoverPanel", () => {
     fireEvent.click(screen.getByText(/Discover places nearby/));
     expect(screen.getByText(/Give this day a location/)).toBeTruthy();
     expect(fetchPoisMock).not.toHaveBeenCalled();
+  });
+
+  it("searches within a reach ring: centred on its origin, sized to it, filtered and tagged", async () => {
+    const origin = { name: "Termini", lat: 41.9, lon: 12.5 };
+    const bands = reachBands(origin, [], [15, 30, 45], 60);
+    const near: Poi = { ...POI, id: "node/2", name: "Near", lat: 41.904, lon: 12.5, distanceM: 450 }; // ~5 min
+    const mid: Poi = { ...POI, id: "node/3", name: "Mid", lat: 41.918, lon: 12.5, distanceM: 2000 }; // ~25 min
+    const far: Poi = { ...POI, id: "node/4", name: "Far", lat: 41.95, lon: 12.5, distanceM: 5500 }; // out
+    fetchPoisMock.mockResolvedValue([near, mid, far]);
+    const onResults = vi.fn();
+    const onAnchorChange = vi.fn();
+    const d = day({ slots: [placedSlot("s1", "Trastevere", 41.88), placedSlot("s2", "Termini", 41.9)] });
+    renderPanel(d, { onResults, onAnchorChange, reach: { slotId: "s2", origin, mode: "walk", bands } });
+    fireEvent.click(screen.getByText(/Discover places nearby/));
+    fireEvent.change(screen.getByLabelText("Within reach"), { target: { value: "15" } });
+    expect(onAnchorChange).toHaveBeenCalledWith("s2");
+    expect(screen.queryByLabelText("Search radius")).toBeNull();
+    expect(screen.getByText(/within 15 min of ⌖ Termini/)).toBeTruthy();
+    fireEvent.click(screen.getByText("🧭 Discover"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /🏛 Near/ })).toBeTruthy());
+    const [center, radius] = fetchPoisMock.mock.calls[0];
+    expect(center).toMatchObject({ lat: 41.9, lon: 12.5 });
+    expect(radius).toBeGreaterThan(1200);
+    expect(radius).toBeLessThan(2000);
+    expect(screen.queryByRole("button", { name: /🏛 Mid/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Near.*◎ ≤ 15 min/ })).toBeTruthy();
+    expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near] }));
+    // Widening the limit re-filters the same results.
+    fireEvent.change(screen.getByLabelText("Within reach"), { target: { value: "30" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: /🏛 Mid/ })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /🏛 Far/ })).toBeNull();
+    expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near, mid] }));
+  });
+
+  it("offers no reach limit without rings", () => {
+    renderPanel(day());
+    fireEvent.click(screen.getByText(/Discover places nearby/));
+    expect(screen.queryByLabelText("Within reach")).toBeNull();
+    expect(screen.getByLabelText("Search radius")).toBeTruthy();
   });
 });

@@ -1229,6 +1229,11 @@ export function TripView({
           onAnchorChange={setDiscoverAnchorId}
           onAdd={addPoiSlot}
           onResults={setDiscoverQuery}
+          reach={
+            reachReq && reachSlot && reachBandsState.bands
+              ? { slotId: reachSlot.id, origin: reachSlot.place, mode: reachReq.mode, bands: reachBandsState.bands }
+              : null
+          }
         />
       <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">

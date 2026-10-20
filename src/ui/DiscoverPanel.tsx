@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Day, ItinerarySlot, Place } from "../domain/types";
 import type { Poi, PoiCategoryId } from "../domain/poi";
 import { POI_CATEGORIES, fetchPois, fetchPoiSummary } from "../domain/poi";
 import type { PoiSummary } from "../domain/poi";
+import { reachMinutes, reachRadiusM, REACH_BANDS, type ReachBand, type ReachMode } from "../domain/reach";
 import { C } from "./theme";
 
 // Nearby-POI discovery beside the day map. Nothing is fetched until the user
@@ -24,6 +25,17 @@ const CATEGORY_ICON: Record<PoiCategoryId, string> = {
   food: "🍽",
   parks: "🌳",
 };
+
+// The ◎ reach rings currently on the map, which Discover can search within.
+export interface DiscoverReach {
+  slotId: string;
+  origin: Place;
+  mode: ReachMode;
+  bands: ReachBand[];
+}
+
+// Overpass radius cap — the largest preset; a 45-min transit ring can be wider.
+const MAX_RADIUS_M = 10000;
 
 // The last executed search, shared with the day map.
 export interface DiscoverQuery {
@@ -61,6 +73,7 @@ export default function DiscoverPanel({
   onAnchorChange,
   onAdd,
   onResults,
+  reach = null,
 }: {
   day: Day;
   canEdit: boolean;
@@ -70,6 +83,8 @@ export default function DiscoverPanel({
   onAdd: (poi: Poi) => Promise<string[]>;
   // Reports the last executed search (null when cleared) for the map overlay.
   onResults: (q: DiscoverQuery | null) => void;
+  // Reach rings on the map; with a "Within" limit, results are kept to them.
+  reach?: DiscoverReach | null;
 }) {
   const [open, setOpen] = useState(false);
   const [radiusM, setRadiusM] = useState(3000);
@@ -80,30 +95,50 @@ export default function DiscoverPanel({
   const [summaries, setSummaries] = useState<Record<string, PoiSummary | null>>({});
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
-  const center = searchCenter(day, anchorId);
+  const [withinMin, setWithinMin] = useState<number | null>(null);
+  const [searched, setSearched] = useState<{ center: Place; radiusM: number } | null>(null);
+  const within = reach ? withinMin : null; // the limit lapses with the rings
+  const center = within !== null && reach ? reach.origin : searchCenter(day, anchorId);
+  const ringRadiusM = within !== null && reach ? reachRadiusM(reach.origin, reach.bands, within) : 0;
+  // Travel band per result (only while a limit applies), and what's shown.
+  const reachOf = useMemo(() => {
+    const m = new Map<string, number | null>();
+    if (within !== null && reach) for (const p of pois) m.set(p.id, reachMinutes(reach.bands, p));
+    return m;
+  }, [pois, within, reach]);
+  const shown = useMemo(
+    () => (within === null ? pois : pois.filter((p) => (reachOf.get(p.id) ?? Infinity) <= within)),
+    [pois, within, reachOf]
+  );
+  // Keep the map's markers in step when the limit or the rings change.
+  useEffect(() => {
+    if (status === "done" && searched) onResults({ ...searched, pois: shown });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
   const placedSlots = day.slots.filter((s) => s.place);
 
   // New day = new context: back to the idle state.
   useEffect(() => {
     setStatus("idle");
     setPois([]);
+    setSearched(null);
     setExpanded(null);
     setAddedIds(new Set());
   }, [day.id]);
 
   const discover = () => {
     if (!center || status === "searching") return;
-    const searched = { ...center };
-    const searchedRadius = radiusM;
+    const at = { ...center };
+    const r = within !== null ? Math.min(MAX_RADIUS_M, Math.max(500, ringRadiusM)) : radiusM;
     setStatus("searching");
-    fetchPois(searched, searchedRadius, cats).then((result) => {
+    fetchPois(at, r, cats).then((result) => {
       if (result === null) {
         setStatus("failed");
         return;
       }
+      setSearched({ center: at, radiusM: r });
       setPois(result);
-      setStatus("done");
-      onResults({ center: searched, radiusM: searchedRadius, pois: result });
+      setStatus("done"); // the effect above reports the (filtered) results
     });
   };
 
@@ -164,19 +199,42 @@ export default function DiscoverPanel({
                     </button>
                   );
                 })}
-                <select
-                  value={radiusM}
-                  onChange={(e) => setRadiusM(Number(e.target.value))}
-                  aria-label="Search radius"
-                  className="rounded px-2 py-1 text-xs font-semibold ml-auto"
-                  style={{ border: `1px solid ${C.border}`, color: C.ink, background: C.card }}
-                >
-                  {RADII.map((r) => (
-                    <option key={r.m} value={r.m}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                {reach && (
+                  <select
+                    value={within ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value ? Number(e.target.value) : null;
+                      setWithinMin(v);
+                      // Places found within a slot's reach chain after that slot.
+                      if (v !== null && day.slots.some((sl) => sl.id === reach.slotId)) onAnchorChange(reach.slotId);
+                    }}
+                    aria-label="Within reach"
+                    className="rounded px-2 py-1 text-xs font-semibold ml-auto"
+                    style={{ border: `1px solid ${C.border}`, color: C.ink, background: C.card }}
+                  >
+                    <option value="">Any distance</option>
+                    {REACH_BANDS.map((b) => (
+                      <option key={b} value={b}>
+                        ◎ ≤ {b} min {reach.mode === "walk" ? "walk" : "by transit"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {within === null && (
+                  <select
+                    value={radiusM}
+                    onChange={(e) => setRadiusM(Number(e.target.value))}
+                    aria-label="Search radius"
+                    className={`rounded px-2 py-1 text-xs font-semibold ${reach ? "" : "ml-auto"}`}
+                    style={{ border: `1px solid ${C.border}`, color: C.ink, background: C.card }}
+                  >
+                    {RADII.map((r) => (
+                      <option key={r.m} value={r.m}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap mb-2 text-xs" style={{ color: C.sub }}>
@@ -212,7 +270,10 @@ export default function DiscoverPanel({
                 </button>
               </div>
               <p className="text-xs mb-2" style={{ color: C.sub }}>
-                around ⌖ {center.name} (start point) · data © OpenStreetMap contributors
+                {within !== null
+                  ? `within ${within} min of ⌖ ${center.name}${ringRadiusM > MAX_RADIUS_M ? " (searching the nearest 10 km)" : ""}`
+                  : `around ⌖ ${center.name} (start point)`}{" "}
+                · data © OpenStreetMap contributors
               </p>
 
               {status === "idle" && (
@@ -232,15 +293,17 @@ export default function DiscoverPanel({
                   </button>
                 </p>
               )}
-              {status === "done" && pois.length === 0 && (
+              {status === "done" && shown.length === 0 && (
                 <p className="text-sm" style={{ color: C.sub }}>
-                  Nothing found — try a wider radius or more categories.
+                  {within !== null && pois.length > 0
+                    ? `Nothing within ${within} min — ${pois.length} found farther away.`
+                    : "Nothing found — try a wider radius or more categories."}
                 </p>
               )}
 
-              {status === "done" && pois.length > 0 && (
+              {status === "done" && shown.length > 0 && (
                 <ul className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                  {pois.map((poi) => (
+                  {shown.map((poi) => (
                     <li
                       key={poi.id}
                       className="rounded-lg px-3 py-2"
@@ -255,6 +318,7 @@ export default function DiscoverPanel({
                           {CATEGORY_ICON[poi.category]} {poi.name}
                           <span className="font-normal text-xs ml-2" style={{ color: C.sub }}>
                             {fmtDistance(poi.distanceM)}
+                            {reachOf.get(poi.id) != null && ` · ◎ ≤ ${reachOf.get(poi.id)} min`}
                           </span>
                         </button>
                         {canEdit &&

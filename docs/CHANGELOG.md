@@ -6,6 +6,20 @@
 
 ## Session history
 
+- **v2.6.0** — Discover within a reach ring.
+  - **`reach.ts`.** `reachMinutes(bands, p)` gives the smallest band
+    containing a point; `reachRadiusM(origin, bands, max)` gives a circle
+    covering the bands up to `max`.
+  - **`DiscoverPanel`.**
+    - A `reach` prop (fed by `TripView` from the ◎ overlay).
+    - A "Within reach" select that replaces the radius select. It centres
+      on the ring's origin, sizes the radius to the ring, filters results to
+      the bands and tags them "◎ ≤ N min".
+    - The anchor jumps to the ring's slot.
+    - `onResults` now reports the filtered list on every change.
+  - Tests: 396 → 400. Playwright-checked with Rome FCO, walk 15′ (radius
+    1236 m, 24 of 72 stubbed sights kept).
+
 - **v2.5.0** — Live vehicles: filter by transport type.
   - **`liveTransit.ts`.**
     - New `trolleybus` mode, and a distinct per-type `MODE_COLORS`

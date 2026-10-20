@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.5.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 396 tests green
+## Current version: v2.6.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 400 tests green
 
 > **v2 is breaking and lives on its own branch.** The live site (deploy
 > branch) is still v1.3.2. Read "v2.0.0" below before merging.
@@ -236,6 +236,17 @@ turning Live off clears it.
   `lineKey`, `vehicleCategory`, `countByCategory`, `filterVehicles`. The
   card shows 🚎.
 
+**v2.6.0 — Discover within a reach ring.**
+- While ◎ rings are shown, Discover offers a "Within reach" picker: any
+  distance, or ≤ 15/30/45 min (walk or transit).
+- With a limit, the search centres on the ring's origin, and its radius is
+  `reachRadiusM` (it covers those bands; capped at 10 km for Overpass).
+  Results are kept to the bands (`reachMinutes`, point-in-cells), and each
+  is tagged "◎ ≤ N min".
+- Changing the limit or the rings re-filters the same results, and the map
+  markers follow. Picking a limit makes the ring's slot the "Start from"
+  anchor when it is on this day.
+
 **Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
 so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is
 repaired on the next v2 read. Merging is therefore safe at any time. After
@@ -250,7 +261,6 @@ merging, tag `v2.0.0`.
    `claude/wayfork-setup-github-pages-3pgqfw`, drop the preview branch from
    `deploy.yml`, and tag `v2.0.0`.
 2. v2 follow-ups, smallest first:
-   - limit Discover results to the selected reach ring;
    - use the slot's scheduled departure as the reach/transit `time` (it is
      "now" today);
    - drag a stop on the map to confirm or move an estimated place;

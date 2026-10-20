@@ -140,3 +140,28 @@ export function reachBands(
   }
   return out;
 }
+
+// The smallest band whose cells contain `p` (its travel-time ceiling, in
+// minutes), or null when `p` is outside every band.
+export function reachMinutes(bands: readonly ReachBand[], p: { lat: number; lon: number }): number | null {
+  const sorted = [...bands].sort((a, b) => a.maxMin - b.maxMin);
+  for (const band of sorted) {
+    for (const [s, w, n, e] of band.rects) {
+      if (p.lat >= s && p.lat < n && p.lon >= w && p.lon < e) return band.maxMin;
+    }
+  }
+  return null;
+}
+
+// Radius (metres) of the circle around `origin` that covers every band up to
+// `maxMin` — the search radius for "places within this reach".
+export function reachRadiusM(origin: Place, bands: readonly ReachBand[], maxMin: number): number {
+  let r = 0;
+  for (const band of bands) {
+    if (band.maxMin > maxMin) continue;
+    for (const [s, w, n, e] of band.rects) {
+      for (const lat of [s, n]) for (const lon of [w, e]) r = Math.max(r, distanceM(origin, { lat, lon }));
+    }
+  }
+  return Math.ceil(r);
+}
