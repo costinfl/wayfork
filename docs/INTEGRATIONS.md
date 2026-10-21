@@ -23,7 +23,7 @@ opt-in reliability upgrade for the small-audience case only.
 
 | Service | Used for | Free limit (per user IP) | Since |
 |---|---|---|---|
-| Open-Meteo geocoding + forecast | place autocomplete, weather badges | ~10k req/day fair use | v0.2x |
+| Open-Meteo geocoding + forecast | place autocomplete, weather badges; since v2.7.0 a place's IANA time zone (`timezone=auto`, cached per ~10 km in localStorage) for planned-time transit lookups | ~10k req/day fair use | v0.2x |
 | Frankfurter (ECB) | tri-currency rates | fair use | v0.2x |
 | **FOSSGIS OSRM** (`routing.openstreetmap.de/routed-foot`, `/routed-car`) | real footpath and road geometry for walking/driving legs | courtesy (the servers behind openstreetmap.org's directions), CORS `*`, two lookups at a time | **v2.1.0** |
 | OSRM demo server | fallback road geometry (routes every profile as driving) | courtesy, no SLA | v0.28 |

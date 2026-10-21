@@ -47,6 +47,7 @@ import {
 import type { Poi } from "../domain/poi";
 import { estimateLeg } from "../domain/route";
 import { fetchTransitPlan, previousPlace, transitItineraryToVariant } from "../domain/transit";
+import { fetchTimeZone, slotDeparture } from "../domain/departure";
 import { tripSlotTitle, tripToVariant } from "../domain/liveTransit";
 import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
 import type { DiscoverQuery } from "./DiscoverPanel";
@@ -921,8 +922,15 @@ export function TripView({
   const reachSlot = reachReq
     ? trip.days.flatMap((d) => d.slots).find((sl) => sl.id === reachReq.slotId) ?? null
     : null;
+  // Rings depart when the plan leaves the slot's place: its scheduled end.
+  const reachDay = reachSlot ? trip.days.find((d) => d.slots.includes(reachSlot)) ?? null : null;
+  const reachLeaveMin = reachDay
+    ? computeSchedule({ ...reachDay, startTimeMin: dayStarts[reachDay.id] ?? reachDay.startTimeMin }, activeVariants).find(
+        (r) => r.slot.id === reachSlot!.id
+      )?.end ?? null
+    : null;
   useEffect(() => {
-    if (!reachReq || !reachSlot) return;
+    if (!reachReq || !reachSlot || !reachDay || reachLeaveMin === null) return;
     let cancelled = false;
     const origin = reachSlot.place;
     setReachBands({ bands: null, note: null });
@@ -930,19 +938,22 @@ export function TripView({
       setReachBands({ bands: reachBands(origin, []), note: null });
       return;
     }
-    void fetchReachableStops(origin, Math.max(...REACH_BANDS)).then((stops) => {
+    void (async () => {
+      const tz = await fetchTimeZone(origin);
+      const dep = slotDeparture(origin, reachDay.date, reachLeaveMin, tz, new Date());
+      const stops = await fetchReachableStops(origin, Math.max(...REACH_BANDS), dep.time);
       if (cancelled) return;
       setReachBands(
         stops
-          ? { bands: reachBands(origin, stops), note: "departing now · Transitous" }
+          ? { bands: reachBands(origin, stops), note: `departing ${dep.label} · Transitous` }
           : { bands: reachBands(origin, []), note: "transit unavailable — showing walking only" }
       );
-    });
+    })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reachReq?.slotId, reachReq?.mode, reachSlot?.place.lat, reachSlot?.place.lon]);
+  }, [reachReq?.slotId, reachReq?.mode, reachSlot?.place.lat, reachSlot?.place.lon, reachDay?.date, reachLeaveMin]);
   const reachOverlay: ReachOverlay | null =
     reachReq && reachSlot
       ? {
@@ -1036,7 +1047,10 @@ export function TripView({
     setTransitBusyId(slot.id);
     setTransitError(null);
     try {
-      const itinerary = await fetchTransitPlan(origin, slot.place);
+      // Depart from the previous place when the plan starts this slot.
+      const startMin = schedule.find((r) => r.slot.id === slot.id)?.start ?? dayStart;
+      const dep = slotDeparture(origin, day.date, startMin, await fetchTimeZone(origin), new Date());
+      const itinerary = await fetchTransitPlan(origin, slot.place, fetch, { time: dep.time });
       if (!itinerary) {
         setTransitError({
           slotId: slot.id,

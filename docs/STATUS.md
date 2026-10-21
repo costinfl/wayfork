@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.6.0 — live on the deploy branch (v2 merged 2026-10-21) — 400 tests green
+## Current version: v2.7.0 — live on the deploy branch (v2 merged 2026-10-21) — 412 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -244,6 +244,20 @@ turning Live off clears it.
   markers follow. Picking a limit makes the ring's slot the "Start from"
   anchor when it is on this day.
 
+**v2.7.0 — lookups depart at the planned time.**
+- ◎ transit rings depart at the slot's scheduled **end**, from its place.
+  The 🚆 Transit option departs at the slot's scheduled **start**, from the
+  previous place.
+- Times are converted in the place's IANA zone (`domain/departure.ts`):
+  `fetchTimeZone` asks Open-Meteo `timezone=auto`, cached per ~10 km in
+  `wayfork.tz`, with a longitude estimate as the fallback. `zonedToUtc`
+  handles DST.
+- Dates outside [today, +28 d] are projected onto the next same weekday
+  (`timetableDate`), since Transitous has no timetable for them. The rings
+  note says e.g. "departing Thu 10:17 (timetable of 22 Oct)".
+- The map's leg lines still use a default time; only the track matters
+  there.
+
 **v2 in production:** v1 trips are migrated on read and written back. A
 cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
@@ -251,11 +265,9 @@ retired: deploy.yml publishes the deploy branch only.
 
 ## NEXT TASK — v2 follow-ups, smallest first
 
-1. Use the slot's scheduled departure as the reach/transit `time` (it is
-   "now" today).
-2. Drag a stop on the map to confirm or move an estimated place.
-3. Give the planner sheet a dark theme to match the map.
-4. Earlier candidate, still open: trip export/share as PDF (the map can now
+1. Drag a stop on the map to confirm or move an estimated place.
+2. Give the planner sheet a dark theme to match the map.
+3. Earlier candidate, still open: trip export/share as PDF (the map can now
    export its canvas).
 
 ## Open items

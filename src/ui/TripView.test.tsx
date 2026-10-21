@@ -13,6 +13,21 @@ vi.mock("../domain/transit", async (importOriginal) => ({
   fetchTransitPlan: fetchTransitPlanMock,
 }));
 
+// Time zones and reachable stops come from the network — stubbed here
+// (departure.test.ts / reach.test.ts cover them).
+const { fetchTimeZoneMock, fetchReachableStopsMock } = vi.hoisted(() => ({
+  fetchTimeZoneMock: vi.fn(async (_p: unknown): Promise<string | null> => "Europe/Rome"),
+  fetchReachableStopsMock: vi.fn(async (..._a: unknown[]): Promise<unknown[] | null> => []),
+}));
+vi.mock("../domain/departure", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../domain/departure")>()),
+  fetchTimeZone: fetchTimeZoneMock,
+}));
+vi.mock("../domain/reach", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../domain/reach")>()),
+  fetchReachableStops: fetchReachableStopsMock,
+}));
+
 // The map is WebGL-bound (its own wiring is covered in map/TripMap.test.tsx);
 // here a stub records the props TripView hands it.
 const { mapProps } = vi.hoisted(() => ({ mapProps: { current: null as any } }));
@@ -196,6 +211,9 @@ describe("TripView — 🚆 Transit option", () => {
       legs: [{ type: "metro", label: "M2 → B", durationMin: 20, distanceKm: 5, line: null, from: null, to: null }],
     };
     fetchTransitPlanMock.mockResolvedValue(itinerary);
+    // A week before the trip, so its own date's timetable is used.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-25T08:00:00Z"));
     const onTripChange = vi.fn();
     render(
       <TripView
@@ -210,10 +228,17 @@ describe("TripView — 🚆 Transit option", () => {
     enterEditMode();
     fireEvent.click(screen.getByText("🚆 Transit"));
 
-    expect(fetchTransitPlanMock).toHaveBeenCalledWith(
-      { name: "A", lat: 1, lon: 1 },
-      { name: "B", lat: 2, lon: 2 }
+    // Departs when the plan starts s3 — 09:10 Rome time (s1 takes 10 min).
+    await waitFor(() =>
+      expect(fetchTransitPlanMock).toHaveBeenCalledWith(
+        { name: "A", lat: 1, lon: 1 },
+        { name: "B", lat: 2, lon: 2 },
+        expect.any(Function),
+        { time: new Date("2026-08-01T07:10:00Z") }
+      )
     );
+    expect(fetchTimeZoneMock).toHaveBeenCalledWith({ name: "A", lat: 1, lon: 1 });
+    vi.useRealTimers();
     await waitFor(() => expect(onTripChange).toHaveBeenCalled());
     const saved: Trip = onTripChange.mock.calls[0][0];
     const destination = saved.days[0].slots.find((s) => s.id === "s3")!;
@@ -256,6 +281,23 @@ describe("TripView — trip map wiring", () => {
     expect(mapProps.current.reach.bands.map((b: { maxMin: number }) => b.maxMin)).toEqual([15, 30, 45]);
     act(() => mapProps.current.reach.onClose());
     expect(mapProps.current.reach).toBeNull();
+  });
+
+  it("◎ transit rings depart at the slot's scheduled end, not now", async () => {
+    fetchReachableStopsMock.mockClear();
+    // The trip (Sat 1 Aug) is past: the next Saturday's timetable stands in.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-21T08:00:00Z"));
+    renderView(fixture());
+    fireEvent.click(screen.getAllByRole("button", { name: /reach/ })[1]);
+    await waitFor(() => expect(mapProps.current.reach?.bands).toBeTruthy());
+    act(() => mapProps.current.reach.onMode("transit"));
+    // Museum ends at 09:45 (9:00 + 30 + 15), Rome time.
+    await waitFor(() =>
+      expect(mapProps.current.reach?.note).toBe("departing Sat 09:45 (timetable of 24 Oct) · Transitous")
+    );
+    expect(fetchReachableStopsMock).toHaveBeenCalledWith(TEST_PLACE, 45, new Date("2026-10-24T07:45:00Z"));
+    vi.useRealTimers();
   });
 });
 

@@ -6,6 +6,21 @@
 
 ## Session history
 
+- **v2.7.0** — Reach and transit lookups depart at the planned time.
+  - **New `domain/departure.ts`.**
+    - `fetchTimeZone` (Open-Meteo, cached per area in memory and
+      localStorage, de-duplicated in flight).
+    - `zonedToUtc` (Intl offset, two passes for DST; longitude fallback).
+    - `timetableDate` (trip dates outside today…+28 d move to the next same
+      weekday).
+    - `slotDeparture` (instant + label).
+  - **`TripView`.**
+    - Reach rings use the slot's scheduled end, on its own day; the note
+      reads "departing Thu 10:17 …".
+    - `addTransitOption` passes the slot's scheduled start as `time`.
+  - Tests: 400 → 412. Playwright-checked: the Rome FCO flight slot ends
+    10:17 → one-to-all `time=2026-10-22T08:17:00Z` (the next Thursday, CEST).
+
 - **v2.6.0 shipped** — v2 (v2.0.0–v2.6.0) fast-forwarded from
   `claude/stoic-allen-ttugda` into the deploy branch, so the live site jumps
   from v1.3.2 to v2.6.0. The preview is retired: deploy.yml is back to
