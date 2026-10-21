@@ -6,6 +6,12 @@
 
 ## Session history
 
+- **v2.6.0 shipped** — v2 (v2.0.0–v2.6.0) fast-forwarded from
+  `claude/stoic-allen-ttugda` into the deploy branch, so the live site jumps
+  from v1.3.2 to v2.6.0. The preview is retired: deploy.yml is back to
+  production only, and the next deploy drops `gh-pages/v2/`. Tagged
+  `v2.6.0`.
+
 - **v2.6.0** — Discover within a reach ring.
   - **`reach.ts`.** `reachMinutes(bands, p)` gives the smallest band
     containing a point; `reachRadiusM(origin, bands, max)` gives a circle

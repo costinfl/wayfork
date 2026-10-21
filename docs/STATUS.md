@@ -3,10 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.6.0 (branch `claude/stoic-allen-ttugda`, NOT yet on the deploy branch) — 400 tests green
-
-> **v2 is breaking and lives on its own branch.** The live site (deploy
-> branch) is still v1.3.2. Read "v2.0.0" below before merging.
+## Current version: v2.6.0 — live on the deploy branch (v2 merged 2026-10-21) — 400 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -247,25 +244,18 @@ turning Live off clears it.
   markers follow. Picking a limit makes the ring's slot the "Start from"
   anchor when it is on this day.
 
-**Before merging v2 into the deploy branch:** v1 clients keep unknown keys,
-so they won't corrupt v2 trips. Any unplaced slot a v1 client adds is
-repaired on the next v2 read. Merging is therefore safe at any time. After
-merging, tag `v2.0.0`.
+**v2 in production:** v1 trips are migrated on read and written back. A
+cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
+unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
+retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — decide on merging v2, then follow-ups
+## NEXT TASK — v2 follow-ups, smallest first
 
-1. Have the user review the v2 preview at https://www.costinfl.dev/wayfork/v2/
-   (github.io redirects to that custom domain). Every push to this branch
-   redeploys it into `gh-pages/v2/`; a production deploy removes `v2/` until
-   the next preview push. Then merge into
-   `claude/wayfork-setup-github-pages-3pgqfw`, drop the preview branch from
-   `deploy.yml`, and tag `v2.0.0`.
-2. v2 follow-ups, smallest first:
-   - use the slot's scheduled departure as the reach/transit `time` (it is
-     "now" today);
-   - drag a stop on the map to confirm or move an estimated place;
-   - give the planner sheet a dark theme to match the map.
-3. Earlier candidate, still open: trip export/share as PDF (the map can now
+1. Use the slot's scheduled departure as the reach/transit `time` (it is
+   "now" today).
+2. Drag a stop on the map to confirm or move an estimated place.
+3. Give the planner sheet a dark theme to match the map.
+4. Earlier candidate, still open: trip export/share as PDF (the map can now
    export its canvas).
 
 ## Open items
