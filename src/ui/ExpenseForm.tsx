@@ -4,7 +4,7 @@ import { newExpenseId } from "../domain/mutate";
 import type { ExpenseItem, ExpensePhase, SplitDef, Trip } from "../domain/types";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 // Add/edit form for one expense. onSave returns validation problems (empty
 // array = saved, parent closes the form).
@@ -70,7 +70,7 @@ export function ExpenseForm({
   };
 
   return (
-    <div className="rounded-lg p-3 my-2" style={{ background: "#F1F4F7" }}>
+    <div className="rounded-lg p-3 my-2" style={{ background: C.panel }}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
         <label className="text-xs" style={{ color: C.sub }}>
           Label
@@ -190,7 +190,7 @@ export function ExpenseForm({
         <button
           onClick={submit}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ background: C.line, color: "#fff" }}
+          style={{ background: C.line, color: C.onLine }}
         >
           {initial ? "Save expense" : "Add expense"}
         </button>

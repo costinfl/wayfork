@@ -34,7 +34,7 @@ export function MigrationBanner({
           onClick={onImport}
           disabled={busy}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ border: `1px solid ${C.line}`, background: C.line, color: "#fff", opacity: busy ? 0.6 : 1 }}
+          style={{ border: `1px solid ${C.line}`, background: C.line, color: C.onLine, opacity: busy ? 0.6 : 1 }}
         >
           {busy ? "Importing…" : "Import"}
         </button>
@@ -102,7 +102,7 @@ export function V2MigrationBanner({
             <button
               onClick={onReview}
               className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-              style={{ border: `1px solid ${C.amber}`, background: C.amber, color: "#fff" }}
+              style={{ border: `1px solid ${C.amber}`, background: C.amber, color: C.onLine }}
             >
               Review
             </button>

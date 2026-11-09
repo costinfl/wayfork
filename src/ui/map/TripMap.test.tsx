@@ -258,11 +258,51 @@ describe("TripMap", () => {
     expect(onSelectSlot).toHaveBeenCalledWith("s3", 1);
   });
 
+  it("editors drag a focused stop to move it; a tap or a viewer does nothing", () => {
+    const down = (slotId: string, focus = true) =>
+      h.handlers["mousedown:stops"]({
+        features: [{ properties: { slotId, focus } }],
+        point: { x: 100, y: 100 },
+        lngLat: { lat: 1, lng: 1 },
+        preventDefault: vi.fn(),
+      });
+    const move = (x: number, lat: number) => h.handlers["mousemove"]({ point: { x, y: 100 }, lngLat: { lat, lng: 1.5 } });
+    const { onMoveStop } = renderMap({ onMoveStop: vi.fn() });
+    // A tap: no movement → no move.
+    down("s2");
+    move(102, 1.01);
+    h.handlers["mouseup"]({});
+    expect(onMoveStop).not.toHaveBeenCalled();
+    // A drag: the pin follows, and the drop reports the new position.
+    down("s2");
+    move(140, 1.2);
+    expect(features("stops").find((f) => f.properties.slotId === "s2").geometry.coordinates).toEqual([1.5, 1.2]);
+    move(160, 1.3);
+    h.handlers["mouseup"]({});
+    expect(onMoveStop).toHaveBeenCalledWith("s2", { lat: 1.3, lon: 1.5 });
+    // Another day's (unfocused) stop is not draggable.
+    down("s3", false);
+    move(160, 2);
+    h.handlers["mouseup"]({});
+    expect(onMoveStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("viewers cannot drag stops", () => {
+    renderMap();
+    const preventDefault = vi.fn();
+    h.handlers["mousedown:stops"]({ features: [{ properties: { slotId: "s2", focus: true } }], point: { x: 1, y: 1 }, preventDefault });
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
   it("uses the dark basemap by default and swaps style on the theme toggle", () => {
     renderMap();
     expect(h.styles[0]).toMatch(/map-style-dark\.json$/);
     fireEvent.click(screen.getByRole("button", { name: "Toggle dark map" }));
     expect(h.styles[1]).toMatch(/map-style-light\.json$/);
+    // The planner sheet's palette follows the same switch.
+    expect(document.documentElement.dataset.theme).toBe("light");
+    fireEvent.click(screen.getByRole("button", { name: "Toggle dark map" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("zoom buttons drive the map", () => {

@@ -5,7 +5,7 @@ import { STEP_TYPES } from "../domain/types";
 import type { StepType, VariantNode } from "../domain/types";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 interface StepDraft {
   id: string;
@@ -86,7 +86,7 @@ export function VariantForm({
   };
 
   return (
-    <div className="rounded-lg p-3 my-2" style={{ background: "#F1F4F7" }}>
+    <div className="rounded-lg p-3 my-2" style={{ background: C.panel }}>
       <div className="flex gap-2 flex-wrap mb-2">
         <label className="text-xs flex-1 min-w-40" style={{ color: C.sub }}>
           Variant name
@@ -201,7 +201,7 @@ export function VariantForm({
         <button
           onClick={submit}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ background: C.line, color: "#fff" }}
+          style={{ background: C.line, color: C.onLine }}
         >
           {initial ? "Save variant" : "Add variant"}
         </button>

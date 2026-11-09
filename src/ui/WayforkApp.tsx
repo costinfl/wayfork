@@ -29,6 +29,7 @@ import type { RateMatrix } from "../domain/currency";
 import { computeBalances, settle } from "../domain/ledger";
 import {
   insertSlotAfter,
+  setSlotPlace,
   moveSlot,
   guessPlace,
   newId,
@@ -57,7 +58,7 @@ import { computeSchedule } from "../domain/schedule";
 import { fmtDur, fmtOffset, fmtTime } from "../domain/time";
 import { fetchDayWeather, RAIN_RISK_THRESHOLD } from "../domain/weather";
 import type { DayWeather } from "../domain/weather";
-import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Trip, VariantNode } from "../domain/types";
+import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Place, Trip, VariantNode } from "../domain/types";
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { DayForm } from "./DayForm";
@@ -1035,6 +1036,22 @@ export function TripView({
     return errors;
   };
 
+  // A pin dragged on the map (or "✓ confirm" on an estimated place): the
+  // position becomes the user's own. Undoable for a few seconds.
+  const [movedStop, setMovedStop] = useState<{ slotId: string; title: string; before: Place; errors: string[] } | null>(null);
+  const moveStop = (slotId: string, at: { lat: number; lon: number }) => {
+    const slot = trip.days.flatMap((d) => d.slots).find((sl) => sl.id === slotId);
+    if (!slot) return;
+    const moved = slot.place.lat !== at.lat || slot.place.lon !== at.lon;
+    const errors = applyTrip(setSlotPlace(trip, slotId, at));
+    setMovedStop(moved || errors.length ? { slotId, title: slot.title, before: slot.place, errors } : null);
+  };
+  useEffect(() => {
+    if (!movedStop) return;
+    const id = setTimeout(() => setMovedStop(null), 8000);
+    return () => clearTimeout(id);
+  }, [movedStop]);
+
   // One-click "add a real transit option" beside "+ variant": routes from the
   // nearest earlier placed slot to this one via Transitous, and saves the
   // best itinerary as a new variant (with its own route geometry for the map).
@@ -1147,7 +1164,7 @@ export function TripView({
                 className="px-3 py-1.5 text-sm font-semibold"
                 style={{
                   background: ccyView === k ? C.ink : C.card,
-                  color: ccyView === k ? "#fff" : C.sub,
+                  color: ccyView === k ? C.card : C.sub,
                 }}
               >
                 {trip.currencies[k]}
@@ -1167,7 +1184,7 @@ export function TripView({
               className="px-3 py-1.5 rounded-lg text-sm font-semibold"
               style={{
                 background: i === dayIdx ? C.line : C.card,
-                color: i === dayIdx ? "#fff" : C.sub,
+                color: i === dayIdx ? C.onLine : C.sub,
                 border: `1px solid ${i === dayIdx ? C.line : C.border}`,
               }}
             >
@@ -1232,8 +1249,37 @@ export function TripView({
           discover={discoverQuery}
           reach={reachOverlay}
           onUseTrip={canEdit ? addLiveTrip : undefined}
+          onMoveStop={canEdit ? moveStop : undefined}
         />
       </Suspense>
+      {movedStop && (
+        <div
+          role="status"
+          className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 rounded-xl px-3 py-2 text-sm flex items-center gap-3 shadow-lg"
+          style={{ background: "#0f172a", color: "#f8fafc", border: "1px solid #334155" }}
+        >
+          {movedStop.errors.length ? (
+            <span>Couldn't move “{movedStop.title}”: {movedStop.errors.join("; ")}</span>
+          ) : (
+            <>
+              <span>📍 Moved “{movedStop.title}”</span>
+              <button
+                onClick={() => {
+                  const cur = trip.days.flatMap((d) => d.slots).find((sl) => sl.id === movedStop.slotId);
+                  if (cur) applyTrip(upsertSlot(trip, day.id, { ...cur, place: movedStop.before }));
+                  setMovedStop(null);
+                }}
+                className="underline font-semibold"
+              >
+                Undo
+              </button>
+            </>
+          )}
+          <button onClick={() => setMovedStop(null)} aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="mb-6">
         <DiscoverPanel
@@ -1312,7 +1358,7 @@ export function TripView({
                 {row.tzOffsetMin !== 0 && (
                   <span
                     className="text-xs px-1.5 py-0.5 rounded"
-                    style={{ background: "#EEF2F6", color: C.sub, ...mono }}
+                    style={{ background: C.chip, color: C.sub, ...mono }}
                     title={`Local time here is ${fmtOffset(row.tzOffsetMin)} from the day's start zone${day.tz ? ` (${day.tz})` : ""}`}
                   >
                     🕓 {fmtOffset(row.tzOffsetMin)}
@@ -1327,7 +1373,7 @@ export function TripView({
                       width: 18,
                       height: 18,
                       background: row.slot.place.estimated ? C.amber : C.line,
-                      color: "#fff",
+                      color: C.onLine,
                     }}
                   >
                     {markerNumbers.get(row.slot.id)}
@@ -1338,9 +1384,22 @@ export function TripView({
                   <span
                     className="text-xs px-1.5 py-0.5 rounded"
                     style={{ background: C.amberBg, color: C.amber }}
-                    title="This location is a guess (e.g. from the v2 upgrade) — edit the slot to confirm it"
+                    title={
+                      canEdit
+                        ? "This location is a guess — drag its pin on the map to the right spot, or confirm it"
+                        : "This location is a guess (e.g. from the v2 upgrade)"
+                    }
                   >
                     📍 estimated place
+                    {canEdit && (
+                      <button
+                        onClick={() => moveStop(row.slot.id, row.slot.place)}
+                        className="ml-1.5 underline font-semibold"
+                        aria-label={`Confirm the location of ${row.slot.title}`}
+                      >
+                        ✓ confirm
+                      </button>
+                    )}
                   </span>
                 )}
                 <button
@@ -1544,7 +1603,7 @@ export function TripView({
               ["Projected total", projectedEUR],
             ] as const
           ).map(([label, eur], idx) => (
-            <div key={label} className="rounded-lg p-3" style={{ background: idx === 2 ? C.lineSoft : "#F1F4F7" }}>
+            <div key={label} className="rounded-lg p-3" style={{ background: idx === 2 ? C.lineSoft : C.panel }}>
               <div className="text-xs mb-1" style={{ color: C.sub }}>
                 {label}
               </div>
@@ -1610,7 +1669,7 @@ export function TripView({
         ))}
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-lg p-3" style={{ background: "#F1F4F7" }}>
+          <div className="rounded-lg p-3" style={{ background: C.panel }}>
             <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.sub }}>
               Net balances
             </div>

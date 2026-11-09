@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.7.0 — live on the deploy branch (v2 merged 2026-10-21) — 412 tests green
+## Current version: v2.8.0 — live on the deploy branch (v2 merged 2026-10-21) — 417 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,17 +258,26 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.8.0 — drag pins, dark planner.**
+- **Drag a stop.** Editors drag a focused day's pin on the map to move its
+  place (`TripMap` `onMoveStop` → `mutate.setSlotPlace`, which clears
+  `estimated`). A tap still selects. A "Moved … Undo" notice restores the
+  old place. Estimated places also get a "✓ confirm" link in the timeline.
+- **One theme.** `theme.ts` `C` is now CSS variables (`index.css`, light +
+  dark palettes; new `sheet`, `panel`, `chip`, `okBg`, `onLine`). The map's
+  ☀️/🌙 toggle calls `applyTheme`, so the planner sheet follows. Dark is the
+  default. Never hard-code a planner colour: add a variable.
+
 **v2 in production:** v1 trips are migrated on read and written back. A
 cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — v2 follow-ups, smallest first
+## NEXT TASK — pick from the improvement proposal
 
-1. Drag a stop on the map to confirm or move an estimated place.
-2. Give the planner sheet a dark theme to match the map.
-3. Earlier candidate, still open: trip export/share as PDF (the map can now
-   export its canvas).
+The v2 follow-up list is done. The user asked for a proposal of new
+integrations and a clearer first-run experience (2026-11-09); wait for their
+pick before building. Still-open earlier candidate: trip export/share as PDF.
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

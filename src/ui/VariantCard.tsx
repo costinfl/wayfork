@@ -74,7 +74,7 @@ export function VariantCard({
           {active && (
             <span
               className="text-xs font-bold px-1.5 py-0.5 rounded"
-              style={{ background: C.line, color: "#fff" }}
+              style={{ background: C.line, color: C.onLine }}
             >
               ACTIVE
             </span>

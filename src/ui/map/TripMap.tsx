@@ -24,6 +24,7 @@ import {
 } from "../../domain/liveTransit";
 import { legKey, limiter, resolveLegLine } from "../../domain/legs";
 import { MODE_ICON } from "./VehicleCard";
+import { applyTheme } from "../theme";
 import { ALT_COLORS, tripOverlay, type OverlayTrack } from "../../domain/overlay";
 import type { Poi } from "../../domain/poi";
 import type { ReachBand, ReachMode } from "../../domain/reach";
@@ -81,6 +82,8 @@ export interface TripMapProps {
   reach?: ReachOverlay | null;
   // Editors only: add a tapped vehicle's ride to the plan (returns validation errors).
   onUseTrip?: (req: UseTripRequest) => string[];
+  // Editors only: a stop was dragged to a new position.
+  onMoveStop?: (slotId: string, at: { lat: number; lon: number }) => void;
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -255,6 +258,8 @@ export default function TripMap(props: TripMapProps) {
     [trip, activeVariants, rates, ccy]
   );
   const focusDay = scope === "day" ? Math.min(dayIdx, trip.days.length - 1) : null;
+  const stopsRef = useRef({ stops: overlay.stops, focusDay });
+  stopsRef.current = { stops: overlay.stops, focusDay };
 
   // Bumped when a leg's real geometry arrives, to redraw. A lookup may finish
   // after several redraws (or after unmount), so it checks `alive`, not a
@@ -367,6 +372,40 @@ export default function TripMap(props: TripMapProps) {
       const p = e.features?.[0]?.properties;
       if (p && typeof p.slotId === "string") propsRef.current.onSelectSlot(p.slotId, Number(p.dayIdx));
     });
+    // Editors: drag a focused stop to move its place. A tap (no real movement)
+    // still selects it; the stop follows the pointer, its lines catch up on drop.
+    let drag: { slotId: string; x: number; y: number; at: { lat: number; lon: number } | null } | null = null;
+    const dragMove = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      if (!drag) return;
+      if (!drag.at && Math.hypot(e.point.x - drag.x, e.point.y - drag.y) < 5) return;
+      drag.at = { lat: e.lngLat.lat, lon: e.lngLat.lng };
+      map.getCanvas().style.cursor = "grabbing";
+      const { stops, focusDay: fd } = stopsRef.current;
+      const { slotId, at } = drag;
+      setStops(map, stops.map((st) => (st.slotId === slotId ? { ...st, place: { ...st.place, ...at } } : st)), fd);
+    };
+    const dragEnd = () => {
+      map.off("mousemove", dragMove);
+      map.off("touchmove", dragMove);
+      const done = drag;
+      drag = null;
+      map.getCanvas().style.cursor = "";
+      if (done?.at) propsRef.current.onMoveStop?.(done.slotId, done.at);
+    };
+    const dragStart = (e: maplibregl.MapLayerMouseEvent | maplibregl.MapLayerTouchEvent) => {
+      const p = e.features?.[0]?.properties;
+      if (!propsRef.current.onMoveStop || !p?.focus || typeof p.slotId !== "string") return;
+      if ("points" in e && e.points.length !== 1) return; // pinch-zoom, not a drag
+      e.preventDefault(); // keep the map still while the stop moves
+      drag = { slotId: p.slotId, x: e.point.x, y: e.point.y, at: null };
+      map.on("mousemove", dragMove);
+      map.on("touchmove", dragMove);
+    };
+    map.on("mousedown", "stops", dragStart);
+    map.on("touchstart", "stops", dragStart);
+    map.on("mouseup", dragEnd);
+    map.on("touchend", dragEnd);
+    map.on("touchcancel", dragEnd);
     for (const layer of ["tracks-alt", "badges", "stops"]) {
       map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
@@ -392,6 +431,7 @@ export default function TripMap(props: TripMapProps) {
   const firstTheme = useRef(true);
   useEffect(() => {
     writePref("wayfork.mapDark", dark);
+    applyTheme(dark); // the planner sheet follows the map
     if (firstTheme.current) {
       firstTheme.current = false;
       return;
@@ -744,7 +784,7 @@ export default function TripMap(props: TripMapProps) {
           <button onClick={() => setIs3d((v) => !v)} aria-pressed={is3d} title="Tilt the map (3D buildings)" className="h-8 px-2 rounded-lg text-xs font-bold" style={btn(is3d)}>
             3D
           </button>
-          <button onClick={() => setDark((v) => !v)} aria-label="Toggle dark map" title={dark ? "Light basemap" : "Dark basemap"} className="w-8 h-8 rounded-lg" style={btn()}>
+          <button onClick={() => setDark((v) => !v)} aria-label="Toggle dark map" title={dark ? "Light theme" : "Dark theme"} className="w-8 h-8 rounded-lg" style={btn()}>
             {dark ? "☀️" : "🌙"}
           </button>
           <button

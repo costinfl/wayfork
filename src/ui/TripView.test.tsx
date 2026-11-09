@@ -283,6 +283,33 @@ describe("TripView — trip map wiring", () => {
     expect(mapProps.current.reach).toBeNull();
   });
 
+  it("a pin dragged on the map moves the slot's place, undoably; viewers get no handler", async () => {
+    const onTripChange = vi.fn();
+    const { unmount } = render(
+      <TripView trip={fixture()} rates={RATES_EUR} ratesLabel="x" storeLabel="local browser" canEdit={true} onTripChange={onTripChange} />
+    );
+    act(() => mapProps.current.onMoveStop("s2", { lat: 45.5, lon: 25.5 }));
+    const saved: Trip = onTripChange.mock.calls[0][0];
+    expect(saved.days[0].slots[1].place).toEqual({ name: TEST_PLACE.name, lat: 45.5, lon: 25.5 });
+    expect(screen.getByRole("status")).toHaveTextContent("Moved “Museum”");
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(onTripChange.mock.calls[1][0].days[0].slots[1].place).toEqual(TEST_PLACE);
+    expect(screen.queryByRole("status")).toBeNull();
+    unmount();
+    render(<TripView trip={fixture()} rates={RATES_EUR} ratesLabel="x" storeLabel="local browser" canEdit={false} onTripChange={vi.fn()} />);
+    expect(mapProps.current.onMoveStop).toBeUndefined();
+  });
+
+  it("an estimated place can be confirmed where it is", () => {
+    const t = fixture();
+    t.days[0].slots[1].place = { ...TEST_PLACE, estimated: true };
+    const onTripChange = vi.fn();
+    render(<TripView trip={t} rates={RATES_EUR} ratesLabel="x" storeLabel="local browser" canEdit={true} onTripChange={onTripChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm the location of Museum" }));
+    expect(onTripChange.mock.calls[0][0].days[0].slots[1].place).toEqual(TEST_PLACE);
+    expect(screen.queryByRole("status")).toBeNull(); // nothing moved
+  });
+
   it("◎ transit rings depart at the slot's scheduled end, not now", async () => {
     fetchReachableStopsMock.mockClear();
     // The trip (Sat 1 Aug) is past: the next Saturday's timetable stands in.

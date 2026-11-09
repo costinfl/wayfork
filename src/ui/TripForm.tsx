@@ -5,7 +5,7 @@ import type { Participant, Place, Trip, TripCurrencies } from "../domain/types";
 import { PlaceInput, type SearchFn } from "./PlaceInput";
 import { C } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 // Trip settings (name, currencies, participants) — also used in "new trip"
 // mode, where it additionally asks for the first day's date and where the trip
@@ -153,7 +153,7 @@ export function TripForm({
         <button
           onClick={submit}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ background: C.line, color: "#fff" }}
+          style={{ background: C.line, color: C.onLine }}
         >
           {initial ? "Save trip settings" : "Create trip"}
         </button>

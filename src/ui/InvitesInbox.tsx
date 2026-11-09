@@ -33,7 +33,7 @@ export function InvitesInbox({
             onClick={() => onAccept(inv.id)}
             disabled={busyId === inv.id}
             className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
-            style={{ border: `1px solid ${C.line}`, background: C.line, color: "#fff", opacity: busyId === inv.id ? 0.6 : 1 }}
+            style={{ border: `1px solid ${C.line}`, background: C.line, color: C.onLine, opacity: busyId === inv.id ? 0.6 : 1 }}
           >
             {busyId === inv.id ? "Accepting…" : "Accept"}
           </button>

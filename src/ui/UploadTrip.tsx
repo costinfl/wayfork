@@ -71,7 +71,7 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => AddTripResu
       <button
         onClick={() => text.trim() && handleRaw(text)}
         className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-        style={{ background: C.line, color: "#fff", opacity: text.trim() ? 1 : 0.5 }}
+        style={{ background: C.line, color: C.onLine, opacity: text.trim() ? 1 : 0.5 }}
       >
         Load pasted JSON
       </button>

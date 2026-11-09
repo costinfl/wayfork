@@ -95,6 +95,12 @@ export const moveSlot = (trip: Trip, slotId: string, dir: -1 | 1): Trip => ({
   }),
 });
 
+// Moves (or confirms) a slot's place: the given position is the user's own,
+// so it is no longer `estimated`. Steps keep their stored endpoints — the map
+// bridges any gap to the new position.
+export const setSlotPlace = (trip: Trip, slotId: string, at: { lat: number; lon: number }): Trip =>
+  mapSlot(trip, slotId, (s) => ({ ...s, place: { name: s.place.name, lat: at.lat, lon: at.lon } }));
+
 export const upsertVariant = (trip: Trip, slotId: string, variant: VariantNode): Trip =>
   mapSlot(trip, slotId, (s) => ({
     ...s,

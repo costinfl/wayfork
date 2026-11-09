@@ -12,6 +12,7 @@ import {
   removeExpense,
   removeSlot,
   removeVariant,
+  setSlotPlace,
   starterSlot,
   upsertDay,
   upsertExpense,
@@ -100,6 +101,18 @@ const newSlot: ItinerarySlot = {
     },
   ],
 };
+
+describe("setSlotPlace", () => {
+  it("moves the place, keeps its name and clears the estimated flag", () => {
+    const base = newTrip("T", "2026-08-01", [{ id: "p1", name: "Ana" }], { home: "RON", local: "EUR", intl: "USD" }, TEST_PLACE);
+    const slot = starterSlot("EUR", { ...TEST_PLACE, estimated: true }, "Stop");
+    const trip = upsertSlot(base, base.days[0].id, slot);
+    const moved = setSlotPlace(trip, slot.id, { lat: 46, lon: 26 });
+    expect(moved.days[0].slots.find((s) => s.id === slot.id)!.place).toEqual({ name: TEST_PLACE.name, lat: 46, lon: 26 });
+    expect(validateTrip(moved)).toEqual([]);
+    expect(trip.days[0].slots.find((s) => s.id === slot.id)!.place.estimated).toBe(true); // input untouched
+  });
+});
 
 describe("slot mutations", () => {
   it("upsertSlot appends a new slot to the given day", () => {

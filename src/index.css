@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+/* Planner palette — see src/ui/theme.ts. Dark is the default, like the map. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --wf-bg: #f4f6f8;
+  --wf-sheet: rgba(244, 246, 248, 0.97);
+  --wf-card: #ffffff;
+  --wf-panel: #f1f4f7;
+  --wf-chip: #eef2f6;
+  --wf-ink: #17222c;
+  --wf-sub: #5c6b78;
+  --wf-line: #1d5bd8;
+  --wf-on-line: #ffffff;
+  --wf-line-soft: #dde7fa;
+  --wf-ghost: #9aa7b4;
+  --wf-ok: #1e7f4f;
+  --wf-ok-bg: #e7f4ec;
+  --wf-amber: #b26e00;
+  --wf-amber-bg: #fdf3e1;
+  --wf-red: #c0392b;
+  --wf-red-bg: #fbe9e7;
+  --wf-border: #e3e8ed;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --wf-bg: #0f151c;
+  --wf-sheet: rgba(15, 21, 28, 0.94);
+  --wf-card: #18212b;
+  --wf-panel: #1e2935;
+  --wf-chip: #253140;
+  --wf-ink: #e6edf3;
+  --wf-sub: #9fadba;
+  --wf-line: #78a9ff;
+  --wf-on-line: #0b1220;
+  --wf-line-soft: #1d3157;
+  --wf-ghost: #65748a;
+  --wf-ok: #4cc38a;
+  --wf-ok-bg: #143324;
+  --wf-amber: #f2b552;
+  --wf-amber-bg: #3b2b0e;
+  --wf-red: #ff8a7a;
+  --wf-red-bg: #40191a;
+  --wf-border: #2b3745;
+}

@@ -6,6 +6,18 @@
 
 ## Session history
 
+- **v2.8.0** — Drag pins; dark planner sheet.
+  - **Drag.** `TripMap` handles mousedown/touchstart on the `stops` layer
+    (focused stops, editors only; 5 px threshold so taps still select) and
+    reports `onMoveStop`. `mutate.setSlotPlace` moves the place and drops
+    `estimated`. `TripView.moveStop` saves, shows an Undo notice (8 s), and
+    backs the timeline's "✓ confirm" link.
+  - **Theme.** `C` → CSS variables with light and dark palettes in
+    `index.css`; hard-coded greys/whites in forms replaced; `applyTheme`
+    called at load and from the map toggle (`wayfork.mapDark`).
+  - Tests: 412 → 417. Playwright-checked: dark and light sheet, a pin
+    dragged at Fiumicino, Undo.
+
 - **v2.7.0** — Reach and transit lookups depart at the planned time.
   - **New `domain/departure.ts`.**
     - `fetchTimeZone` (Open-Meteo, cached per area in memory and

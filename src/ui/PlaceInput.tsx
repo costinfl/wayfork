@@ -3,7 +3,7 @@ import { searchPlaces } from "../domain/geocode";
 import type { Place } from "../domain/types";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 const fmtCoord = (n: number): string => Number(n.toFixed(4)).toString();
 

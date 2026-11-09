@@ -5,7 +5,7 @@ import type { Trip } from "../domain/types";
 import { PlaceInput, type SearchFn } from "./PlaceInput";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 let rowSeq = 0;
 const newRowKey = () => `dest-${rowSeq++}`;
@@ -215,7 +215,7 @@ export function PlanTripForm({
         type="button"
         onClick={submit}
         className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-        style={{ background: C.line, color: "#fff" }}
+        style={{ background: C.line, color: C.onLine }}
       >
         Create scaffold & prompt
       </button>
@@ -235,7 +235,7 @@ export function PlanTripForm({
               style={{
                 border: `1px solid ${C.line}`,
                 background: copied ? C.line : C.lineSoft,
-                color: copied ? "#fff" : C.line,
+                color: copied ? C.onLine : C.line,
               }}
             >
               {copied ? "Copied ✓" : "Copy prompt"}

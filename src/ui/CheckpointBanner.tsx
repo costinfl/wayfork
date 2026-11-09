@@ -4,7 +4,7 @@ import { C, mono } from "./theme";
 
 export function CheckpointBanner({ cp }: { cp: CheckpointResult }) {
   const map = {
-    ok: { bg: "#E7F4EC", fg: C.ok, msg: `Buffer ${fmtDur(cp.margin)} — on track` },
+    ok: { bg: C.okBg, fg: C.ok, msg: `Buffer ${fmtDur(cp.margin)} — on track` },
     amber: {
       bg: C.amberBg,
       fg: C.amber,

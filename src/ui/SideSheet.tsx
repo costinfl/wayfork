@@ -95,7 +95,7 @@ export function SideSheet({ children }: { children: ReactNode }) {
   };
 
   const surface = {
-    background: "rgba(244,246,248,0.97)",
+    background: C.sheet,
     color: C.ink,
     boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
     backdropFilter: "blur(8px)",

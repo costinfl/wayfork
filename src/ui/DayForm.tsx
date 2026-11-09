@@ -4,7 +4,7 @@ import { fmtTime } from "../domain/time";
 import type { Day, Trip } from "../domain/types";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 // Add/edit form for a day's date and (persisted) departure time. New days get
 // a starter slot so the >=1-slot invariant holds.
@@ -67,7 +67,7 @@ export function DayForm({
   };
 
   return (
-    <div className="rounded-lg p-3 mb-3" style={{ background: "#F1F4F7" }}>
+    <div className="rounded-lg p-3 mb-3" style={{ background: C.panel }}>
       <div className="flex gap-2 flex-wrap mb-2 items-end">
         <label className="text-xs" style={{ color: C.sub }}>
           Date
@@ -124,7 +124,7 @@ export function DayForm({
         <button
           onClick={submit}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ background: C.line, color: "#fff" }}
+          style={{ background: C.line, color: C.onLine }}
         >
           {initial ? "Save day" : "Add day"}
         </button>

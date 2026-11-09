@@ -10,7 +10,7 @@ export function WeatherBadge({ weather, place }: { weather: DayWeather; place: s
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs"
-      style={{ background: wet ? C.amberBg : "#EEF2F6", color: wet ? C.amber : C.sub }}
+      style={{ background: wet ? C.amberBg : C.chip, color: wet ? C.amber : C.sub }}
       title={`${place}: ${label}, ${Math.round(weather.tMin)}–${Math.round(weather.tMax)}°C, ${weather.precipProb}% rain`}
     >
       <span>{icon}</span>

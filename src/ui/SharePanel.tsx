@@ -74,7 +74,7 @@ export function SharePanel({
           type="submit"
           disabled={busy}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
-          style={{ border: `1px solid ${C.line}`, background: C.line, color: "#fff", opacity: busy ? 0.6 : 1 }}
+          style={{ border: `1px solid ${C.line}`, background: C.line, color: C.onLine, opacity: busy ? 0.6 : 1 }}
         >
           {busy ? "Inviting…" : "Invite"}
         </button>

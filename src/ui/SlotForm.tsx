@@ -5,7 +5,7 @@ import type { Checkpoint, ItinerarySlot, Place, Trip } from "../domain/types";
 import { PlaceInput } from "./PlaceInput";
 import { C, mono } from "./theme";
 
-const inputStyle = { border: `1px solid ${C.border}`, background: "#fff" };
+const inputStyle = { border: `1px solid ${C.border}`, background: C.card, color: C.ink };
 
 // Add/edit form for a slot's title and checkpoint. New slots are created with
 // one starter variant so the schema invariant (>= 1 variant) always holds.
@@ -65,7 +65,7 @@ export function SlotForm({
   };
 
   return (
-    <div className="rounded-lg p-3 my-2" style={{ background: "#F1F4F7" }}>
+    <div className="rounded-lg p-3 my-2" style={{ background: C.panel }}>
       <label className="text-xs block mb-2" style={{ color: C.sub }}>
         Slot title
         <input
@@ -147,7 +147,7 @@ export function SlotForm({
         <button
           onClick={submit}
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
-          style={{ background: C.line, color: "#fff" }}
+          style={{ background: C.line, color: C.onLine }}
         >
           {initial ? "Save slot" : "Add slot"}
         </button>
