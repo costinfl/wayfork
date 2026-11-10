@@ -53,7 +53,12 @@ export function parseP18(body: unknown): Record<string, string> {
   return out;
 }
 
-export async function fetchPoiPhotos(pois: Poi[], fetchFn: typeof fetch = fetch): Promise<Pics> {
+// The APIs take at most 50 titles / ids per request.
+const chunks = <T,>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
+
+export type PhotoSource = Pick<Poi, "id" | "commons" | "image" | "wikipedia" | "wikidata">;
+
+export async function fetchPoiPhotos(pois: PhotoSource[], fetchFn: typeof fetch = fetch): Promise<Pics> {
   const pics: Pics = {};
   const byLang = new Map<string, Map<string, string[]>>(); // lang → title → poi ids
   const byQid = new Map<string, string[]>();
@@ -71,19 +76,19 @@ export async function fetchPoiPhotos(pois: Poi[], fetchFn: typeof fetch = fetch)
   const jobs: Promise<void>[] = [];
   for (const [lang, titles] of byLang) {
     if (!/^[a-z-]{2,12}$/.test(lang)) continue;
-    const list = [...titles.keys()].slice(0, 50);
-    jobs.push(
-      json(
-        fetchFn,
-        `https://${lang}.wikipedia.org/w/api.php?action=query&prop=pageimages&pithumbsize=${THUMB}&format=json&formatversion=2&origin=*&titles=${encodeURIComponent(list.join("|"))}`
-      ).then((body) => {
-        const found = parsePageImages(body);
-        for (const t of list) if (found[t]) for (const id of titles.get(t)!) pics[id] = found[t];
-      })
-    );
+    for (const list of chunks([...titles.keys()], 50)) {
+      jobs.push(
+        json(
+          fetchFn,
+          `https://${lang}.wikipedia.org/w/api.php?action=query&prop=pageimages&pithumbsize=${THUMB}&format=json&formatversion=2&origin=*&titles=${encodeURIComponent(list.join("|"))}`
+        ).then((body) => {
+          const found = parsePageImages(body);
+          for (const t of list) if (found[t]) for (const id of titles.get(t)!) pics[id] = found[t];
+        })
+      );
+    }
   }
-  const qids = [...byQid.keys()].slice(0, 50);
-  if (qids.length) {
+  for (const qids of chunks([...byQid.keys()], 50)) {
     jobs.push(
       json(fetchFn, `https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&origin=*&ids=${qids.join("|")}`).then(
         (body) => {

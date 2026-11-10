@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.13.0 — live on the deploy branch (v2 merged 2026-10-21) — 464 tests green
+## Current version: v2.13.1 — live on the deploy branch (v2 merged 2026-10-21) — 466 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,11 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.13.1 — photos in Ideas.** Wikivoyage listings' `image=` / `wikidata=` /
+`wikipedia=` fields feed `fetchPoiPhotos` (now taking any `PhotoSource`, with
+Wikidata/Wikipedia lookups chunked by 50). The user reported no pictures in
+Ideas after v2.12.0: only Discover had them.
+
 **v2.13.0 — PDF export, Go mode.**
 - **PDF export** (`ui/PrintTrip.tsx`). "⎙ Export PDF" snapshots the map
   (`ui/map/snapshot.ts`: TripMap registers a function that reads the canvas
@@ -361,16 +366,12 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — real-phone test of Go mode, then the user's pick
+## NEXT TASK — the user's large usability iteration
 
-All five requested follow-ups have shipped (v2.12.0 + v2.13.0). Ask the user to:
-- try **Go mode on a phone** on a real outing: permission prompt, accuracy
-  halo, distance updates, live departures (only rides added via 🚆 Transit
-  after v2.12.0 carry `boardStopId`);
-- spot-check **photos and Wikivoyage ideas** on the live site (fixtures were
-  hand-written; Wikimedia blocks this sandbox);
-- **print a trip** from desktop Chrome/Safari and a phone.
-Then take their next pick.
+The user (2026-11-10) checked the v2.13 features: the page looks good but is
+a bit crowded on mobile, and the usability problems remain. They are
+collecting all of them for one large iteration; wait for their list. Go mode
+was not mentioned as tested on a phone, so ask.
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

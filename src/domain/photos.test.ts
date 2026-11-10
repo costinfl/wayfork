@@ -69,6 +69,14 @@ describe("Discover photos", () => {
     expect(urls[1]).toContain("ids=Q4176|Q999");
   });
 
+  it("splits more than 50 Wikidata ids into several requests", async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ entities: {} }))) as unknown as typeof fetch;
+    await fetchPoiPhotos(Array.from({ length: 120 }, (_, i) => poi(`p${i}`, { wikidata: `Q${i + 1}` })), fetchFn);
+    const urls = (fetchFn as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => c[0]);
+    expect(urls).toHaveLength(3);
+    expect(urls.map((u) => u.split("ids=")[1].split("|").length)).toEqual([50, 50, 20]);
+  });
+
   it("is empty when the services fail", async () => {
     const fail = vi.fn(async () => new Response("", { status: 429 })) as unknown as typeof fetch;
     expect(await fetchPoiPhotos([poi("col", { wikipedia: "en:Colosseum" }), poi("q", { wikidata: "Q1" })], fail)).toEqual({});

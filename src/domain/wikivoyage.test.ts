@@ -7,10 +7,10 @@ import { fetchIdeas, guideTitle, parseListings, plain } from "./wikivoyage";
 const MAIN = `==See==
 {{mapframe}}
 * {{see
-| name=Colosseum | alt=Colosseo | url=https://parcocolosseo.it | lat=41.8902 | long=12.4922
+| name=Colosseum | alt=Colosseo | url=https://parcocolosseo.it | lat=41.8902 | long=12.4922 | image=Colosseo 2020.jpg | wikidata=Q10285
 | hours=8:30-19:15 | content=The '''largest''' amphitheatre ever built, see [[Ancient Rome|the ancient city]].<ref>source</ref>
 }}
-* {{see | name=Pantheon | lat= | long= | content=A Roman temple, now a church.}}
+* {{see | name=Pantheon | lat= | long= | wikipedia=Pantheon, Rome | content=A Roman temple, now a church.}}
 ==Do==
 * {{do | name=Walk the [[Appian Way]] | lat=41.85 | long=12.51 | content={{km|16}} of ancient road.}}
 * {{listing | type=eat | name=Da Enzo | lat=41.888 | long=12.4775 | content=Trattoria in Trastevere.}}
@@ -34,6 +34,10 @@ describe("Wikivoyage listings", () => {
       page: "Rome",
     });
     expect(ideas[1]).toMatchObject({ lat: null, lon: null });
+    // Photo sources: the listing's own image, Wikidata item, Wikipedia article.
+    expect(ideas[0]).toMatchObject({ image: "File:Colosseo 2020.jpg", wikidata: "Q10285" });
+    expect(ideas[1]).toMatchObject({ wikipedia: "en:Pantheon, Rome" });
+    expect(ideas[3].image).toBeUndefined();
     expect(ideas[2].description).toBe("of ancient road.");
   });
 

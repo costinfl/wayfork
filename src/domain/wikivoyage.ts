@@ -13,6 +13,11 @@ export interface Idea {
   lon: number | null;
   description: string; // plain text, trimmed
   page: string; // the guide page it came from
+  // For a photo (see photos.ts): the listing's own Commons image, or its
+  // Wikidata item / Wikipedia article.
+  image?: string; // "File:…"
+  wikidata?: string;
+  wikipedia?: string; // "en:Title"
 }
 
 const KINDS = new Set(["see", "do", "eat"]);
@@ -103,7 +108,13 @@ export function parseListings(wikitext: string, page: string): Idea[] {
     const lon = num(fields.long ?? fields.lon);
     let description = plain(fields.content ?? fields.description ?? "");
     if (description.length > MAX_DESC) description = `${description.slice(0, MAX_DESC - 1).replace(/\s+\S*$/, "")}…`;
+    const image = (fields.image ?? "").replace(/^(File|Image):/i, "").trim();
+    const wikidata = (fields.wikidata ?? "").trim();
+    const wikipedia = (fields.wikipedia ?? "").trim();
     ideas.push({
+      ...(image ? { image: `File:${image}` } : {}),
+      ...(/^Q\d+$/.test(wikidata) ? { wikidata } : {}),
+      ...(wikipedia ? { wikipedia: wikipedia.includes(":") ? wikipedia : `en:${wikipedia}` } : {}),
       kind,
       name,
       lat: lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? lat : null,

@@ -6,6 +6,12 @@
 
 ## Session history
 
+- **v2.13.1** — Photos in the Ideas panel.
+  - `Idea.image` / `wikidata` / `wikipedia` are read from the listing
+    templates, and `IdeasPanel` looks them up via `fetchPoiPhotos`.
+  - `photos.ts` chunks lookups in 50s.
+  - Tests: 464 → 466. Playwright: all three sources produce a thumbnail.
+
 - **v2.13.0** — PDF export and Go mode.
   - `PrintTrip` print view, a map snapshot via `map/snapshot.ts`, and
     @media print CSS (a dark page background showed in the first PDF; fixed

@@ -19,6 +19,9 @@ vi.mock("../domain/geocode", async (orig) => ({
   searchNear: searchNearMock,
 }));
 
+const { fetchPoiPhotosMock } = vi.hoisted(() => ({ fetchPoiPhotosMock: vi.fn(async (..._a: unknown[]): Promise<Record<string, string>> => ({})) }));
+vi.mock("../domain/photos", () => ({ fetchPoiPhotos: fetchPoiPhotosMock }));
+
 import { IdeasPanel } from "./IdeasPanel";
 
 const day: Day = {
@@ -70,6 +73,23 @@ describe("IdeasPanel", () => {
     await act(async () => resolve({ title: "Rome", ideas: [idea("do", "Appian Way", 41.85)] }));
     expect(screen.getByRole("tab", { name: "🎟 Do · 1" })).toBeInTheDocument();
     expect(fetchIdeasMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a photo for listings that have one", async () => {
+    fetchIdeasMock.mockResolvedValueOnce({
+      title: "Rome",
+      ideas: [{ ...idea("see", "Colosseum", 41.89), image: "File:Colosseo 2020.jpg", wikidata: "Q10285" }, idea("see", "Pantheon", null)],
+    });
+    fetchPoiPhotosMock.mockResolvedValueOnce({ "see:Colosseum": "https://commons.wikimedia.org/wiki/Special:FilePath/Colosseo_2020.jpg?width=160" });
+    const { container } = render(<IdeasPanel day={day} canEdit onAdd={vi.fn()} />);
+    await act(async () => fireEvent.click(screen.getByText(/Ideas for Rome/)));
+    expect(fetchPoiPhotosMock).toHaveBeenLastCalledWith([
+      { id: "see:Colosseum", commons: "File:Colosseo 2020.jpg", wikidata: "Q10285", wikipedia: undefined },
+      { id: "see:Pantheon", commons: undefined, wikidata: undefined, wikipedia: undefined },
+    ]);
+    const imgs = container.querySelectorAll("img");
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0].getAttribute("src")).toContain("Colosseo_2020.jpg");
   });
 
   it("says when there is no guide, and viewers can't add", async () => {

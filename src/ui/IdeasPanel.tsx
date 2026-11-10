@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { searchNear } from "../domain/geocode";
+import { fetchPoiPhotos } from "../domain/photos";
 import type { Day } from "../domain/types";
 import { fetchIdeas, guideTitle, WIKIVOYAGE, type Idea, type IdeaKind } from "../domain/wikivoyage";
 import { C } from "./theme";
@@ -29,6 +30,8 @@ export function IdeasPanel({
   const [state, setState] = useState<{ city: string; status: "loading" | "done" | "none"; title?: string; ideas: Idea[] } | null>(null);
   const [tab, setTab] = useState<IdeaKind>("see");
   const [added, setAdded] = useState<Record<string, string>>({}); // name → "ok" | error
+  const [photos, setPhotos] = useState<Record<string, string>>({}); // idea key → image URL
+  const keyOf = (i: Idea) => `${i.kind}:${i.name}`;
 
   // One request per city; a result for a city no longer shown is dropped.
   const requested = useRef<string | null>(null);
@@ -41,6 +44,12 @@ export function IdeasPanel({
     void fetchIdeas(city).then((r) => {
       if (cityRef.current !== city) return;
       setState(r && r.ideas.length ? { city, status: "done", title: r.title, ideas: r.ideas } : { city, status: "none", ideas: [] });
+      if (r?.ideas.length) {
+        setPhotos({});
+        void fetchPoiPhotos(
+          r.ideas.map((i) => ({ id: keyOf(i), commons: i.image, wikidata: i.wikidata, wikipedia: i.wikipedia }))
+        ).then((p) => cityRef.current === city && setPhotos(p));
+      }
     });
   }, [open, city]);
 
@@ -104,6 +113,15 @@ export function IdeasPanel({
                 {shown.map((i) => (
                   <li key={`${i.kind}-${i.name}`} className="rounded-lg px-3 py-2" style={{ border: `1px solid ${C.border}` }}>
                     <div className="flex items-start justify-between gap-2">
+                      {photos[keyOf(i)] && (
+                        <img
+                          src={photos[keyOf(i)]}
+                          alt=""
+                          loading="lazy"
+                          className="w-14 h-14 object-cover rounded-md shrink-0"
+                          onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+                        />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold" style={{ color: C.ink }}>
                           {i.name}
