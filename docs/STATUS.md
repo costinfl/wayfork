@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.11.0 — live on the deploy branch (v2 merged 2026-10-21) — 444 tests green
+## Current version: v2.11.0 — live on the deploy branch (v2 merged 2026-10-21) — 443 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
