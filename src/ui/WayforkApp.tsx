@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRIPS } from "../data";
 import { createLocalStorageStore } from "../data/localStorageStore";
 import { mergeWithBuiltins, migrateLocalTrips, TripConflictError, tripsEqual } from "../data/repository";
@@ -61,6 +61,8 @@ import type { DayWeather } from "../domain/weather";
 import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Place, Trip, VariantNode } from "../domain/types";
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
+import { Tour } from "./Tour";
+import { hasBeenWelcomed, markWelcomed, Welcome } from "./Welcome";
 import { DayForm } from "./DayForm";
 import { EstBadge } from "./EstBadge";
 import { ExpenseForm } from "./ExpenseForm";
@@ -167,6 +169,13 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
   const [storedTrips, setStoredTrips] = useState<Trip[]>([]);
   const [tripUid, setTripUid] = useState(uidOf(TRIPS[0]));
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [welcomed, setWelcomed] = useState(hasBeenWelcomed);
+  const [touring, setTouring] = useState(false);
+  const endTour = useCallback(() => setTouring(false), []);
+  const finishWelcome = () => {
+    markWelcomed();
+    setWelcomed(true);
+  };
   const [tripForm, setTripForm] = useState<"new" | "settings" | null>(null);
   const [store, setStore] = useState<TripStore>(LOCAL_STORE);
   const [storeLabel, setStoreLabel] = useState("local browser");
@@ -683,6 +692,26 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
             onDismiss={() => setSyncNote(null)}
           />
         )}
+        {!welcomed && storedTrips.length === 0 && (
+          <Welcome
+            onPlan={() => {
+              finishWelcome();
+              setUploadOpen(true);
+            }}
+            onExplore={() => {
+              finishWelcome();
+              setTripUid(uidOf(TRIPS[0]));
+              setTouring(true);
+            }}
+            onImport={() => {
+              finishWelcome();
+              setUploadOpen(true);
+              setTimeout(() => document.getElementById("upload-trip")?.scrollIntoView({ behavior: "smooth" }), 60);
+            }}
+            onDismiss={finishWelcome}
+          />
+        )}
+        {touring && <Tour onClose={endTour} />}
         <div className="mb-4 flex justify-end gap-2 flex-wrap">
           {allTrips.length > 1 && (
             <select
@@ -697,7 +726,7 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
                 return (
                   <option key={uidOf(t)} value={uidOf(t)}>
                     {t.name}
-                    {stored ? (builtin ? " (edited)" : " (uploaded)") : ""}
+                    {stored ? (builtin ? " (edited example)" : " (uploaded)") : builtin ? " (example)" : ""}
                   </option>
                 );
               })}
@@ -751,6 +780,15 @@ export default function WayforkApp({ deps = {} }: { deps?: WayforkDeps } = {}) {
               ⚙
             </button>
           )}
+          <button
+            onClick={() => setTouring(true)}
+            title="Show me around"
+            aria-label="Show me around"
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.sub }}
+          >
+            ?
+          </button>
           <button
             onClick={() => setTripForm(tripForm === "new" ? null : "new")}
             className="px-3 py-1.5 rounded-lg text-sm font-semibold"
@@ -1101,7 +1139,7 @@ export function TripView({
       return errors;
     }
     const slot = day.slots.find((sl) => sl.id === target.slotId);
-    if (!slot) return ["That slot no longer exists."];
+    if (!slot) return ["That stop no longer exists."];
     const variant = tripToVariant(details, fromIdx, toIdx, {
       currency: local,
       walkFrom: previousPlace(day, slot.id),
@@ -1311,6 +1349,7 @@ export function TripView({
                   setEditError([]);
                 }}
                 className="px-3 py-1 rounded-lg text-sm font-semibold"
+                data-tour="edit"
                 style={{
                   border: `1px solid ${editMode ? C.line : C.border}`,
                   background: editMode ? C.lineSoft : C.card,
@@ -1345,8 +1384,13 @@ export function TripView({
         )}
 
         <div className="relative" style={{ borderLeft: `3px solid ${C.line}`, marginLeft: 8 }}>
-          {schedule.map((row) => (
-            <div key={row.slot.id} id={`slot-${row.slot.id}`} className="relative pl-5 pb-6">
+          {schedule.map((row, rowIdx) => (
+            <div
+              key={row.slot.id}
+              id={`slot-${row.slot.id}`}
+              className="relative pl-5 pb-6"
+              data-tour={rowIdx === 0 ? "stop" : undefined}
+            >
               <span
                 className="absolute rounded-full"
                 style={{ left: -8, top: 4, width: 13, height: 13, background: C.card, border: `3px solid ${C.line}` }}
@@ -1415,7 +1459,7 @@ export function TripView({
                     color: C.line,
                   }}
                 >
-                  ◎ reach
+                  ◎ Reachable
                 </button>
                 <span className="text-xs" style={{ color: C.sub, ...mono }}>
                   {fmtDur(row.duration)}
@@ -1430,7 +1474,10 @@ export function TripView({
               {row.checkpoint && <CheckpointBanner cp={row.checkpoint} />}
 
               {row.slot.variants.length > 1 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                  data-tour={row.slot.id === schedule.find((r) => r.slot.variants.length > 1)?.slot.id ? "options" : undefined}
+                >
                   {row.slot.variants.map((v) => (
                     <VariantCard
                       key={v.id}
@@ -1474,11 +1521,11 @@ export function TripView({
                   {day.slots.length > 1 && (
                     <button
                       onClick={() => setEditError(applyTrip(removeSlot(trip, row.slot.id)))}
-                      title="Delete slot"
+                      title="Delete stop"
                       className="text-xs px-2 py-0.5 rounded"
                       style={{ ...editBtn, color: C.red }}
                     >
-                      ✕ slot
+                      ✕ stop
                     </button>
                   )}
                   <button
@@ -1489,7 +1536,7 @@ export function TripView({
                     className="text-xs px-2 py-0.5 rounded"
                     style={{ ...editBtn, color: C.line }}
                   >
-                    + variant
+                    + option
                   </button>
                   {row.slot.place && previousPlace(day, row.slot.id) && (
                     <button
@@ -1517,7 +1564,7 @@ export function TripView({
                       {row.slot.variants.length > 1 && (
                         <button
                           onClick={() => setEditError(applyTrip(removeVariant(trip, row.slot.id, v.id)))}
-                          title={`Delete variant ${v.name}`}
+                          title={`Delete option ${v.name}`}
                           className="text-xs px-1.5 py-0.5 rounded"
                           style={{ ...editBtn, color: C.red }}
                         >
@@ -1566,13 +1613,13 @@ export function TripView({
                 className="px-3 py-1.5 rounded-lg text-sm font-semibold"
                 style={{ border: `1px dashed ${C.border}`, background: C.card, color: C.line }}
               >
-                + Add slot
+                + Add stop
               </button>
             )}
           </div>
         )}
         <p className="text-xs mt-1" style={{ color: C.sub }}>
-          Change the departure time or switch a variant — every downstream time and the checkpoint buffer recalculate instantly.
+          Change the departure time or pick another option — every later time and the checkpoint buffers recalculate instantly.
         </p>
       </section>
       </div>
@@ -1595,11 +1642,11 @@ export function TripView({
           <ExpenseForm trip={trip} initial={null} onSave={saveExpense} onCancel={() => setExpenseForm(null)} />
         )}
 
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4" data-tour="totals">
           {(
             [
               ["Paid expenses", expensesEUR],
-              ["Active variants", variantCostEUR],
+              ["Chosen options", variantCostEUR],
               ["Projected total", projectedEUR],
             ] as const
           ).map(([label, eur], idx) => (

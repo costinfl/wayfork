@@ -33,7 +33,7 @@ const renderForm = (initial: ItinerarySlot | null, onSave = spy()) => {
 describe("SlotForm", () => {
   it("requires a title before calling onSave", () => {
     const onSave = renderForm(null);
-    fireEvent.click(screen.getByRole("button", { name: "Add slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add stop" }));
     expect(screen.getByText(/title must not be empty/)).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe("SlotForm", () => {
     // With an opening time set, the deadline field is labelled "Closes".
     fireEvent.change(screen.getByLabelText("Closes"), { target: { value: "17:00" } });
     fireEvent.change(screen.getByLabelText(/Buffer/), { target: { value: "20" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add stop" }));
 
     expect(onSave.mock.calls[0][0]).toMatchObject({
       title: "Museum",
@@ -65,7 +65,7 @@ describe("SlotForm", () => {
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Timed entry" } });
     fireEvent.change(screen.getByLabelText(/Opens/), { target: { value: "18:00" } });
     fireEvent.change(screen.getByLabelText("Closes"), { target: { value: "17:00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add stop" }));
 
     expect(onSave.mock.calls[0][0].checkpoint).toMatchObject({ opensMin: 1080, timeMin: 1020 });
     expect(screen.getByText(/opensMin 1080 is after its closing timeMin/)).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("SlotForm", () => {
     };
     const onSave = renderForm(slot);
     fireEvent.click(screen.getByLabelText(/Hard checkpoint/)); // uncheck
-    fireEvent.click(screen.getByRole("button", { name: "Save slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save stop" }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0].checkpoint).toBeNull();

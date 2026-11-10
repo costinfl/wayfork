@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.8.0 — live on the deploy branch (v2 merged 2026-10-21) — 417 tests green
+## Current version: v2.9.0 — live on the deploy branch (v2 merged 2026-10-21) — 422 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,21 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.9.0 — first-run clarity.**
+- **Welcome card** (`ui/Welcome.tsx`): for visitors without their own trips,
+  until dismissed (`wayfork.welcomed`). Its actions are Plan a new trip,
+  Explore the example (starts the tour) and Import a trip.
+- **Guided tour** (`domain/tour.ts` steps; `ui/Tour.tsx` popover and
+  ring). Anchors are `data-tour="stop|options|totals|map|edit"`, and a
+  missing anchor is skipped. The "?" button in the header replays it.
+- **Wording.** The UI says stop/option where the code says slot/variant;
+  `validate.ts` and `docs/trip-prompt.md` keep the old terms (AI contract).
+  Built-in trips are "(example)" in the picker. The map toolbar shows
+  "Light/Dark" and "Live transit" at ≥ 640 px, and ◎ reach is now
+  "◎ Reachable".
+- Dropped from the plan: an empty-day prompt (validation requires every day
+  to have a stop).
+
 **v2.8.0 — drag pins, dark planner.**
 - **Drag a stop.** Editors drag a focused day's pin on the map to move its
   place (`TripMap` `onMoveStop` → `mutate.setSlotPlace`, which clears
@@ -273,11 +288,29 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — pick from the improvement proposal
+## NEXT TASK — improvements Phase 2 (v2.10.0): search and tap-to-add
 
-The v2 follow-up list is done. The user asked for a proposal of new
-integrations and a clearer first-run experience (2026-11-09); wait for their
-pick before building. Still-open earlier candidate: trip export/share as PDF.
+Plan: `/root/.claude/plans/…` is session-local, so here is the summary:
+1. **Photon POI search.** `geocode.ts` gets `searchPoi(q, near?)`;
+   `PlaceInput` uses it as a second source, so "Colosseum" is found.
+   Record a real fixture first.
+2. **Map search box** (`ui/map/MapSearch.tsx`): debounced, aborts stale
+   requests, flies to the result and shows a pin card with "+ Add to day"
+   (reuses `TripView.addPoiSlot`).
+3. **Tap the map to add** (editors, edit mode): Photon `/reverse` for the
+   name.
+4. **Opening-hours warning** on Discover results: a small parser for the
+   common `opening_hours` forms, checked against the anchor's scheduled
+   time.
+
+Then Phase 3 (v2.11.0), step-by-step:
+- keep `/plan` leg detail (stops, headsign, track, stop count) on steps;
+- up to 3 transit itineraries to choose from;
+- OSRM `steps=true` directions on demand;
+- an "Open in Maps" hand-off.
+
+Later: "Go" mode (live position + next step), Wikivoyage ideas, Commons
+photos, PDF export.
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

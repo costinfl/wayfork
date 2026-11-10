@@ -63,7 +63,7 @@ export function VariantCard({
                 e.stopPropagation();
                 onFocus();
               }}
-              title="Focus this variant on the map"
+              title="Show this option on the map"
               aria-label="Focus on map"
               className="text-xs leading-none px-1.5 py-1 rounded"
               style={{ border: `1px solid ${C.border}`, color: C.line, background: C.card }}

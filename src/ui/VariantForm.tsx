@@ -57,7 +57,7 @@ export function VariantForm({
 
   const submit = () => {
     const pre: string[] = [];
-    if (!name.trim()) pre.push("variant name must not be empty");
+    if (!name.trim()) pre.push("option name must not be empty");
     const cost = parseFloat(amount || "0");
     if (!Number.isFinite(cost) || cost < 0) pre.push("cost must be a number >= 0");
     const microSteps = steps.map((s, i) => {
@@ -203,7 +203,7 @@ export function VariantForm({
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
           style={{ background: C.line, color: C.onLine }}
         >
-          {initial ? "Save variant" : "Add variant"}
+          {initial ? "Save option" : "Add option"}
         </button>
         <button
           onClick={onCancel}

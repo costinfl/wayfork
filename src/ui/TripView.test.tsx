@@ -275,7 +275,7 @@ describe("TripView — trip map wiring", () => {
 
   it("◎ reach shows walking rings from the slot, switchable and closable", async () => {
     renderView(fixture());
-    fireEvent.click(screen.getAllByRole("button", { name: /reach/ })[1]); // the Museum slot
+    fireEvent.click(screen.getAllByRole("button", { name: /Reachable/ })[1]); // the Museum slot
     await waitFor(() => expect(mapProps.current.reach?.bands).toBeTruthy());
     expect(mapProps.current.reach).toMatchObject({ originName: TEST_PLACE.name, mode: "walk" });
     expect(mapProps.current.reach.bands.map((b: { maxMin: number }) => b.maxMin)).toEqual([15, 30, 45]);
@@ -316,7 +316,7 @@ describe("TripView — trip map wiring", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-21T08:00:00Z"));
     renderView(fixture());
-    fireEvent.click(screen.getAllByRole("button", { name: /reach/ })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Reachable/ })[1]);
     await waitFor(() => expect(mapProps.current.reach?.bands).toBeTruthy());
     act(() => mapProps.current.reach.onMode("transit"));
     // Museum ends at 09:45 (9:00 + 30 + 15), Rome time.

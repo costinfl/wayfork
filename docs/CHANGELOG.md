@@ -6,6 +6,15 @@
 
 ## Session history
 
+- **v2.9.0** — First-run clarity (improvements Phase 1).
+  - `ui/Welcome.tsx`: a first-run card with Plan / Explore / Import.
+  - `domain/tour.ts` + `ui/Tour.tsx`: a 5-step guided tour anchored by
+    `data-tour`, skipping missing anchors, replayable with "?".
+  - Wording: stop/option instead of slot/variant in the UI; "(example)"
+    trips; labelled map toolbar; "◎ Reachable".
+  - Tests: 417 → 422. Playwright-checked: welcome, the full tour on
+    1440×900 and 390×844, no page errors.
+
 - **v2.8.0** — Drag pins; dark planner sheet.
   - **Drag.** `TripMap` handles mousedown/touchstart on the `stops` layer
     (focused stops, editors only; 5 px threshold so taps still select) and

@@ -49,7 +49,7 @@ export function DayForm({
     const firstPlace = location
       ? { name: location.name, lat: location.lat, lon: location.lon }
       : guessPlace(trip, null);
-    if (!initial && !firstPlace) pre.push("set a location — the day's first slot needs a place");
+    if (!initial && !firstPlace) pre.push("set a location — the day's first stop needs a place");
     if (pre.length) {
       setErrors(pre);
       return;

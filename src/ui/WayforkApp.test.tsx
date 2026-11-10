@@ -19,6 +19,7 @@ vi.mock("./map/TripMap", () => ({ default: () => null }));
 
 import WayforkApp from "./WayforkApp";
 import { TripConflictError } from "../data/repository";
+import { createLocalStorageStore } from "../data/localStorageStore";
 import type { TripStore } from "../data/repository";
 import { newTrip, starterSlot } from "../domain/mutate";
 import type { AuthClient, Session } from "../data/supabaseAuth";
@@ -244,5 +245,65 @@ describe("WayforkApp v1 → v2 upgrade on load", () => {
     expect(stored[0].days[0].slots[0].place).toMatchObject({ name: TEST_PLACE.name, estimated: true });
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByText(/upgraded to the new map format/)).toBeNull();
+  });
+});
+
+describe("WayforkApp — first run", () => {
+  const memory = () => {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    } as unknown as Storage;
+  };
+  const renderApp = () =>
+    render(
+      <WayforkApp
+        deps={{ auth: null, remoteStore: null, localStore: createLocalStorageStore(memory()), collab: null, geocode: null }}
+      />
+    );
+  afterEach(() => localStorage.clear());
+
+  it("welcomes a new visitor once; Explore starts the tour, which can be replayed", async () => {
+    renderApp();
+    expect(screen.getByRole("region", { name: "Welcome to Wayfork" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: /\(example\)/ }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Explore the example/ }));
+    expect(screen.queryByRole("region", { name: "Welcome to Wayfork" })).toBeNull();
+    expect(localStorage.getItem("wayfork.welcomed")).toBe("1");
+    // The tour starts on the first stop of the day.
+    expect(await screen.findByRole("dialog", { name: "Tour: A stop in your day" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("dialog", { name: "Tour: Options for getting there" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("dialog", { name: "Tour: A stop in your day" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Skip tour" }));
+    expect(screen.queryByRole("dialog", { name: /^Tour:/ })).toBeNull();
+    // "?" replays it.
+    fireEvent.click(screen.getByRole("button", { name: "Show me around" }));
+    expect(screen.getByRole("dialog", { name: "Tour: A stop in your day" })).toBeInTheDocument();
+  });
+
+  it("the tour skips steps that are not on screen and ends with Done", async () => {
+    localStorage.setItem("wayfork.welcomed", "1");
+    renderApp();
+    expect(screen.queryByRole("region", { name: "Welcome to Wayfork" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show me around" }));
+    // The map is mocked out here, so its step is skipped: stop → options → totals → edit.
+    const titles: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = screen.queryByRole("dialog", { name: /^Tour:/ });
+      if (!d) break;
+      titles.push(d.getAttribute("aria-label")!.replace("Tour: ", ""));
+      fireEvent.click(screen.getByRole("button", { name: /^(Next|Done)$/ }));
+    }
+    expect(titles).toEqual(["A stop in your day", "Options for getting there", "Everything follows", "Make it yours"]);
+  });
+
+  it("Plan a new trip opens the planning form", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Plan a new trip/ }));
+    expect(document.getElementById("upload-trip")).not.toBeNull();
   });
 });

@@ -52,7 +52,7 @@ export function SlotForm({
       }
       checkpoint = { label: cpLabel.trim(), timeMin: (h || 0) * 60 + (m || 0), bufferMin, opensMin };
     }
-    if (!place) pre.push("pick a place — every slot is on the map");
+    if (!place) pre.push("pick a place — every stop is on the map");
     if (pre.length || !place) {
       setErrors(pre);
       return;
@@ -149,7 +149,7 @@ export function SlotForm({
           className="px-3 py-1.5 rounded-lg text-sm font-semibold"
           style={{ background: C.line, color: C.onLine }}
         >
-          {initial ? "Save slot" : "Add slot"}
+          {initial ? "Save stop" : "Add stop"}
         </button>
         <button
           onClick={onCancel}

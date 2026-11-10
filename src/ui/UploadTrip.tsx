@@ -41,7 +41,7 @@ export function UploadTrip({ onLoaded }: { onLoaded: (trip: Trip) => AddTripResu
   };
 
   return (
-    <div className="rounded-xl p-4 mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+    <div id="upload-trip" className="rounded-xl p-4 mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
       <div className="text-sm font-bold mb-1">Load a generated trip</div>
       <p className="text-xs mb-3" style={{ color: C.sub }}>
         Already ran the prompt from “Plan a trip” above (or have a trip .json)? Choose the file or

@@ -757,7 +757,7 @@ export default function TripMap(props: TripMapProps) {
     <div className="fixed inset-0" style={{ zIndex: 0, background: dark ? "#0b0f14" : "#f3f1ec" }}>
       {/* Inline position: maplibre-gl.css gives .maplibregl-map position:relative,
           which would beat a class and collapse the canvas to 0px high. */}
-      <div ref={elRef} style={{ position: "absolute", inset: 0 }} aria-label="Trip map" />
+      <div ref={elRef} style={{ position: "absolute", inset: 0 }} aria-label="Trip map" data-tour="map" />
       {failed && (
         <div className="absolute inset-0 flex items-center justify-center text-sm" style={{ color: "#94a3b8" }}>
           The map needs WebGL, which this browser doesn't provide — the planner still works.
@@ -784,8 +784,9 @@ export default function TripMap(props: TripMapProps) {
           <button onClick={() => setIs3d((v) => !v)} aria-pressed={is3d} title="Tilt the map (3D buildings)" className="h-8 px-2 rounded-lg text-xs font-bold" style={btn(is3d)}>
             3D
           </button>
-          <button onClick={() => setDark((v) => !v)} aria-label="Toggle dark map" title={dark ? "Light theme" : "Dark theme"} className="w-8 h-8 rounded-lg" style={btn()}>
+          <button onClick={() => setDark((v) => !v)} aria-label="Toggle dark map" title={dark ? "Light theme" : "Dark theme"} className="h-8 px-2 rounded-lg text-xs font-bold" style={btn()}>
             {dark ? "☀️" : "🌙"}
+            <span className="hidden sm:inline"> {dark ? "Light" : "Dark"}</span>
           </button>
           <button
             onClick={() => setLive((v) => !v)}
@@ -794,7 +795,7 @@ export default function TripMap(props: TripMapProps) {
             className="h-8 px-2 rounded-lg text-xs font-bold"
             style={btn(live)}
           >
-            🚋 Live
+            🚋 Live<span className="hidden sm:inline"> transit</span>
           </button>
         </div>
         {live && liveStatus && !liveStatus.endsWith(" live") && (
