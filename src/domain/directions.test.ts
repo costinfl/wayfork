@@ -26,6 +26,7 @@ describe("directions", () => {
   it("formats distances and builds a hand-off link", () => {
     expect(fmtDistance(56)).toBe("60 m");
     expect(fmtDistance(1530)).toBe("1.5 km");
+    expect(fmtDistance(1_161_034)).toBe("1161 km");
     expect(mapsLink({ name: "A", lat: 1, lon: 2 }, { name: "B", lat: 3, lon: 4 }, "transit")).toBe(
       "https://www.google.com/maps/dir/?api=1&origin=1.000000,2.000000&destination=3.000000,4.000000&travelmode=transit"
     );

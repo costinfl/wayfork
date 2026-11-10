@@ -64,6 +64,9 @@ import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { Tour } from "./Tour";
 import { IdeasPanel } from "./IdeasPanel";
+import { PrintTrip } from "./PrintTrip";
+import { GoPanel, type Me } from "./GoPanel";
+import { snapshotMap } from "./map/snapshot";
 import { hasBeenWelcomed, markWelcomed, Welcome } from "./Welcome";
 import { DayForm } from "./DayForm";
 import { EstBadge } from "./EstBadge";
@@ -928,6 +931,20 @@ export function TripView({
     [trip.expenses, rates]
   );
 
+  // "Export PDF": snapshot the map, render the print view, open the print
+  // dialog (Save as PDF); the view goes away once printing is done.
+  const [printing, setPrinting] = useState<{ mapImage: string | null } | null>(null);
+  const exportPdf = async () => setPrinting({ mapImage: await snapshotMap() });
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(null);
+    window.addEventListener("afterprint", done);
+    const t = setTimeout(() => window.print(), 300); // let the map image decode
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [printing]);
   const balances = useMemo(() => computeBalances(trip, rates), [trip, rates]);
   const txns = useMemo(() => settle(balances), [balances]);
   const pName = (id: string) => trip.participants.find((p) => p.id === id)?.name || id;
@@ -937,6 +954,9 @@ export function TripView({
 
   // Itinerary CRUD state.
   const [editMode, setEditMode] = useState(false);
+  // Go mode (the travel day): its panel, and the shared position, if any.
+  const [going, setGoing] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
   const [slotForm, setSlotForm] = useState<"new" | ItinerarySlot | null>(null);
   const [variantForm, setVariantForm] = useState<{ slotId: string; variant: VariantNode | null } | null>(null);
   const [editError, setEditError] = useState<string[]>([]);
@@ -1203,6 +1223,27 @@ export function TripView({
               {trip.participants.map((p) => p.name).join(" · ")} — {dateRange}
             </div>
           </div>
+          <button
+            onClick={() => void exportPdf()}
+            disabled={!!printing}
+            title="Print the whole trip, or save it as a PDF"
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold ml-auto"
+            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.line }}
+          >
+            ⎙ Export PDF
+          </button>
+          {printing && (
+            <PrintTrip
+              trip={trip}
+              activeVariants={activeVariants}
+              dayStarts={dayStarts}
+              rates={rates}
+              ccy={viewCcy}
+              balances={balances}
+              txns={txns}
+              mapImage={printing.mapImage}
+            />
+          )}
           {/* Tri-currency toggle */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
             {CCY_VIEWS.map((k) => (
@@ -1300,6 +1341,7 @@ export function TripView({
           onMoveStop={canEdit ? moveStop : undefined}
           onAddPlace={canEdit ? (hit) => addPoiSlot({ ...hit.place, title: hit.title }) : undefined}
           tapToAdd={canEdit && editMode}
+          me={me}
         />
       </Suspense>
       {movedStop && (
@@ -1360,6 +1402,31 @@ export function TripView({
             {dayWeather && <WeatherBadge weather={dayWeather} place={day.location!.name} />}
           </h2>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setGoing((g) => !g)}
+              aria-pressed={going}
+              title="Travel day: what's now, what's next, live departures"
+              className="px-3 py-1 rounded-lg text-sm font-semibold"
+              style={{
+                border: `1px solid ${C.line}`,
+                background: going ? C.line : C.lineSoft,
+                color: going ? C.onLine : C.line,
+              }}
+            >
+              ▶ Go
+            </button>
+            {going && (
+              <GoPanel
+                day={day}
+                dayLabel={`Day ${dayIdx + 1}`}
+                rows={schedule}
+                onPosition={setMe}
+                onClose={() => {
+                  setGoing(false);
+                  setMe(null);
+                }}
+              />
+            )}
             {canEdit && (
               <button
                 onClick={() => {

@@ -44,3 +44,24 @@
   --wf-red-bg: #40191a;
   --wf-border: #2b3745;
 }
+
+/* PDF export (ui/PrintTrip.tsx): only the print view is printed. */
+#print-root {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  body > *:not(#print-root) {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color-scheme: light !important;
+  }
+  #print-root {
+    display: block;
+  }
+}

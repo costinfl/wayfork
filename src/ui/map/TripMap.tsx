@@ -34,6 +34,7 @@ import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
 import { DeparturesBoard } from "./DeparturesBoard";
 import { MapSearch } from "./MapSearch";
+import { setSnapshotter } from "./snapshot";
 import { reversePlace, type PlaceHit } from "../../domain/geocode";
 import { VehicleCard, type UseTripRequest, type VehicleSummary } from "./VehicleCard";
 import {
@@ -42,6 +43,7 @@ import {
   REACH_COLORS,
   setDiscover,
   setSearchPin,
+  setMe,
   setReach,
   setSelectedTrip,
   setStops,
@@ -91,6 +93,8 @@ export interface TripMapProps {
   onAddPlace?: (hit: PlaceHit) => Promise<string[]>;
   // Edit mode: a tap on empty map drops a pin that can be added.
   tapToAdd?: boolean;
+  // Go mode: the traveller's position (only while they share it).
+  me?: { lat: number; lon: number; accuracy: number } | null;
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -321,6 +325,23 @@ export default function TripMap(props: TripMapProps) {
       "bottom-left"
     );
     mapRef.current = map;
+    // The canvas can be read right after a frame is drawn (no
+    // preserveDrawingBuffer needed): ask for one and read it in "render".
+    setSnapshotter(
+      () =>
+        new Promise((resolve) => {
+          const t = setTimeout(() => resolve(null), 3000);
+          map.once("render", () => {
+            clearTimeout(t);
+            try {
+              resolve(map.getCanvas().toDataURL("image/jpeg", 0.85));
+            } catch {
+              resolve(null);
+            }
+          });
+          map.triggerRepaint();
+        })
+    );
     map.on("style.load", () => {
       addTripLayers(map, darkRef.current);
       setStyleGen((g) => g + 1);
@@ -462,6 +483,7 @@ export default function TripMap(props: TripMapProps) {
       map.on("mouseleave", layer, () => setTip(null));
     }
     return () => {
+      setSnapshotter(null);
       map.remove();
       mapRef.current = null;
     };
@@ -516,6 +538,18 @@ export default function TripMap(props: TripMapProps) {
     const map = mapRef.current;
     if (map && styleGen > 0) setSearchPin(map, pin?.hit.place ?? null);
   }, [styleGen, pin?.hit]);
+  // Go mode: draw the position; centre on it once, when it first arrives.
+  const centredOnMe = useRef(false);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || styleGen === 0) return;
+    setMe(map, props.me ?? null);
+    if (!props.me) centredOnMe.current = false;
+    else if (!centredOnMe.current) {
+      centredOnMe.current = true;
+      map.easeTo({ center: [props.me.lon, props.me.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 });
+    }
+  }, [styleGen, props.me]);
 
   useEffect(() => {
     const map = mapRef.current;

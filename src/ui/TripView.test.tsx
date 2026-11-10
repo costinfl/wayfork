@@ -28,6 +28,8 @@ vi.mock("../domain/reach", async (importOriginal) => ({
   fetchReachableStops: fetchReachableStopsMock,
 }));
 
+vi.mock("./map/snapshot", () => ({ snapshotMap: vi.fn(async () => "data:image/jpeg;base64,AAAA"), setSnapshotter: vi.fn() }));
+
 // The map is WebGL-bound (its own wiring is covered in map/TripMap.test.tsx);
 // here a stub records the props TripView hands it.
 const { mapProps } = vi.hoisted(() => ({ mapProps: { current: null as any } }));
@@ -406,5 +408,27 @@ describe("TripView — use a live trip in the plan", () => {
     renderWithSpy(false);
     await waitFor(() => expect(mapProps.current).not.toBeNull());
     expect(mapProps.current.onUseTrip).toBeUndefined();
+  });
+});
+
+describe("TripView — Export PDF", () => {
+  it("prints the whole trip — days, chosen options, other options, costs — with the map", async () => {
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    window.print = print;
+    renderView(fixture());
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "⎙ Export PDF" })));
+    const root = document.getElementById("print-root")!;
+    expect(root).not.toBeNull();
+    expect(root.querySelector("img")?.getAttribute("src")).toBe("data:image/jpeg;base64,AAAA");
+    expect(root).toHaveTextContent("Day 1 — 2026-08-01");
+    expect(root).toHaveTextContent("Day 2 — 2026-08-02");
+    expect(root).toHaveTextContent("09:00–09:30Transfer");
+    expect(root).toHaveTextContent("Other options: Slow (1h");
+    expect(root).toHaveTextContent("Projected total");
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    act(() => window.dispatchEvent(new Event("afterprint")));
+    expect(document.getElementById("print-root")).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

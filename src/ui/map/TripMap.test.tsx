@@ -341,6 +341,16 @@ describe("TripMap", () => {
     expect(onAddPlace).toHaveBeenCalledWith(expect.objectContaining({ title: "Via Sacra", place: { name: "Via Sacra, Rome", lat: 41.89, lon: 12.488 } }));
   });
 
+  it("Go mode: draws the shared position and centres on it once", () => {
+    const { rerender } = renderMap({ me: { lat: 41.9, lon: 12.5, accuracy: 25 } });
+    expect(features("me")[0]).toMatchObject({ properties: { accuracy: 25 }, geometry: { coordinates: [12.5, 41.9] } });
+    const eases = h.calls.filter((c) => c === "easeTo").length;
+    rerender(<TripMap trip={trip} dayIdx={0} activeVariants={{}} rates={RATES_EUR} ccy="EUR" onActivate={vi.fn()} onSelectSlot={vi.fn()} me={{ lat: 41.91, lon: 12.5, accuracy: 10 }} />);
+    expect(h.calls.filter((c) => c === "easeTo").length).toBe(eases); // no re-centring on every fix
+    rerender(<TripMap trip={trip} dayIdx={0} activeVariants={{}} rates={RATES_EUR} ccy="EUR" onActivate={vi.fn()} onSelectSlot={vi.fn()} me={null} />);
+    expect(features("me")).toEqual([]);
+  });
+
   it("viewers cannot drag stops", () => {
     renderMap();
     const preventDefault = vi.fn();

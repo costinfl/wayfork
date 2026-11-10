@@ -41,6 +41,7 @@ export const SOURCES = [
   "stops",
   "discover-pois",
   "search-pin",
+  "me",
 ] as const;
 export type SourceId = (typeof SOURCES)[number];
 
@@ -347,6 +348,32 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
     },
   });
 
+  // Go mode: you are here (halo ≈ accuracy: metres → pixels at the zoom).
+  map.addLayer({
+    id: "me-halo",
+    type: "circle",
+    source: "me",
+    paint: {
+      "circle-color": "#2563eb",
+      "circle-opacity": 0.15,
+      "circle-radius": [
+        "interpolate",
+        ["exponential", 2],
+        ["zoom"],
+        10,
+        ["max", 8, ["/", ["get", "accuracy"], 150]],
+        20,
+        ["max", 8, ["*", ["get", "accuracy"], 6.8]],
+      ],
+    },
+  });
+  map.addLayer({
+    id: "me",
+    type: "circle",
+    source: "me",
+    paint: { "circle-color": "#2563eb", "circle-radius": 7, "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 },
+  });
+
   // A searched or tapped place, before it is added to the day.
   map.addLayer({
     id: "search-pin",
@@ -359,6 +386,15 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "circle-stroke-width": 3,
     },
   });
+}
+
+// Go mode: the traveller's own position, with a halo sized to its accuracy.
+export function setMe(map: maplibregl.Map, me: { lat: number; lon: number; accuracy: number } | null): void {
+  setData(
+    map,
+    "me",
+    me ? fc([{ type: "Feature", properties: { accuracy: me.accuracy }, geometry: { type: "Point", coordinates: [me.lon, me.lat] } }]) : EMPTY
+  );
 }
 
 export function setSearchPin(map: maplibregl.Map, at: { lat: number; lon: number } | null): void {

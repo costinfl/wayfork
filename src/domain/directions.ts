@@ -83,7 +83,8 @@ export async function fetchDirections(
   }
 }
 
-export const fmtDistance = (m: number): string => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
+export const fmtDistance = (m: number): string =>
+  m < 1000 ? `${Math.round(m / 10) * 10} m` : m < 100_000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 1000)} km`;
 
 // A universal directions link (opens Google Maps' app or site; other map apps
 // register for it on most phones).

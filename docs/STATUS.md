@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.12.0 — live on the deploy branch (v2 merged 2026-10-21) — 455 tests green
+## Current version: v2.13.0 — live on the deploy branch (v2 merged 2026-10-21) — 464 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,31 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.13.0 — PDF export, Go mode.**
+- **PDF export** (`ui/PrintTrip.tsx`). "⎙ Export PDF" snapshots the map
+  (`ui/map/snapshot.ts`: TripMap registers a function that reads the canvas
+  in the next `render` — no `preserveDrawingBuffer`, and MapLibre stays out
+  of the main bundle). It then renders a body-level `#print-root` and calls
+  `window.print()`. `index.css` @media print shows only that view, in white.
+  The view covers: days → stops, times, chosen option with steps and ride
+  detail, checkpoints, other options; costs, expenses and settle-up.
+- **Go mode** (`domain/go.ts`, `ui/GoPanel.tsx`, "▶ Go" by the day header):
+  - `dayTimeline` gives each step its planned local window plus `shift`.
+    `goStatus` compares on the day-start zone's clock, so a flight that
+    changes the clocks doesn't skew the rest of the day.
+  - `localNow` uses `fetchTimeZone` of the first stop. `dayClock` handles
+    after-midnight, and any other day is a **preview** at today's time of
+    day.
+  - **Location** is opt-in: an explicit button and an explanation;
+    `watchPosition` runs only while on, and is cleared on stop or exit. The
+    position is drawn on the map (`me` layer), with the distance to where
+    the next step starts and a directions link.
+  - **Live departures** for the next ride: `fetchDepartures(boardStopId)`
+    every 60 s, filtered to the ride's line, with delay and cancellation.
+  - The panel is portalled to the body (the sheet's transform would trap
+    `fixed`). Needs a **real-phone test** (permissions, GPS, background
+    behaviour).
+
 **v2.12.0 — ride times, photos, destination ideas.**
 - **Ride times** in the boarding stop's zone: `RideInfo.tz` and
   `boardStopId` come from `/plan` (`from.tz`, `from.stopId`); `StepChip`
@@ -336,19 +361,16 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — v2.13.0: PDF export, then "Go" mode
+## NEXT TASK — real-phone test of Go mode, then the user's pick
 
-The user asked for all five follow-ups (2026-11-10). v2.12.0 shipped ride
-times, photos and Wikivoyage ideas. Still to build:
-1. **PDF export**: a print view of the whole trip (days, chosen options with
-   steps and ride detail, times, costs, ledger, map snapshot) and
-   `window.print()`. Verify with Playwright `page.pdf()`.
-2. **"Go" mode** for the travel day:
-   - live position is opt-in (an explicit tap, an explanation, a stop
-     button);
-   - a next-step card from the schedule vs the local now;
-   - live departures for the next ride via `fetchDepartures(boardStopId)`.
-   The user must test it on a real phone.
+All five requested follow-ups have shipped (v2.12.0 + v2.13.0). Ask the user to:
+- try **Go mode on a phone** on a real outing: permission prompt, accuracy
+  halo, distance updates, live departures (only rides added via 🚆 Transit
+  after v2.12.0 carry `boardStopId`);
+- spot-check **photos and Wikivoyage ideas** on the live site (fixtures were
+  hand-written; Wikimedia blocks this sandbox);
+- **print a trip** from desktop Chrome/Safari and a phone.
+Then take their next pick.
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

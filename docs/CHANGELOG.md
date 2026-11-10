@@ -6,6 +6,20 @@
 
 ## Session history
 
+- **v2.13.0** — PDF export and Go mode.
+  - `PrintTrip` print view, a map snapshot via `map/snapshot.ts`, and
+    @media print CSS (a dark page background showed in the first PDF; fixed
+    with `color-scheme: light !important` on html/body).
+  - `go.ts` (`dayTimeline`, `goStatus`, `localNow`, `dayClock`), `GoPanel`
+    (now/next, live departures, opt-in position with distance), the `me`
+    map layer, and the "▶ Go" button.
+  - Bugs caught in the browser check: Go compared "now" against post-flight
+    local times (an hour off), fixed with day-start-clock windows; and the
+    panel was trapped by the sheet's transform, fixed with a portal.
+    `fmtDistance` shows whole km past 100 km.
+  - Tests: 455 → 464. Playwright: a PDF generated and inspected; Go mode at
+    1440×900 and 390×844 with simulated location and clock.
+
 - **v2.12.0** — Ride times, Discover photos, Wikivoyage ideas.
   - `RideInfo.tz` / `boardStopId` from `/plan`, with local ride times in
     the step panel; the plan fixture is regenerated with stop tz and id.
