@@ -11,12 +11,15 @@
      "distance": 149.0,
      "from": {
       "name": "START",
+      "tz": "Europe/Bucharest",
       "lat": 44.4355,
       "lon": 26.1025,
       "departure": "2026-11-11T09:01:00Z"
      },
      "to": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_7256",
+      "tz": "Europe/Bucharest",
       "lat": 44.434372,
       "lon": 26.103134,
       "arrival": "2026-11-11T09:04:00Z"
@@ -37,12 +40,16 @@
      "duration": 1140,
      "from": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_7256",
+      "tz": "Europe/Bucharest",
       "lat": 44.434372,
       "lon": 26.103134,
       "departure": "2026-11-11T09:04:00Z"
      },
      "to": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "arrival": "2026-11-11T09:23:00Z"
@@ -76,6 +83,8 @@
      "distance": 216.0,
      "from": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "departure": "2026-11-11T09:23:00Z",
@@ -83,6 +92,7 @@
      },
      "to": {
       "name": "END",
+      "tz": "Europe/Bucharest",
       "lat": 44.4785,
       "lon": 26.072,
       "arrival": "2026-11-11T09:27:00Z"
@@ -111,12 +121,15 @@
      "distance": 31.0,
      "from": {
       "name": "START",
+      "tz": "Europe/Bucharest",
       "lat": 44.4355,
       "lon": 26.1025,
       "departure": "2026-11-11T09:05:00Z"
      },
      "to": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_14725T",
+      "tz": "Europe/Bucharest",
       "lat": 44.43563,
       "lon": 26.10208,
       "track": "1",
@@ -138,6 +151,8 @@
      "duration": 300,
      "from": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_14725T",
+      "tz": "Europe/Bucharest",
       "lat": 44.43563,
       "lon": 26.10208,
       "track": "1",
@@ -145,6 +160,8 @@
      },
      "to": {
       "name": "Piața Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_14723T",
+      "tz": "Europe/Bucharest",
       "lat": 44.45371,
       "lon": 26.08627,
       "track": "1",
@@ -176,6 +193,8 @@
      "distance": 17.0,
      "from": {
       "name": "Piața Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_14723T",
+      "tz": "Europe/Bucharest",
       "lat": 44.45371,
       "lon": 26.08627,
       "track": "1",
@@ -184,6 +203,8 @@
      },
      "to": {
       "name": "Piata Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_12243",
+      "tz": "Europe/Bucharest",
       "lat": 44.45386499999999,
       "lon": 26.08617,
       "arrival": "2026-11-11T09:13:00Z"
@@ -204,12 +225,16 @@
      "duration": 600,
      "from": {
       "name": "Piata Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_12243",
+      "tz": "Europe/Bucharest",
       "lat": 44.45386499999999,
       "lon": 26.08617,
       "departure": "2026-11-11T09:14:00Z"
      },
      "to": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "arrival": "2026-11-11T09:24:00Z"
@@ -249,6 +274,8 @@
      "distance": 216.0,
      "from": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "departure": "2026-11-11T09:24:00Z",
@@ -256,6 +283,7 @@
      },
      "to": {
       "name": "END",
+      "tz": "Europe/Bucharest",
       "lat": 44.4785,
       "lon": 26.072,
       "arrival": "2026-11-11T09:28:00Z"
@@ -284,12 +312,15 @@
      "distance": 31.0,
      "from": {
       "name": "START",
+      "tz": "Europe/Bucharest",
       "lat": 44.4355,
       "lon": 26.1025,
       "departure": "2026-11-11T09:14:00Z"
      },
      "to": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_14725T",
+      "tz": "Europe/Bucharest",
       "lat": 44.43563,
       "lon": 26.10208,
       "track": "1",
@@ -311,6 +342,8 @@
      "duration": 300,
      "from": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_14725T",
+      "tz": "Europe/Bucharest",
       "lat": 44.43563,
       "lon": 26.10208,
       "track": "1",
@@ -318,6 +351,8 @@
      },
      "to": {
       "name": "Piața Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_14723T",
+      "tz": "Europe/Bucharest",
       "lat": 44.45371,
       "lon": 26.08627,
       "track": "1",
@@ -349,6 +384,8 @@
      "distance": 17.0,
      "from": {
       "name": "Piața Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_14723T",
+      "tz": "Europe/Bucharest",
       "lat": 44.45371,
       "lon": 26.08627,
       "track": "1",
@@ -357,6 +394,8 @@
      },
      "to": {
       "name": "Piata Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_12243",
+      "tz": "Europe/Bucharest",
       "lat": 44.45386499999999,
       "lon": 26.08617,
       "arrival": "2026-11-11T09:22:00Z"
@@ -377,12 +416,16 @@
      "duration": 600,
      "from": {
       "name": "Piata Victoriei",
+      "stopId": "ro-Bucuresti-Ilfov_12243",
+      "tz": "Europe/Bucharest",
       "lat": 44.45386499999999,
       "lon": 26.08617,
       "departure": "2026-11-11T09:27:00Z"
      },
      "to": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "arrival": "2026-11-11T09:37:00Z"
@@ -422,6 +465,8 @@
      "distance": 216.0,
      "from": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "departure": "2026-11-11T09:37:00Z",
@@ -429,6 +474,7 @@
      },
      "to": {
       "name": "END",
+      "tz": "Europe/Bucharest",
       "lat": 44.4785,
       "lon": 26.072,
       "arrival": "2026-11-11T09:41:00Z"
@@ -457,12 +503,15 @@
      "distance": 149.0,
      "from": {
       "name": "START",
+      "tz": "Europe/Bucharest",
       "lat": 44.4355,
       "lon": 26.1025,
       "departure": "2026-11-11T09:16:00Z"
      },
      "to": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_7256",
+      "tz": "Europe/Bucharest",
       "lat": 44.434372,
       "lon": 26.103134,
       "arrival": "2026-11-11T09:19:00Z"
@@ -483,12 +532,16 @@
      "duration": 1140,
      "from": {
       "name": "Universitate",
+      "stopId": "ro-Bucuresti-Ilfov_7256",
+      "tz": "Europe/Bucharest",
       "lat": 44.434372,
       "lon": 26.103134,
       "departure": "2026-11-11T09:19:00Z"
      },
      "to": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "arrival": "2026-11-11T09:38:00Z"
@@ -522,6 +575,8 @@
      "distance": 216.0,
      "from": {
       "name": "Piata Presei",
+      "stopId": "ro-Bucuresti-Ilfov_12579",
+      "tz": "Europe/Bucharest",
       "lat": 44.477585,
       "lon": 26.073008,
       "departure": "2026-11-11T09:38:00Z",
@@ -529,6 +584,7 @@
      },
      "to": {
       "name": "END",
+      "tz": "Europe/Bucharest",
       "lat": 44.4785,
       "lon": 26.072,
       "arrival": "2026-11-11T09:42:00Z"

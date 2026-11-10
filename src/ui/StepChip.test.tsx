@@ -27,7 +27,10 @@ describe("StepChip", () => {
   it("a ride opens to what to board and where to get off, with a maps hand-off", () => {
     const ms: MicroStep = {
       id: "m", type: "metro", label: "M2 → Pipera", durationMin: 5, distanceKm: 2.1, from: A, to: B,
-      ride: { line: "M2", headsign: "Pipera", board: "Universitate", alight: "Piața Victoriei", track: "1", stops: 2, color: "#2a9d8f" },
+      ride: {
+        line: "M2", headsign: "Pipera", board: "Universitate", alight: "Piața Victoriei", track: "1", stops: 2, color: "#2a9d8f",
+        departs: "2026-11-11T09:06:00Z", arrives: "2026-11-11T09:11:00Z", tz: "Europe/Bucharest",
+      },
     };
     const onCard = vi.fn();
     render(<div onClick={onCard}><StepChip ms={ms} /></div>);
@@ -35,7 +38,8 @@ describe("StepChip", () => {
     expect(onCard).not.toHaveBeenCalled(); // doesn't select the option card
     const panel = screen.getByRole("region", { name: "M2 → Pipera details" });
     expect(panel).toHaveTextContent("towards Pipera");
-    expect(panel).toHaveTextContent("Board at Universitate · platform 1");
+    // Times in the station's zone (Bucharest is UTC+2 in November), whatever the browser's.
+    expect(panel).toHaveTextContent("Board at Universitate · platform 1 · 11:06–11:11 local");
     expect(panel).toHaveTextContent("Get off at Piața Victoriei · after 2 stops");
     expect(screen.getByRole("link", { name: /Open in Maps/ }).getAttribute("href")).toContain("travelmode=transit");
     expect(screen.queryByRole("button", { name: "Directions" })).toBeNull(); // rides have no turn-by-turn

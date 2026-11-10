@@ -5,6 +5,7 @@ import { POI_CATEGORIES, fetchPois, fetchPoiSummary } from "../domain/poi";
 import type { PoiSummary } from "../domain/poi";
 import { reachMinutes, reachRadiusM, REACH_BANDS, type ReachBand, type ReachMode } from "../domain/reach";
 import { isOpenAt } from "../domain/openingHours";
+import { fetchPoiPhotos } from "../domain/photos";
 import { C } from "./theme";
 
 // Nearby-POI discovery beside the day map. Nothing is fetched until the user
@@ -99,6 +100,7 @@ export default function DiscoverPanel({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<Record<string, PoiSummary | null>>({});
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [photos, setPhotos] = useState<Record<string, string>>({});
 
   const [withinMin, setWithinMin] = useState<number | null>(null);
   const [searched, setSearched] = useState<{ center: Place; radiusM: number } | null>(null);
@@ -143,6 +145,8 @@ export default function DiscoverPanel({
       }
       setSearched({ center: at, radiusM: r });
       setPois(result);
+      setPhotos({});
+      void fetchPoiPhotos(result).then(setPhotos);
       setStatus("done"); // the effect above reports the (filtered) results
     });
   };
@@ -315,6 +319,15 @@ export default function DiscoverPanel({
                       style={{ border: `1px solid ${C.border}` }}
                     >
                       <div className="flex items-start justify-between gap-2">
+                        {photos[poi.id] && (
+                          <img
+                            src={photos[poi.id]}
+                            alt=""
+                            loading="lazy"
+                            className="w-12 h-12 object-cover rounded-md shrink-0"
+                            onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+                          />
+                        )}
                         <button
                           onClick={() => expand(poi)}
                           className="text-left text-sm font-semibold flex-1"

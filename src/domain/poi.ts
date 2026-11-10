@@ -40,6 +40,8 @@ export interface Poi {
   openingHours?: string;
   wikipedia?: string; // e.g. "en:Colosseum"
   wikidata?: string; // e.g. "Q10285"
+  commons?: string; // OSM wikimedia_commons tag, e.g. "File:Colosseo 2020.jpg"
+  image?: string; // OSM image tag (a URL)
   website?: string;
 }
 
@@ -173,6 +175,8 @@ function parseElements(
       ...(tags["wikipedia"] ? { wikipedia: tags["wikipedia"] } : {}),
       ...(tags["wikidata"] ? { wikidata: tags["wikidata"] } : {}),
       ...(tags["website"] ? { website: tags["website"] } : {}),
+      ...(/^File:/i.test(tags["wikimedia_commons"] ?? "") ? { commons: tags["wikimedia_commons"] } : {}),
+      ...(/^https:\/\//.test(tags["image"] ?? "") ? { image: tags["image"] } : {}),
     });
   }
   return pois.sort((a, b) => a.distanceM - b.distanceM).slice(0, MAX_RESULTS);

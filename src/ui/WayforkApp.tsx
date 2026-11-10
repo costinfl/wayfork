@@ -63,6 +63,7 @@ import type { CurrencyView, Day, ExpenseItem, ItinerarySlot, Place, Trip, Varian
 import { validateTrip } from "../domain/validate";
 import { CheckpointBanner } from "./CheckpointBanner";
 import { Tour } from "./Tour";
+import { IdeasPanel } from "./IdeasPanel";
 import { hasBeenWelcomed, markWelcomed, Welcome } from "./Welcome";
 import { DayForm } from "./DayForm";
 import { EstBadge } from "./EstBadge";
@@ -1351,6 +1352,7 @@ export function TripView({
               : null
           }
         />
+        <IdeasPanel day={day} canEdit={canEdit} onAdd={addPoiSlot} />
       <section className="rounded-xl p-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-bold flex items-center gap-2 flex-wrap">

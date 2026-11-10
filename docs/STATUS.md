@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.11.0 — live on the deploy branch (v2 merged 2026-10-21) — 443 tests green
+## Current version: v2.12.0 — live on the deploy branch (v2 merged 2026-10-21) — 455 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,23 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.12.0 — ride times, photos, destination ideas.**
+- **Ride times** in the boarding stop's zone: `RideInfo.tz` and
+  `boardStopId` come from `/plan` (`from.tz`, `from.stopId`); `StepChip`
+  shows "11:06–11:11 local" via `stopTime`.
+- **Discover photos** (`domain/photos.ts`): the OSM `wikimedia_commons` /
+  `image` tags, else Wikipedia page images (one request per language), else
+  Wikidata P18 (one request). Commons thumbnails come via
+  `Special:FilePath?width=160`.
+- **Ideas panel** (`ui/IdeasPanel.tsx`, `domain/wikivoyage.ts`): the day's
+  city guide (`guideTitle` of `day.location`), See / Do / Eat listings
+  parsed from wikitext templates, plus district subpages in one batched
+  query when the main page has fewer than 8. A listing without coordinates
+  is placed by Photon `searchNear`. Attribution: CC BY-SA.
+- **Not recorded live:** Wikimedia (Wikipedia / Wikidata / Wikivoyage)
+  answers HTTP 429 to this sandbox, so those fixtures are hand-written from
+  the API docs. Spot-check on the live site.
+
 **v2.11.0 — step-by-step.**
 - **Ride detail.** `MicroStep.ride?: RideInfo` (line, headsign, colour,
   agency, board/alight stop, track, stops ridden, looked-up times), filled
@@ -319,18 +336,19 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — ask the user what's next
+## NEXT TASK — v2.13.0: PDF export, then "Go" mode
 
-The approved improvement plan (Phases 1–3: first-run clarity, search and
-tap-to-add, step-by-step) is shipped. Candidates, none started:
-- **"Go" mode** for the travel day: live position (browser geolocation),
-  a next-step card, and live delay for the planned ride (Transitous `trip`).
-  It needs a permission/consent design; verify on a real phone.
-- **Destination ideas** from Wikivoyage (See/Do/Eat) when planning a trip;
-  Wikimedia Commons photos in Discover.
-- **Ride times in the stop's zone** (`RideInfo.departs` is kept but not
-  shown; it needs the stop tz, e.g. from `fetchTimeZone`).
-- **Trip export/share as PDF.**
+The user asked for all five follow-ups (2026-11-10). v2.12.0 shipped ride
+times, photos and Wikivoyage ideas. Still to build:
+1. **PDF export**: a print view of the whole trip (days, chosen options with
+   steps and ride detail, times, costs, ledger, map snapshot) and
+   `window.print()`. Verify with Playwright `page.pdf()`.
+2. **"Go" mode** for the travel day:
+   - live position is opt-in (an explicit tap, an explanation, a stop
+     button);
+   - a next-step card from the schedule vs the local now;
+   - live departures for the next ride via `fetchDepartures(boardStopId)`.
+   The user must test it on a real phone.
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

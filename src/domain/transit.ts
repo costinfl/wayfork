@@ -104,6 +104,8 @@ interface RawPlace {
   lat?: number;
   lon?: number;
   track?: string;
+  tz?: string;
+  stopId?: string;
 }
 
 interface RawLeg {
@@ -190,6 +192,8 @@ function parseLeg(raw: RawLeg): TransitLeg | null {
           ...(Array.isArray(raw.intermediateStops) ? { stops: raw.intermediateStops.length + 1 } : {}),
           ...(raw.startTime ? { departs: raw.startTime } : {}),
           ...(raw.endTime ? { arrives: raw.endTime } : {}),
+          ...(from?.tz ? { tz: from.tz } : {}),
+          ...(from?.stopId ? { boardStopId: from.stopId } : {}),
         };
   return {
     type,

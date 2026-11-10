@@ -6,6 +6,19 @@
 
 ## Session history
 
+- **v2.12.0** — Ride times, Discover photos, Wikivoyage ideas.
+  - `RideInfo.tz` / `boardStopId` from `/plan`, with local ride times in
+    the step panel; the plan fixture is regenerated with stop tz and id.
+  - `photos.ts` (OSM tags → Wikipedia pageimages → Wikidata P18), with
+    thumbnails in Discover rows; `Poi.commons` / `Poi.image`.
+  - `wikivoyage.ts` listing parser and fetcher; `IdeasPanel` with tabs and
+    "+ Add to day".
+  - Bug caught in the browser check: the Ideas effect depended on the state
+    it set and cancelled its own request; fixed with a ref, plus a
+    slow-network regression test.
+  - Tests: 443 → 455. Playwright-checked with stubbed Overpass, Wikipedia,
+    Commons and Wikivoyage.
+
 - **v2.11.0** — Step-by-step (improvements Phase 3).
   - `RideInfo` on micro-steps from `/plan` legs, plus START/END renaming.
   - `fetchTransitPlans` (≤ 3, distinct) and `rideSummary`; a chooser for

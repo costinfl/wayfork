@@ -18,6 +18,9 @@ vi.mock("../domain/poi", async (importOriginal) => ({
   fetchPoiSummary: fetchPoiSummaryMock,
 }));
 
+const { fetchPoiPhotosMock } = vi.hoisted(() => ({ fetchPoiPhotosMock: vi.fn(async (..._a: unknown[]): Promise<Record<string, string>> => ({})) }));
+vi.mock("../domain/photos", () => ({ fetchPoiPhotos: fetchPoiPhotosMock }));
+
 import DiscoverPanel, { anchorSlot, searchCenter } from "./DiscoverPanel";
 import { reachBands } from "../domain/reach";
 
@@ -215,5 +218,14 @@ describe("DiscoverPanel", () => {
     await waitFor(() => expect(screen.getByText(/Late museum/)).toBeTruthy());
     expect(screen.getAllByText("⚠ closed at 18:30")).toHaveLength(1);
     expect(screen.getByText("⚠ closed at 18:30").closest("li")).toHaveTextContent("Late museum");
+  });
+
+  it("shows a photo beside results that have one", async () => {
+    fetchPoiPhotosMock.mockResolvedValueOnce({ "node/1": "https://upload.wikimedia.org/c160.jpg" });
+    const { container } = renderPanel(day());
+    fireEvent.click(screen.getByText(/Discover places nearby/));
+    fireEvent.click(screen.getByText("🧭 Discover"));
+    await waitFor(() => expect(container.querySelector("img[src='https://upload.wikimedia.org/c160.jpg']")).not.toBeNull());
+    expect(fetchPoiPhotosMock).toHaveBeenCalledWith([POI]);
   });
 });

@@ -56,6 +56,8 @@ export interface RideInfo {
   stops?: number; // stops ridden (intermediate stops + 1)
   departs?: string; // ISO time, as looked up
   arrives?: string;
+  tz?: string; // the boarding stop's IANA zone, for showing those times
+  boardStopId?: string; // Transitous stop id, for live departures (Go mode)
 }
 
 export interface VariantNode {

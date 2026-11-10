@@ -2,6 +2,7 @@ import { useState } from "react";
 import { fetchDirections, fmtDistance, mapsLink, type DirectionStep } from "../domain/directions";
 import type { MicroStep } from "../domain/types";
 import { Chip } from "./Chip";
+import { stopTime } from "./map/VehicleCard";
 import { C, mono, STEP_ICON } from "./theme";
 
 // A step of an option. Steps that know more — a ride (what to board, where to
@@ -84,6 +85,13 @@ export function StepChip({ ms }: { ms: MicroStep }) {
                 <div>
                   Board at <b>{r.board}</b>
                   {r.track && <> · platform {r.track}</>}
+                  {r.departs && r.tz && (
+                    <span style={{ color: C.sub }} title="Times as looked up — check the timetable on the day">
+                      {" "}
+                      · {stopTime(Date.parse(r.departs), r.tz)}
+                      {r.arrives && <>–{stopTime(Date.parse(r.arrives), r.tz)}</>} local
+                    </span>
+                  )}
                 </div>
               )}
               {r.alight && (

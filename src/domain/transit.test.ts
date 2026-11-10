@@ -354,6 +354,8 @@ describe("fetchTransitPlans — real response", () => {
       track: "1",
       stops: 2,
       departs: "2026-11-11T09:06:00Z",
+      tz: "Europe/Bucharest",
+      boardStopId: "ro-Bucuresti-Ilfov_14725T",
     });
     expect(bus.ride).toMatchObject({ line: "205", headsign: "M Straulesti", board: "Piata Victoriei", alight: "Piata Presei", stops: 5 });
     // …and the saved option carries it on its steps.
