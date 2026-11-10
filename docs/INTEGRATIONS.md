@@ -35,7 +35,7 @@ opt-in reliability upgrade for the small-audience case only.
 | **Transitous / MOTIS 2** (`/api/v6/trip`) | tap a live vehicle → its trip: headsign, operator, stops with real-time/scheduled times, alerts, shape | fair use; one call per tapped vehicle, cached per trip; since v2.5.0 also one call per bus line in view (2 at a time, only while the live filter panel is open, results cached in localStorage) to spot trolleybuses (GTFS routeType 11/800–899) | **v2.2.0** |
 | **Transitous / MOTIS 2** (`/api/v6/map/stops`, `/api/v6/stoptimes`) | stops in view (Live on, z15+) and a tapped stop's departures board | fair use; stops on debounced `moveend` only; departures every 30 s while a board is open and the tab visible | **v2.4.0** |
 | **Transitous / MOTIS 2** (`/api/v6/one-to-all`) | ◎ reachability rings (stops reachable within 45 min, + walking) | fair use; one call per ◎ click in transit mode | **v2.0.0** |
-| **Photon** (`photon.komoot.io/api`) | one-off refinement of guessed slot places during the v1→v2 trip migration (POI-aware, location-biased) | ~1 req/s soft — the migration paces calls 1.1 s apart | **v2.0.0** |
+| **Photon** (`photon.komoot.io/api`, `/reverse`) | one-off refinement of guessed slot places during the v1→v2 trip migration; since v2.10.0 the map search box, the stop form's place search (POIs, streets, towns; biased to the map/trip) and naming a tapped point | ~1 req/s soft — the migration paces calls 1.1 s apart; searches are debounced 350 ms, need ≥ 3 characters and abort stale requests; reverse only on an edit-mode tap | **v2.0.0** |
 
 Conventions for every adapter (see `src/domain/geocode.ts`, `poi.ts`,
 `route.ts`, `transit.ts`): pure module in `src/domain/`, injectable

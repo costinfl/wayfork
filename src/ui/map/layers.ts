@@ -40,6 +40,7 @@ export const SOURCES = [
   "vehicles-3d",
   "stops",
   "discover-pois",
+  "search-pin",
 ] as const;
 export type SourceId = (typeof SOURCES)[number];
 
@@ -345,6 +346,23 @@ export function addTripLayers(map: maplibregl.Map, dark: boolean): void {
       "circle-stroke-width": 1.5,
     },
   });
+
+  // A searched or tapped place, before it is added to the day.
+  map.addLayer({
+    id: "search-pin",
+    type: "circle",
+    source: "search-pin",
+    paint: {
+      "circle-color": "#ef4444",
+      "circle-radius": 9,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 3,
+    },
+  });
+}
+
+export function setSearchPin(map: maplibregl.Map, at: { lat: number; lon: number } | null): void {
+  setData(map, "search-pin", at ? fc([{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [at.lon, at.lat] } }]) : EMPTY);
 }
 
 const setData = (map: maplibregl.Map, id: SourceId, data: FeatureCollection) =>

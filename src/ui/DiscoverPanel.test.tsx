@@ -202,4 +202,18 @@ describe("DiscoverPanel", () => {
     expect(screen.queryByLabelText("Within reach")).toBeNull();
     expect(screen.getByLabelText("Search radius")).toBeTruthy();
   });
+
+  it("flags results that are closed when the plan gets there", async () => {
+    fetchPoisMock.mockResolvedValue([
+      { ...POI, id: "node/7", name: "Late museum", openingHours: "Mo-Su 09:00-17:00" },
+      { ...POI, id: "node/8", name: "Night bar", openingHours: "Mo-Su 18:00-02:00" },
+      { ...POI, id: "node/9", name: "Odd hours", openingHours: "PH off; sunrise-sunset" },
+    ]);
+    renderPanel(day(), { visitAt: { weekday: 5, minutes: 18 * 60 + 30, label: "18:30" } });
+    fireEvent.click(screen.getByText(/Discover places nearby/));
+    fireEvent.click(screen.getByText("🧭 Discover"));
+    await waitFor(() => expect(screen.getByText(/Late museum/)).toBeTruthy());
+    expect(screen.getAllByText("⚠ closed at 18:30")).toHaveLength(1);
+    expect(screen.getByText("⚠ closed at 18:30").closest("li")).toHaveTextContent("Late museum");
+  });
 });

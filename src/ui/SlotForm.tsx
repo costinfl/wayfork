@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { searchPhoton, searchPlaces } from "../domain/geocode";
 import { starterSlot } from "../domain/mutate";
 import { fmtTime } from "../domain/time";
 import type { Checkpoint, ItinerarySlot, Place, Trip } from "../domain/types";
@@ -32,6 +33,17 @@ export function SlotForm({
   const [cpOpens, setCpOpens] = useState(cp?.opensMin != null ? fmtTime(cp.opensMin) : "");
   const [place, setPlace] = useState<Place | null>(initial?.place ?? suggestedPlace);
   const [errors, setErrors] = useState<string[]>([]);
+  // Find POIs ("Colosseum"), streets and towns near the trip (Photon); fall
+  // back to the city-level search when Photon has nothing or is down.
+  const near = initial?.place ?? suggestedPlace ?? trip.days[0]?.slots[0]?.place ?? null;
+  const search = useCallback(
+    async (q: string) => {
+      const hits = await searchPhoton(q, near);
+      return hits.length ? hits.map((h) => h.place) : searchPlaces(q);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [near?.lat, near?.lon]
+  );
 
   const submit = () => {
     const pre: string[] = [];
@@ -79,9 +91,10 @@ export function SlotForm({
       <div className="mb-2">
         <PlaceInput
           label={place?.estimated ? "Location on map (estimated — confirm)" : "Location on map"}
-          placeholder="search a place…"
+          placeholder="search a place, sight or address…"
           value={place}
           onChange={setPlace}
+          search={search}
         />
       </div>
       <label className="text-xs flex items-center gap-2 mb-2" style={{ color: C.sub }}>

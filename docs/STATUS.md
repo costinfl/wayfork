@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.9.0 — live on the deploy branch (v2 merged 2026-10-21) — 422 tests green
+## Current version: v2.10.0 — live on the deploy branch (v2 merged 2026-10-21) — 433 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,22 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.10.0 — search and tap-to-add.**
+- **Photon search** (`geocode.ts` `searchPhoton`/`reversePlace`/
+  `parsePhoton` → `PlaceHit {place, title, detail}`). Fixtures:
+  `__fixtures__/photon-*.json`. `SlotForm` searches Photon near the trip
+  and falls back to the Open-Meteo city search.
+- **Map search box** (`ui/map/MapSearch.tsx`): biased to the map centre,
+  debounced 350 ms, aborts stale requests. A picked hit gives a red
+  `search-pin` and a card; editors can "+ Add to day"
+  (`TripView.addPoiSlot`, now taking any `{name, lat, lon, title?}`).
+- **Tap to add**: in edit mode, a tap on empty map (no interactive feature
+  under it) drops a pin named by `reversePlace`, with the tapped
+  coordinates kept.
+- **Opening hours** (`domain/openingHours.ts`): common forms only, null for
+  anything else. Discover flags "⚠ closed at HH:MM" against the end of the
+  "Start from" stop.
+
 **v2.9.0 — first-run clarity.**
 - **Welcome card** (`ui/Welcome.tsx`): for visitors without their own trips,
   until dismissed (`wayfork.welcomed`). Its actions are Plan a new trip,
@@ -288,26 +304,17 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — improvements Phase 2 (v2.10.0): search and tap-to-add
+## NEXT TASK — improvements Phase 3 (v2.11.0): step-by-step
 
-Plan: `/root/.claude/plans/…` is session-local, so here is the summary:
-1. **Photon POI search.** `geocode.ts` gets `searchPoi(q, near?)`;
-   `PlaceInput` uses it as a second source, so "Colosseum" is found.
-   Record a real fixture first.
-2. **Map search box** (`ui/map/MapSearch.tsx`): debounced, aborts stale
-   requests, flies to the result and shows a pin card with "+ Add to day"
-   (reuses `TripView.addPoiSlot`).
-3. **Tap the map to add** (editors, edit mode): Photon `/reverse` for the
-   name.
-4. **Opening-hours warning** on Discover results: a small parser for the
-   common `opening_hours` forms, checked against the anchor's scheduled
-   time.
-
-Then Phase 3 (v2.11.0), step-by-step:
-- keep `/plan` leg detail (stops, headsign, track, stop count) on steps;
-- up to 3 transit itineraries to choose from;
-- OSRM `steps=true` directions on demand;
-- an "Open in Maps" hand-off.
+1. **Transit leg detail.** `transit.ts` keeps what `/plan` returns per leg
+   (boarding/alighting stop, headsign, track, intermediate stop count,
+   times) on optional micro-step fields; `StepChip` expands to show them.
+   Record a real `/plan` fixture first.
+2. **Up to 3 itineraries** (`fetchTransitPlans`, reusing
+   `plausibleItinerary`): the 🚆 button opens a chooser.
+3. **OSRM `steps=true` directions** on demand under walk/drive steps
+   ("Directions ▾"), not stored.
+4. **"Open in Maps"** hand-off per leg.
 
 Later: "Go" mode (live position + next step), Wikivoyage ideas, Commons
 photos, PDF export.

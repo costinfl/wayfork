@@ -33,12 +33,15 @@ import { fetchTransitPlan, type TransitPlanOptions } from "../../domain/transit"
 import type { CurrencyCode, Place, Trip } from "../../domain/types";
 import { useSheetInset } from "../SideSheet";
 import { DeparturesBoard } from "./DeparturesBoard";
+import { MapSearch } from "./MapSearch";
+import { reversePlace, type PlaceHit } from "../../domain/geocode";
 import { VehicleCard, type UseTripRequest, type VehicleSummary } from "./VehicleCard";
 import {
   addTripLayers,
   ll,
   REACH_COLORS,
   setDiscover,
+  setSearchPin,
   setReach,
   setSelectedTrip,
   setStops,
@@ -84,6 +87,10 @@ export interface TripMapProps {
   onUseTrip?: (req: UseTripRequest) => string[];
   // Editors only: a stop was dragged to a new position.
   onMoveStop?: (slotId: string, at: { lat: number; lon: number }) => void;
+  // Editors only: add a searched or tapped place to the day (returns errors).
+  onAddPlace?: (hit: PlaceHit) => Promise<string[]>;
+  // Edit mode: a tap on empty map drops a pin that can be added.
+  tapToAdd?: boolean;
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -258,6 +265,21 @@ export default function TripMap(props: TripMapProps) {
     [trip, activeVariants, rates, ccy]
   );
   const focusDay = scope === "day" ? Math.min(dayIdx, trip.days.length - 1) : null;
+  // A searched or tapped place, shown as a pin with a card until added/closed.
+  const [pin, setPin] = useState<{ hit: PlaceHit; status: "ready" | "looking" | "adding" | "added"; errors?: string[] } | null>(null);
+  const showPin = (hit: PlaceHit, status: "ready" | "looking" = "ready") => {
+    setPin({ hit, status });
+    const map = mapRef.current;
+    map?.easeTo({ center: [hit.place.lon, hit.place.lat], zoom: Math.max(map.getZoom(), 15), duration: 700 });
+  };
+  const addPin = async () => {
+    if (!pin || !props.onAddPlace) return;
+    const hit = pin.hit;
+    setPin({ hit, status: "adding" });
+    const errors = await props.onAddPlace(hit);
+    setPin((p) => (p?.hit === hit ? { hit, status: errors.length ? "ready" : "added", errors } : p));
+    if (!errors.length) setTimeout(() => setPin((p) => (p?.hit === hit ? null : p)), 1500);
+  };
   const stopsRef = useRef({ stops: overlay.stops, focusDay });
   stopsRef.current = { stops: overlay.stops, focusDay };
 
@@ -406,6 +428,24 @@ export default function TripMap(props: TripMapProps) {
     map.on("mouseup", dragEnd);
     map.on("touchend", dragEnd);
     map.on("touchcancel", dragEnd);
+    // Edit mode: a tap on empty map (no stop, line, vehicle…) drops a pin,
+    // named by a reverse lookup.
+    const INTERACTIVE = ["stops", "tracks-alt", "badges", "vehicles-dots", "vehicles-3d", "transit-stops", "selected-trip-stops", "discover-pois"];
+    map.on("click", (e: maplibregl.MapMouseEvent) => {
+      if (!propsRef.current.tapToAdd || !propsRef.current.onAddPlace) return;
+      const layers = INTERACTIVE.filter((l) => (typeof map.getLayer === "function" ? map.getLayer(l) : false));
+      if (layers.length && map.queryRenderedFeatures(e.point, { layers }).length) return;
+      const at = { lat: e.lngLat.lat, lon: e.lngLat.lng };
+      const coords = `${at.lat.toFixed(5)}, ${at.lon.toFixed(5)}`;
+      const dropped: PlaceHit = { place: { name: coords, ...at }, title: "Dropped pin", detail: "Looking up the address…" };
+      setPin({ hit: dropped, status: "looking" });
+      void reversePlace(at).then((found) => {
+        const hit: PlaceHit = found
+          ? { ...found, place: { ...found.place, ...at } }
+          : { ...dropped, detail: coords };
+        setPin((p) => (p?.hit === dropped ? { hit, status: "ready" } : p));
+      });
+    });
     for (const layer of ["tracks-alt", "badges", "stops"]) {
       map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
@@ -472,6 +512,10 @@ export default function TripMap(props: TripMapProps) {
     const map = mapRef.current;
     if (map && styleGen > 0) setDiscover(map, discover);
   }, [styleGen, discover]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && styleGen > 0) setSearchPin(map, pin?.hit.place ?? null);
+  }, [styleGen, pin?.hit]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -767,6 +811,56 @@ export default function TripMap(props: TripMapProps) {
         className="absolute top-3 left-3 flex flex-col gap-1.5 overflow-y-auto"
         style={{ zIndex: 2, maxHeight: `calc(100% - ${inset.bottom + 24}px)` }}
       >
+        <MapSearch
+          near={() => {
+            const c = mapRef.current?.getCenter?.();
+            return c ? { lat: c.lat, lon: c.lng } : null;
+          }}
+          onPick={(hit) => showPin(hit)}
+          theme={{ bg: chip, fg: btn().color, border: btn().border.replace("1px solid ", "") }}
+        />
+        {pin && (
+          <div
+            role="dialog"
+            aria-label={`Place: ${pin.hit.title}`}
+            className="rounded-xl p-2.5 text-xs w-64 max-w-[calc(100vw-24px)]"
+            style={{ background: chip, color: btn().color, border: btn().border }}
+          >
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[13px] leading-tight">📍 {pin.hit.title}</div>
+                {pin.hit.detail && <div className="opacity-70">{pin.hit.detail}</div>}
+              </div>
+              <button onClick={() => setPin(null)} aria-label="Close place" className="px-1 shrink-0">
+                ✕
+              </button>
+            </div>
+            {props.onAddPlace ? (
+              <div className="mt-2 flex items-center gap-2">
+                {pin.status === "added" ? (
+                  <span className="font-semibold" style={{ color: "#4cc38a" }}>
+                    Added to the day ✓
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => void addPin()}
+                    disabled={pin.status !== "ready"}
+                    className="px-2.5 py-1 rounded-lg font-semibold"
+                    style={{ background: "#3b82f6", color: "#fff", opacity: pin.status === "ready" ? 1 : 0.6 }}
+                  >
+                    {pin.status === "adding" ? "Adding…" : "+ Add to day"}
+                  </button>
+                )}
+              </div>
+            ) : null}
+            {pin.errors?.length ? <div className="mt-1" style={{ color: "#ef4444" }}>{pin.errors.join("; ")}</div> : null}
+          </div>
+        )}
+        {props.tapToAdd && props.onAddPlace && !pin && (
+          <div className="text-[11px] px-2 py-1 rounded-md self-start" style={{ background: chip, color: btn().color }}>
+            Tap the map to add a stop there
+          </div>
+        )}
         <div className="flex rounded-lg overflow-hidden text-xs font-semibold" style={{ border: btn().border }}>
           {(["day", "trip"] as const).map((s) => (
             <button key={s} onClick={() => setScope(s)} className="px-2.5 py-1.5" style={{ ...btn(scope === s), border: "none" }}>

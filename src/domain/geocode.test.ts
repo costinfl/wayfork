@@ -58,3 +58,44 @@ describe("searchPlaces", () => {
     expect(await searchPlaces("Rome", fakeFetch(200, {}))).toEqual([]);
   });
 });
+
+import { vi } from "vitest";
+import { parsePhoton, reversePlace, searchPhoton } from "./geocode";
+import photonSearch from "./__fixtures__/photon-search-colosseum.json";
+import photonReverse from "./__fixtures__/photon-reverse-colosseo.json";
+
+// Recorded from photon.komoot.io on 2026-11-10 (q=colosseum near Rome; reverse
+// at the Colosseum), trimmed.
+describe("Photon search", () => {
+  it("parses hits with a title, a kind · area detail, and a city-qualified place", () => {
+    const hits = parsePhoton(photonSearch);
+    expect(hits[0]).toMatchObject({
+      title: "Colosseum",
+      detail: "pedestrian · Rome, Italy",
+      place: { name: "Colosseum, Rome" },
+    });
+    // The monument right next to the square of the same name is collapsed into it.
+    expect(hits.filter((h) => h.title === "Colosseum" && h.place.name === "Colosseum, Rome")).toHaveLength(1);
+    expect(hits.map((h) => h.title)).toContain("Colosseum Shop");
+    expect(hits.find((h) => h.title === "Colosseum Shop")!.detail).toBe("books · Rome, Italy");
+    // An area elsewhere says what it is.
+    expect(hits.some((h) => /district · Australia/.test(h.detail))).toBe(true);
+  });
+
+  it("biases toward a point, needs 3 characters, and is [] on failure", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify(photonSearch)));
+    const hits = await searchPhoton("colosseum", { lat: 41.9, lon: 12.5 }, f);
+    expect(hits.length).toBeGreaterThan(2);
+    expect(String((f.mock.calls[0] as unknown[])[0])).toContain("q=colosseum&lat=41.9000&lon=12.5000");
+    expect(await searchPhoton("co", null, f)).toEqual([]);
+    expect(await searchPhoton("colosseum", null, vi.fn(async () => new Response("", { status: 502 })))).toEqual([]);
+    expect(await searchPhoton("colosseum", null, vi.fn(async () => Promise.reject(new Error("abort"))))).toEqual([]);
+  });
+
+  it("names a tapped point", async () => {
+    const hit = await reversePlace({ lat: 41.8902, lon: 12.4922 }, vi.fn(async () => new Response(JSON.stringify(photonReverse))));
+    expect(hit).toMatchObject({ title: "Colosseum", detail: "archaeological site · Rome, Italy" });
+    expect(hit!.place).toMatchObject({ name: "Colosseum, Rome", lat: expect.closeTo(41.89, 2), lon: expect.closeTo(12.492, 2) });
+    expect(await reversePlace({ lat: 0, lon: 0 }, vi.fn(async () => new Response(JSON.stringify({ features: [] }))))).toBeNull();
+  });
+});

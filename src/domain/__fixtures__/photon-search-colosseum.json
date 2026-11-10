@@ -1,0 +1,121 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "highway",
+    "osm_value": "pedestrian",
+    "type": "street",
+    "name": "Colosseum",
+    "street": "Piazza del Colosseo",
+    "city": "Rome",
+    "country": "Italy"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     12.491903,
+     41.8909421
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "historic",
+    "osm_value": "archaeological_site",
+    "type": "house",
+    "name": "Colosseum",
+    "street": "Piazza del Colosseo",
+    "city": "Rome",
+    "country": "Italy"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     12.4923841,
+     41.8902572
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "boundary",
+    "osm_value": "administrative",
+    "type": "district",
+    "name": "Colosseum",
+    "country": "Australia",
+    "extra": {
+     "admin_level": "9"
+    }
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     151.5585252,
+     -24.4317155
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "shop",
+    "osm_value": "books",
+    "type": "house",
+    "name": "Colosseum Shop",
+    "street": "Piazza del Colosseo",
+    "city": "Rome",
+    "country": "Italy"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     12.4914862,
+     41.8906584
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "amenity",
+    "osm_value": "car_rental",
+    "type": "house",
+    "housenumber": "46",
+    "name": "Colosseum Motorcycle center",
+    "street": "Via dei Santi Quattro",
+    "city": "Rome",
+    "country": "Italy"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     12.4941658,
+     41.8894314
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "osm_key": "amenity",
+    "osm_value": "bar",
+    "type": "house",
+    "name": "Colosseum",
+    "street": "Obalno šetalište Franza Josefa I",
+    "city": "Opatija",
+    "country": "Croatia"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.3021991,
+     45.3302921
+    ]
+   }
+  }
+ ]
+}

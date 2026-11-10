@@ -6,6 +6,17 @@
 
 ## Session history
 
+- **v2.10.0** — Search and tap-to-add (improvements Phase 2).
+  - Photon `searchPhoton`/`reversePlace` in `geocode.ts`, with recorded
+    fixtures; `SlotForm` searches POIs (city search as the fallback).
+  - The `MapSearch` box on the map, a search pin and card, and "+ Add to
+    day".
+  - Edit-mode tap-to-add with a reverse lookup.
+  - `openingHours.ts` and Discover's "closed at" warning.
+  - Wording: "✎ stop".
+  - Tests: 422 → 433. Playwright-checked with stubbed Photon: search →
+    pin → added as stop 4; a tap in edit mode → named pin.
+
 - **v2.9.0** — First-run clarity (improvements Phase 1).
   - `ui/Welcome.tsx`: a first-run card with Plan / Explore / Import.
   - `domain/tour.ts` + `ui/Tour.tsx`: a 5-step guided tour anchored by

@@ -45,10 +45,10 @@ import {
   upsertSlot,
   upsertVariant,
 } from "../domain/mutate";
-import type { Poi } from "../domain/poi";
 import { estimateLeg } from "../domain/route";
 import { fetchTransitPlan, previousPlace, transitItineraryToVariant } from "../domain/transit";
 import { fetchTimeZone, slotDeparture } from "../domain/departure";
+import { weekdayOf } from "../domain/openingHours";
 import { tripSlotTitle, tripToVariant } from "../domain/liveTransit";
 import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
 import type { DiscoverQuery } from "./DiscoverPanel";
@@ -1043,12 +1043,14 @@ export function TripView({
   // inserted right after the anchor, connected by a real (estimated) leg —
   // OSRM-routed walk ≤2.5km, drive beyond, haversine fallback. The anchor
   // then advances to the new slot so subsequent adds chain onwards.
-  const addPoiSlot = async (poi: Poi): Promise<string[]> => {
+  // A place from Discover, the map search or a tapped pin becomes a stop
+  // after the anchor (the "Start from" slot, else the day's last placed one).
+  const addPoiSlot = async (poi: { name: string; lat: number; lon: number; title?: string }): Promise<string[]> => {
     const anchor = anchorSlot(day, discoverAnchorId);
     const slot = starterSlot(
       trip.currencies.local,
       { name: poi.name, lat: poi.lat, lon: poi.lon },
-      poi.name
+      poi.title ?? poi.name
     );
     if (anchor?.place) {
       const leg = await estimateLeg(anchor.place, slot.place);
@@ -1288,6 +1290,8 @@ export function TripView({
           reach={reachOverlay}
           onUseTrip={canEdit ? addLiveTrip : undefined}
           onMoveStop={canEdit ? moveStop : undefined}
+          onAddPlace={canEdit ? (hit) => addPoiSlot({ ...hit.place, title: hit.title }) : undefined}
+          tapToAdd={canEdit && editMode}
         />
       </Suspense>
       {movedStop && (
@@ -1327,6 +1331,13 @@ export function TripView({
           onAnchorChange={setDiscoverAnchorId}
           onAdd={addPoiSlot}
           onResults={setDiscoverQuery}
+          visitAt={(() => {
+            const anchor = anchorSlot(day, discoverAnchorId);
+            const row = anchor ? schedule.find((r) => r.slot.id === anchor.id) : undefined;
+            if (!row) return null;
+            const days = Math.floor(row.end / 1440);
+            return { weekday: (weekdayOf(day.date) + days) % 7, minutes: row.end - days * 1440, label: fmtTime(row.end) };
+          })()}
           reach={
             reachReq && reachSlot && reachBandsState.bands
               ? { slotId: reachSlot.id, origin: reachSlot.place, mode: reachReq.mode, bands: reachBandsState.bands }
@@ -1510,7 +1521,7 @@ export function TripView({
                     className="text-xs px-2 py-0.5 rounded"
                     style={editBtn}
                   >
-                    ✎ slot
+                    ✎ stop
                   </button>
                   <button onClick={() => setEditError(applyTrip(moveSlot(trip, row.slot.id, -1)))} title="Move up" className="text-xs px-2 py-0.5 rounded" style={editBtn}>
                     ↑

@@ -99,6 +99,16 @@ vi.mock("../../domain/liveTransit", async (orig) => ({
   fetchDepartures,
 }));
 
+const { searchPhotonMock, reversePlaceMock } = vi.hoisted(() => ({
+  searchPhotonMock: vi.fn(async (..._a: unknown[]): Promise<any[]> => []),
+  reversePlaceMock: vi.fn(async (..._a: unknown[]): Promise<any> => null),
+}));
+vi.mock("../../domain/geocode", async (orig) => ({
+  ...(await orig<typeof import("../../domain/geocode")>()),
+  searchPhoton: searchPhotonMock,
+  reversePlace: reversePlaceMock,
+}));
+
 import TripMap from "./TripMap";
 
 const P = (name: string, lat: number, lon: number): Place => ({ name, lat, lon });
@@ -285,6 +295,50 @@ describe("TripMap", () => {
     move(160, 2);
     h.handlers["mouseup"]({});
     expect(onMoveStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("map search: pick a result → pin + card; editors add it to the day", async () => {
+    const hit = { place: { name: "Colosseum, Rome", lat: 41.89, lon: 12.49 }, title: "Colosseum", detail: "archaeological site · Rome, Italy" };
+    searchPhotonMock.mockResolvedValueOnce([hit]);
+    const onAddPlace = vi.fn(async () => [] as string[]);
+    renderMap({ onAddPlace });
+    fireEvent.change(screen.getByRole("combobox", { name: "Search the map" }), { target: { value: "colosseum" } });
+    const option = await screen.findByRole("button", { name: /Colosseum.*archaeological site/ }, { timeout: 2000 });
+    expect(searchPhotonMock.mock.calls[0][0]).toBe("colosseum");
+    fireEvent.mouseDown(option);
+    expect(screen.getByRole("dialog", { name: "Place: Colosseum" })).toHaveTextContent("archaeological site · Rome, Italy");
+    expect(features("search-pin")[0].geometry.coordinates).toEqual([12.49, 41.89]);
+    expect(h.calls).toContain("easeTo");
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "+ Add to day" })));
+    expect(onAddPlace).toHaveBeenCalledWith(hit);
+    expect(screen.getByText("Added to the day ✓")).toBeInTheDocument();
+  });
+
+  it("map search for viewers: no add button", async () => {
+    searchPhotonMock.mockResolvedValueOnce([{ place: { name: "X", lat: 1, lon: 1 }, title: "X", detail: "" }]);
+    renderMap();
+    fireEvent.change(screen.getByRole("combobox", { name: "Search the map" }), { target: { value: "xxx" } });
+    fireEvent.mouseDown(await screen.findByRole("button", { name: "X" }, { timeout: 2000 }));
+    expect(screen.getByRole("dialog", { name: "Place: X" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add to day" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close place" }));
+    expect(features("search-pin")).toEqual([]);
+  });
+
+  it("edit mode: a tap on the map drops a pin named by a reverse lookup", async () => {
+    reversePlaceMock.mockResolvedValueOnce({ place: { name: "Via Sacra, Rome", lat: 41.8905, lon: 12.4885 }, title: "Via Sacra", detail: "pedestrian · Rome, Italy" });
+    const onAddPlace = vi.fn(async () => [] as string[]);
+    const { rerender, ...rest } = renderMap({ onAddPlace, tapToAdd: false });
+    void rest;
+    act(() => h.handlers["click"]({ point: { x: 5, y: 5 }, lngLat: { lat: 41.89, lng: 12.488 } }));
+    expect(screen.queryByRole("dialog", { name: /^Place:/ })).toBeNull();
+    rerender(<TripMap trip={trip} dayIdx={0} activeVariants={{}} rates={RATES_EUR} ccy="EUR" onActivate={vi.fn()} onSelectSlot={vi.fn()} onAddPlace={onAddPlace} tapToAdd />);
+    expect(screen.getByText("Tap the map to add a stop there")).toBeInTheDocument();
+    await act(async () => h.handlers["click"]({ point: { x: 5, y: 5 }, lngLat: { lat: 41.89, lng: 12.488 } }));
+    expect(screen.getByRole("dialog", { name: "Place: Via Sacra" })).toBeInTheDocument();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "+ Add to day" })));
+    // Keeps the tapped position, with the looked-up name.
+    expect(onAddPlace).toHaveBeenCalledWith(expect.objectContaining({ title: "Via Sacra", place: { name: "Via Sacra, Rome", lat: 41.89, lon: 12.488 } }));
   });
 
   it("viewers cannot drag stops", () => {

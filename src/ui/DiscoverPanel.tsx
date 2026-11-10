@@ -4,6 +4,7 @@ import type { Poi, PoiCategoryId } from "../domain/poi";
 import { POI_CATEGORIES, fetchPois, fetchPoiSummary } from "../domain/poi";
 import type { PoiSummary } from "../domain/poi";
 import { reachMinutes, reachRadiusM, REACH_BANDS, type ReachBand, type ReachMode } from "../domain/reach";
+import { isOpenAt } from "../domain/openingHours";
 import { C } from "./theme";
 
 // Nearby-POI discovery beside the day map. Nothing is fetched until the user
@@ -74,6 +75,7 @@ export default function DiscoverPanel({
   onAdd,
   onResults,
   reach = null,
+  visitAt = null,
 }: {
   day: Day;
   canEdit: boolean;
@@ -85,6 +87,9 @@ export default function DiscoverPanel({
   onResults: (q: DiscoverQuery | null) => void;
   // Reach rings on the map; with a "Within" limit, results are kept to them.
   reach?: DiscoverReach | null;
+  // When the plan would get there (after the "Start from" stop), to flag
+  // places that are closed then. weekday: 0 = Monday.
+  visitAt?: { weekday: number; minutes: number; label: string } | null;
 }) {
   const [open, setOpen] = useState(false);
   const [radiusM, setRadiusM] = useState(3000);
@@ -343,6 +348,15 @@ export default function DiscoverPanel({
                       {poi.openingHours && (
                         <p className="text-xs mt-1" style={{ color: C.sub }}>
                           🕒 {poi.openingHours}
+                          {visitAt && isOpenAt(poi.openingHours, visitAt.weekday, visitAt.minutes) === false && (
+                            <span
+                              className="ml-2 px-1.5 py-0.5 rounded font-semibold"
+                              style={{ background: C.amberBg, color: C.amber }}
+                              title="Your plan reaches this area at that time — check before adding"
+                            >
+                              ⚠ closed at {visitAt.label}
+                            </span>
+                          )}
                         </p>
                       )}
                       {expanded === poi.id && (
