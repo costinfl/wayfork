@@ -191,12 +191,14 @@ describe("DiscoverPanel", () => {
     expect(radius).toBeLessThan(2000);
     expect(screen.queryByRole("button", { name: /🏛 Mid/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Near.*◎ ≤ 15 min/ })).toBeTruthy();
-    expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near] }));
+    // onResults fires from an effect, which may land after the render.
+    await waitFor(() => expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near] })));
     // Widening the limit re-filters the same results.
     fireEvent.change(screen.getByLabelText("Within reach"), { target: { value: "30" } });
     await waitFor(() => expect(screen.getByRole("button", { name: /🏛 Mid/ })).toBeTruthy());
     expect(screen.queryByRole("button", { name: /🏛 Far/ })).toBeNull();
-    expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near, mid] }));
+    // onResults fires from an effect, which may land after the render.
+    await waitFor(() => expect(onResults).toHaveBeenLastCalledWith(expect.objectContaining({ pois: [near, mid] })));
   });
 
   it("offers no reach limit without rings", () => {
