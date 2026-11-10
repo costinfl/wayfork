@@ -1,6 +1,6 @@
 import { newId } from "./mutate";
 import { distanceM } from "./poi";
-import type { Day, Place, StepType, VariantNode } from "./types";
+import type { Day, Place, RideInfo, StepType, VariantNode } from "./types";
 
 // Real transit routing via Transitous (a keyless, worldwide MOTIS instance —
 // see docs/INTEGRATIONS.md). One-shot "add this itinerary as a variant"
@@ -18,6 +18,7 @@ const TRANSITOUS_PLAN_URL = "https://api.transitous.org/api/v6/plan";
 const REQUEST_TIMEOUT_MS = 8000;
 
 export interface TransitLeg {
+  ride?: RideInfo; // public-transport legs only
   type: StepType;
   label: string;
   durationMin: number;
@@ -102,6 +103,7 @@ interface RawPlace {
   name?: string;
   lat?: number;
   lon?: number;
+  track?: string;
 }
 
 interface RawLeg {
@@ -114,6 +116,11 @@ interface RawLeg {
   routeShortName?: string;
   displayName?: string;
   headsign?: string;
+  routeColor?: string;
+  agencyName?: string;
+  startTime?: string;
+  endTime?: string;
+  intermediateStops?: unknown[];
 }
 
 interface RawItinerary {
@@ -169,6 +176,21 @@ function parseLeg(raw: RawLeg): TransitLeg | null {
     typeof p?.lat === "number" && typeof p?.lon === "number"
       ? { name: p.name || fallback, lat: p.lat, lon: p.lon }
       : null;
+  const ride: RideInfo | undefined =
+    type === "walk" || type === "transfer" || type === "wait"
+      ? undefined
+      : {
+          ...(routeName ? { line: routeName } : {}),
+          ...(raw.headsign ? { headsign: raw.headsign } : {}),
+          ...(raw.routeColor && /^[0-9a-f]{6}$/i.test(raw.routeColor) ? { color: `#${raw.routeColor}` } : {}),
+          ...(raw.agencyName ? { agency: raw.agencyName } : {}),
+          ...(from?.name ? { board: from.name } : {}),
+          ...(to?.name ? { alight: to.name } : {}),
+          ...(from?.track ? { track: from.track } : {}),
+          ...(Array.isArray(raw.intermediateStops) ? { stops: raw.intermediateStops.length + 1 } : {}),
+          ...(raw.startTime ? { departs: raw.startTime } : {}),
+          ...(raw.endTime ? { arrives: raw.endTime } : {}),
+        };
   return {
     type,
     label,
@@ -177,6 +199,7 @@ function parseLeg(raw: RawLeg): TransitLeg | null {
     line,
     from: place(from, "Start"),
     to: place(to, "End"),
+    ...(ride ? { ride } : {}),
   };
 }
 
@@ -236,14 +259,16 @@ export function plausibleItinerary(it: TransitItinerary, from: Place, to: Place,
   return totalKm <= Math.max(3 * crowKm, crowKm + 5);
 }
 
-// The first plausible itinerary between two places, or null when the service
-// is unreachable, times out, or returns nothing believable.
-export async function fetchTransitPlan(
+// Up to `max` plausible, distinct itineraries between two places, best
+// first; [] when the service is unreachable, times out, or returns nothing
+// believable.
+export async function fetchTransitPlans(
   from: Place,
   to: Place,
   fetchFn: typeof fetch = fetch,
-  opts: TransitPlanOptions = {}
-): Promise<TransitItinerary | null> {
+  opts: TransitPlanOptions = {},
+  max = 3
+): Promise<TransitItinerary[]> {
   const params = new URLSearchParams({
     fromPlace: `${from.lat},${from.lon}`,
     toPlace: `${to.lat},${to.lon}`,
@@ -255,21 +280,63 @@ export async function fetchTransitPlan(
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetchFn(`${TRANSITOUS_PLAN_URL}?${params}`, { signal: controller.signal });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const body = (await res.json()) as { itineraries?: RawItinerary[]; plan?: { itineraries?: RawItinerary[] } };
     const itineraries = body?.itineraries ?? body?.plan?.itineraries;
-    if (!Array.isArray(itineraries) || itineraries.length === 0) return null;
+    if (!Array.isArray(itineraries) || itineraries.length === 0) return [];
+    const out: TransitItinerary[] = [];
+    const seen = new Set<string>();
     for (const raw of itineraries) {
-      const parsed = parseItinerary(raw);
-      if (parsed && plausibleItinerary(parsed, from, to, opts.maxTravelTime)) return parsed;
+      const parsed = nameEnds(parseItinerary(raw), from, to);
+      if (!parsed || !plausibleItinerary(parsed, from, to, opts.maxTravelTime)) continue;
+      // The same lines in the same order (e.g. the next bus 15 min later) count once.
+      const key = rideSummary(parsed);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(parsed);
+      if (out.length >= max) break;
     }
-    return null;
+    return out;
   } catch {
-    return null;
+    return [];
   } finally {
     clearTimeout(timer);
   }
 }
+
+// MOTIS names the request's own endpoints "START" / "END": use the real names.
+function nameEnds(it: TransitItinerary | null, from: Place, to: Place): TransitItinerary | null {
+  if (!it) return it;
+  const fix = (name: string) => (name === "START" ? from.name : name === "END" ? to.name : name);
+  const fixPlace = (p: Place | null) => (p && (p.name === "START" || p.name === "END") ? { ...p, name: fix(p.name) } : p);
+  return {
+    ...it,
+    legs: it.legs.map((l) => ({
+      ...l,
+      label: l.label.replace(/\b(START|END)$/, (m) => fix(m)),
+      from: fixPlace(l.from),
+      to: fixPlace(l.to),
+      ...(l.ride ? { ride: { ...l.ride, ...(l.ride.board ? { board: fix(l.ride.board) } : {}), ...(l.ride.alight ? { alight: fix(l.ride.alight) } : {}) } } : {}),
+    })),
+  };
+}
+
+// The best plausible itinerary, or null (map leg lines, single lookups).
+export async function fetchTransitPlan(
+  from: Place,
+  to: Place,
+  fetchFn: typeof fetch = fetch,
+  opts: TransitPlanOptions = {}
+): Promise<TransitItinerary | null> {
+  return (await fetchTransitPlans(from, to, fetchFn, opts, 1))[0] ?? null;
+}
+
+// "🚇 M2 → 🚌 205": the rides of an itinerary, in order ("🚶 walk" if none).
+export function rideSummary(it: TransitItinerary): string {
+  const rides = it.legs.filter((l) => l.ride).map((l) => `${STEP_EMOJI[l.type] ?? ""} ${l.ride!.line ?? l.label}`.trim());
+  return rides.length ? rides.join(" → ") : "🚶 walk";
+}
+const STEP_EMOJI: Partial<Record<StepType, string>> = { metro: "🚇", bus: "🚌", train: "🚆", shuttle: "🚐", car: "🚕" };
 
 // Turns a fetched itinerary into a savable variant: one micro-step per leg,
 // each carrying its own endpoints and route line (schema v2), so the map draws
@@ -293,6 +360,7 @@ export function transitItineraryToVariant(
       ...(l.from ? { from: l.from } : {}),
       ...(l.to ? { to: l.to } : {}),
       ...(l.line ? { geometry: l.line } : {}),
+      ...(l.ride ? { ride: l.ride } : {}),
     })),
     estimated: true,
   };

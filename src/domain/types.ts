@@ -40,6 +40,22 @@ export interface MicroStep {
   from?: Place | null;
   to?: Place | null;
   geometry?: [number, number][] | null;
+  // A public-transport ride, as looked up (Transitous): what to board and
+  // where to get off. Times are those of the lookup — a reference, not a booking.
+  ride?: RideInfo | null;
+}
+
+export interface RideInfo {
+  line?: string; // "M2", "205"
+  headsign?: string; // direction: "Pipera"
+  color?: string; // "#rrggbb"
+  agency?: string;
+  board?: string; // boarding stop
+  alight?: string; // stop to get off at
+  track?: string; // platform / track at the boarding stop
+  stops?: number; // stops ridden (intermediate stops + 1)
+  departs?: string; // ISO time, as looked up
+  arrives?: string;
 }
 
 export interface VariantNode {

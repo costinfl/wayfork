@@ -1,0 +1,124 @@
+{
+ "code": "Ok",
+ "routes": [
+  {
+   "distance": 1196.7,
+   "duration": 957.1,
+   "legs": [
+    {
+     "steps": [
+      {
+       "name": "",
+       "distance": 55.7,
+       "duration": 44.6,
+       "mode": "walking",
+       "maneuver": {
+        "type": "depart",
+        "modifier": "straight"
+       }
+      },
+      {
+       "name": "Colosseo",
+       "distance": 167.5,
+       "duration": 134.1,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "right"
+       }
+      },
+      {
+       "name": "",
+       "distance": 39.1,
+       "duration": 31.4,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "left"
+       }
+      },
+      {
+       "name": "Piazza del Colosseo",
+       "distance": 33.2,
+       "duration": 26.5,
+       "mode": "walking",
+       "maneuver": {
+        "type": "end of road",
+        "modifier": "right"
+       }
+      },
+      {
+       "name": "",
+       "distance": 767.7,
+       "duration": 614,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "left"
+       }
+      },
+      {
+       "name": "",
+       "distance": 66.1,
+       "duration": 52.8,
+       "mode": "walking",
+       "maneuver": {
+        "type": "end of road",
+        "modifier": "right"
+       }
+      },
+      {
+       "name": "",
+       "distance": 24.5,
+       "duration": 19.6,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "left"
+       }
+      },
+      {
+       "name": "",
+       "distance": 11.1,
+       "duration": 8.9,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "right"
+       }
+      },
+      {
+       "name": "Piazza Venezia",
+       "distance": 15.3,
+       "duration": 12.2,
+       "mode": "walking",
+       "maneuver": {
+        "type": "turn",
+        "modifier": "left"
+       }
+      },
+      {
+       "name": "Piazza Venezia",
+       "distance": 16.4,
+       "duration": 13,
+       "mode": "walking",
+       "maneuver": {
+        "type": "fork",
+        "modifier": "slight left"
+       }
+      },
+      {
+       "name": "Piazza Venezia",
+       "distance": 0,
+       "duration": 0,
+       "mode": "walking",
+       "maneuver": {
+        "type": "arrive"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

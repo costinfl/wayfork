@@ -115,6 +115,7 @@ describe("fetchTransitPlan", () => {
           line: decodePolyline("_p~iF~ps|U_ulLnnqC"),
           from: { name: "Unirii M1", lat: 44.431, lon: 26.101 },
           to: { name: "Pipera", lat: 44.5, lon: 26.09 },
+          ride: { line: "M2", headsign: "Pipera", board: "Unirii M1", alight: "Pipera" },
         },
       ],
     });
@@ -318,5 +319,45 @@ describe("plausibleItinerary", () => {
     expect(plausibleItinerary({ durationMin: 20, legs: [leg("metro", 9)] }, a, b)).toBe(false);
     expect(plausibleItinerary({ durationMin: 20, legs: [leg("flight", 1)] }, a, b)).toBe(false);
     expect(plausibleItinerary({ durationMin: 90, legs: [leg("bus", 2)] }, a, b, 60)).toBe(false);
+  });
+});
+
+import bucharest from "./__fixtures__/motis-plan-bucharest.json";
+import { fetchTransitPlans, rideSummary } from "./transit";
+
+// Recorded from api.transitous.org/api/v6/plan (Universitate → Piața Presei,
+// Bucharest, 2026-11-11 09:00 UTC), trimmed.
+describe("fetchTransitPlans — real response", () => {
+  const uni = { name: "Universitate", lat: 44.4355, lon: 26.1025 };
+  const presei = { name: "Piața Presei", lat: 44.4785, lon: 26.072 };
+  const fetchFn = (async () => new Response(JSON.stringify(bucharest))) as unknown as typeof fetch;
+
+  it("returns up to 3 distinct itineraries, the same lines later counting once", async () => {
+    const plans = await fetchTransitPlans(uni, presei, fetchFn);
+    expect(plans.map(rideSummary)).toEqual(["🚌 100", "🚇 M2 → 🚌 205", "🚇 M2 → 🚌 203"]);
+    expect((await fetchTransitPlans(uni, presei, fetchFn, {}, 1)).length).toBe(1);
+    // MOTIS's "START"/"END" placeholders become the real endpoints.
+    const [bus] = await fetchTransitPlans(uni, presei, fetchFn);
+    expect(bus.legs[0].label).toBe("Walk to Universitate");
+    expect(bus.legs[0].from?.name).toBe("Universitate");
+    expect(bus.legs[bus.legs.length - 1].label).toBe("Walk to Piața Presei");
+  });
+
+  it("keeps what to board and where to get off on each ride", async () => {
+    const [, metroBus] = await fetchTransitPlans(uni, presei, fetchFn);
+    const [metro, bus] = metroBus.legs.filter((l) => l.ride);
+    expect(metro.ride).toMatchObject({
+      line: "M2",
+      headsign: "Pipera",
+      board: "Universitate",
+      alight: "Piața Victoriei",
+      track: "1",
+      stops: 2,
+      departs: "2026-11-11T09:06:00Z",
+    });
+    expect(bus.ride).toMatchObject({ line: "205", headsign: "M Straulesti", board: "Piata Victoriei", alight: "Piata Presei", stops: 5 });
+    // …and the saved option carries it on its steps.
+    const v = transitItineraryToVariant(metroBus, "RON");
+    expect(v.microSteps.filter((m) => m.ride).map((m) => m.ride!.line)).toEqual(["M2", "205"]);
   });
 });

@@ -180,6 +180,7 @@ export function parseTrip(raw: unknown): { trip: Trip | null; errors: string[] }
             else checkPlace(ms[k], `${mw}.${k}`);
           }
           checkLine(ms.geometry, `${mw}.geometry`);
+          if (ms.ride !== undefined && ms.ride !== null && !isObj(ms.ride)) err(`${mw}.ride must be an object when present`);
         }
       }
     }

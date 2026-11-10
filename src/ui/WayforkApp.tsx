@@ -46,9 +46,10 @@ import {
   upsertVariant,
 } from "../domain/mutate";
 import { estimateLeg } from "../domain/route";
-import { fetchTransitPlan, previousPlace, transitItineraryToVariant } from "../domain/transit";
+import { fetchTransitPlans, previousPlace, rideSummary, transitItineraryToVariant, type TransitItinerary } from "../domain/transit";
 import { fetchTimeZone, slotDeparture } from "../domain/departure";
 import { weekdayOf } from "../domain/openingHours";
+import { mapsLink } from "../domain/directions";
 import { tripSlotTitle, tripToVariant } from "../domain/liveTransit";
 import DiscoverPanel, { anchorSlot } from "./DiscoverPanel";
 import type { DiscoverQuery } from "./DiscoverPanel";
@@ -1107,20 +1108,26 @@ export function TripView({
       // Depart from the previous place when the plan starts this slot.
       const startMin = schedule.find((r) => r.slot.id === slot.id)?.start ?? dayStart;
       const dep = slotDeparture(origin, day.date, startMin, await fetchTimeZone(origin), new Date());
-      const itinerary = await fetchTransitPlan(origin, slot.place, fetch, { time: dep.time });
-      if (!itinerary) {
+      const plans = await fetchTransitPlans(origin, slot.place, fetch, { time: dep.time });
+      if (!plans.length) {
         setTransitError({
           slotId: slot.id,
           message: "No transit options found — the routing service may be unavailable.",
         });
         return;
       }
-      const variant = transitItineraryToVariant(itinerary, trip.currencies.local);
-      const errors = saveVariant(slot.id)(variant);
-      if (errors.length) setTransitError({ slotId: slot.id, message: errors.join("; ") });
+      if (plans.length === 1) pickTransit(slot.id, plans[0], "Public transit");
+      else setTransitChoice({ slotId: slot.id, plans, departs: dep.label, added: [] });
     } finally {
       setTransitBusyId(null);
     }
+  };
+  // Several itineraries: the user picks which to add (each becomes an option).
+  const [transitChoice, setTransitChoice] = useState<{ slotId: string; plans: TransitItinerary[]; departs: string; added: number[] } | null>(null);
+  const pickTransit = (slotId: string, it: TransitItinerary, name = `Transit: ${rideSummary(it)}`) => {
+    const errors = saveVariant(slotId)(transitItineraryToVariant(it, trip.currencies.local, name));
+    if (errors.length) setTransitError({ slotId, message: errors.join("; ") });
+    return errors;
   };
 
   // "Use in my plan" from a tapped live vehicle: the ride becomes a new slot
@@ -1472,6 +1479,28 @@ export function TripView({
                 >
                   ◎ Reachable
                 </button>
+                {(() => {
+                  const from = previousPlace(day, row.slot.id);
+                  if (!from) return null;
+                  const types = row.variant.microSteps.map((m) => m.type);
+                  const mode = types.some((t) => t === "metro" || t === "bus" || t === "train")
+                    ? "transit"
+                    : types.some((t) => t === "car" || t === "shuttle")
+                      ? "driving"
+                      : "walking";
+                  return (
+                    <a
+                      href={mapsLink(from, row.slot.place, mode)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`Directions from ${from.name} in your maps app`}
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ border: `1px solid ${C.border}`, background: C.card, color: C.line }}
+                    >
+                      ↗ Maps
+                    </a>
+                  );
+                })()}
                 <span className="text-xs" style={{ color: C.sub, ...mono }}>
                   {fmtDur(row.duration)}
                 </span>
@@ -1596,6 +1625,47 @@ export function TripView({
                   onSave={saveVariant(row.slot.id)}
                   onCancel={() => setVariantForm(null)}
                 />
+              )}
+              {transitChoice?.slotId === row.slot.id && (
+                <div
+                  className="mt-2 rounded-lg p-2 text-xs"
+                  style={{ background: C.panel, border: `1px solid ${C.border}` }}
+                  role="group"
+                  aria-label="Transit itineraries"
+                >
+                  <div className="font-semibold mb-1" style={{ color: C.ink }}>
+                    {transitChoice.plans.length} ways to get here · departing {transitChoice.departs}
+                  </div>
+                  <ul className="space-y-1">
+                    {transitChoice.plans.map((it, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <span className="flex-1" style={{ color: C.ink }}>
+                          {rideSummary(it)}
+                          <span style={{ ...mono, color: C.sub }}> · {fmtDur(it.durationMin)}</span>
+                        </span>
+                        {transitChoice.added.includes(i) ? (
+                          <span className="font-semibold" style={{ color: C.ok }}>
+                            Added ✓
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (!pickTransit(row.slot.id, it).length)
+                                setTransitChoice((c) => (c ? { ...c, added: [...c.added, i] } : c));
+                            }}
+                            className="px-2 py-0.5 rounded font-semibold"
+                            style={{ border: `1px solid ${C.line}`, color: C.line }}
+                          >
+                            + Add
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setTransitChoice(null)} className="mt-1 underline" style={{ color: C.sub }}>
+                    Done
+                  </button>
+                </div>
               )}
               {transitError?.slotId === row.slot.id && (
                 <div className="text-xs mt-1" style={{ color: C.amber }}>

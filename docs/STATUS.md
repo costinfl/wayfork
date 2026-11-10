@@ -3,7 +3,7 @@
 > The only file to read when resuming. Conventions & commands: `CLAUDE.md`
 > (repo root). Full history & shipped designs: `docs/CHANGELOG.md`.
 
-## Current version: v2.10.0 — live on the deploy branch (v2 merged 2026-10-21) — 433 tests green
+## Current version: v2.11.0 — live on the deploy branch (v2 merged 2026-10-21) — 444 tests green
 
 Shipped: full domain model + ripple scheduler (timezone shifts, opening-hour
 checkpoints, weather badges); tri-currency with live ECB rates + fallback;
@@ -258,6 +258,21 @@ turning Live off clears it.
 - The map's leg lines still use a default time; only the track matters
   there.
 
+**v2.11.0 — step-by-step.**
+- **Ride detail.** `MicroStep.ride?: RideInfo` (line, headsign, colour,
+  agency, board/alight stop, track, stops ridden, looked-up times), filled
+  from `/plan` legs by `transit.ts` and saved with the option. MOTIS's
+  `START`/`END` placeholders are renamed to the real endpoints.
+- **Several itineraries.** `fetchTransitPlans` returns up to 3, distinct by
+  `rideSummary` ("🚇 M2 → 🚌 205"); `fetchTransitPlan` = the first. The
+  🚆 Transit button adds a single result directly ("Public transit"), or
+  shows a chooser ("Transit: …" options).
+- **StepChip** expands for rides and placed steps: board / get off / stops /
+  platform; turn-by-turn on demand (`domain/directions.ts`, OSRM
+  `steps=true`, never stored); and "Open in Maps" (`mapsLink`, a Google
+  Maps directions URL). Timeline rows get "↗ Maps" from the previous stop.
+- Fixtures: `motis-plan-bucharest.json`, `osrm-foot-steps-colosseo.json`.
+
 **v2.10.0 — search and tap-to-add.**
 - **Photon search** (`geocode.ts` `searchPhoton`/`reversePlace`/
   `parsePhoton` → `PlaceHit {place, title, detail}`). Fixtures:
@@ -304,20 +319,18 @@ cached v1 client keeps unknown keys, so it can't corrupt v2 trips, and any
 unplaced slot it adds is repaired on the next v2 read. The `v2/` preview is
 retired: deploy.yml publishes the deploy branch only.
 
-## NEXT TASK — improvements Phase 3 (v2.11.0): step-by-step
+## NEXT TASK — ask the user what's next
 
-1. **Transit leg detail.** `transit.ts` keeps what `/plan` returns per leg
-   (boarding/alighting stop, headsign, track, intermediate stop count,
-   times) on optional micro-step fields; `StepChip` expands to show them.
-   Record a real `/plan` fixture first.
-2. **Up to 3 itineraries** (`fetchTransitPlans`, reusing
-   `plausibleItinerary`): the 🚆 button opens a chooser.
-3. **OSRM `steps=true` directions** on demand under walk/drive steps
-   ("Directions ▾"), not stored.
-4. **"Open in Maps"** hand-off per leg.
-
-Later: "Go" mode (live position + next step), Wikivoyage ideas, Commons
-photos, PDF export.
+The approved improvement plan (Phases 1–3: first-run clarity, search and
+tap-to-add, step-by-step) is shipped. Candidates, none started:
+- **"Go" mode** for the travel day: live position (browser geolocation),
+  a next-step card, and live delay for the planned ride (Transitous `trip`).
+  It needs a permission/consent design; verify on a real phone.
+- **Destination ideas** from Wikivoyage (See/Do/Eat) when planning a trip;
+  Wikimedia Commons photos in Discover.
+- **Ride times in the stop's zone** (`RideInfo.departs` is kept but not
+  shown; it needs the stop tz, e.g. from `fetchTimeZone`).
+- **Trip export/share as PDF.**
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in

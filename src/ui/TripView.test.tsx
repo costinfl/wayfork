@@ -10,7 +10,7 @@ import "../test/setup-dom";
 const { fetchTransitPlanMock } = vi.hoisted(() => ({ fetchTransitPlanMock: vi.fn() }));
 vi.mock("../domain/transit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../domain/transit")>()),
-  fetchTransitPlan: fetchTransitPlanMock,
+  fetchTransitPlans: fetchTransitPlanMock,
 }));
 
 // Time zones and reachable stops come from the network — stubbed here
@@ -210,7 +210,7 @@ describe("TripView — 🚆 Transit option", () => {
       durationMin: 20,
       legs: [{ type: "metro", label: "M2 → B", durationMin: 20, distanceKm: 5, line: null, from: null, to: null }],
     };
-    fetchTransitPlanMock.mockResolvedValue(itinerary);
+    fetchTransitPlanMock.mockResolvedValue([itinerary]);
     // A week before the trip, so its own date's timetable is used.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-25T08:00:00Z"));
@@ -247,8 +247,32 @@ describe("TripView — 🚆 Transit option", () => {
     expect(added!.microSteps[0]).toMatchObject({ type: "metro", label: "M2 → B", durationMin: 20 });
   });
 
+  it("offers a choice when there are several itineraries, each addable as an option", async () => {
+    const leg = (label: string, line: string) => ({
+      type: "metro" as const, label, durationMin: 20, distanceKm: 5, line: null, from: null, to: null, ride: { line },
+    });
+    fetchTransitPlanMock.mockResolvedValue([
+      { durationMin: 20, legs: [leg("M2 → B", "M2")] },
+      { durationMin: 28, legs: [leg("Bus 100", "100")] },
+    ]);
+    const onTripChange = vi.fn();
+    render(<TripView trip={placedTrip()} rates={RATES_EUR} ratesLabel="x" storeLabel="local browser" canEdit={true} onTripChange={onTripChange} />);
+    enterEditMode();
+    fireEvent.click(screen.getByText("🚆 Transit"));
+    const group = await screen.findByRole("group", { name: "Transit itineraries" });
+    expect(group).toHaveTextContent("2 ways to get here");
+    expect(group).toHaveTextContent("🚇 M2");
+    expect(group).toHaveTextContent("🚇 100");
+    expect(onTripChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "+ Add" })[1]);
+    const saved: Trip = onTripChange.mock.calls[0][0];
+    const added = saved.days[0].slots.find((s) => s.id === "s3")!.variants.find((v) => v.name === "Transit: 🚇 100");
+    expect(added?.microSteps[0].ride).toEqual({ line: "100" });
+    expect(screen.getByText("Added ✓")).toBeInTheDocument();
+  });
+
   it("shows an inline message on the destination slot when no itinerary is found", async () => {
-    fetchTransitPlanMock.mockResolvedValue(null);
+    fetchTransitPlanMock.mockResolvedValue([]);
     renderView(placedTrip());
     enterEditMode();
     fireEvent.click(screen.getByText("🚆 Transit"));

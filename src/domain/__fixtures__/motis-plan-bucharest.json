@@ -1,0 +1,550 @@
+{
+ "itineraries": [
+  {
+   "duration": 1560,
+   "startTime": "2026-11-11T09:01:00Z",
+   "endTime": "2026-11-11T09:27:00Z",
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 180,
+     "distance": 149.0,
+     "from": {
+      "name": "START",
+      "lat": 44.4355,
+      "lon": 26.1025,
+      "departure": "2026-11-11T09:01:00Z"
+     },
+     "to": {
+      "name": "Universitate",
+      "lat": 44.434372,
+      "lon": 26.103134,
+      "arrival": "2026-11-11T09:04:00Z"
+     },
+     "legGeometry": {
+      "points": "sfcwsAw~dxp@zFiCzA|@??fBiJ??Da@??pAd@NBR@v@ALBJLFPLJN@xHgA??~B~Ad@K??bJuBbZqH",
+      "precision": 6,
+      "length": 24
+     },
+     "startTime": "2026-11-11T09:01:00Z",
+     "endTime": "2026-11-11T09:04:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:01:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "BUS",
+     "duration": 1140,
+     "from": {
+      "name": "Universitate",
+      "lat": 44.434372,
+      "lon": 26.103134,
+      "departure": "2026-11-11T09:04:00Z"
+     },
+     "to": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "arrival": "2026-11-11T09:23:00Z"
+     },
+     "legGeometry": {
+      "points": "g{`wsA{texp@BKgYfJkf@~H{E?gEbB_NrNoyBreAsxDj}A{dGn~BgObGgEnA{dBzr@ccAzbCc`@zaAgm@nvAo}@n~Bos@fnBcVnd@cVvj@gOv[wGbL{EbBccA~Mc_Hg@cwAScG{@oF{@kHRwQvBg`I_ScLwBoK_DgE_IoFgEgJcBgEz@gEfEsDbG{@bLRrIvB~HnFrSRrNoAnP{m@ngKwGfTwLbVsDzJ_DbGwGzEcsHbxCsnDnvA{nB~u@gJrD{EnAHB",
+      "precision": 6,
+      "length": 57
+     },
+     "routeShortName": "100",
+     "displayName": "100",
+     "headsign": "Aeroport Henri Coanda",
+     "startTime": "2026-11-11T09:04:00Z",
+     "endTime": "2026-11-11T09:23:00Z",
+     "intermediateStops": [
+      {
+       "name": "Piata Romana"
+      },
+      {
+       "name": "Piata Victoriei"
+      }
+     ],
+     "routeColor": "1d71b8",
+     "agencyName": "STB SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:04:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 240,
+     "distance": 216.0,
+     "from": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "departure": "2026-11-11T09:23:00Z",
+      "arrival": "2026-11-11T09:23:00Z"
+     },
+     "to": {
+      "name": "END",
+      "lat": 44.4785,
+      "lon": 26.072,
+      "arrival": "2026-11-11T09:27:00Z"
+     },
+     "legGeometry": {
+      "points": "scuysAe|jvp@hDlT\\I??fDs@??|@fK??Fl@??kOxB{B^yA^??gArAaAjA??wBzBw@fF??]jB??a@M??q@Wi@b@s@d@wAr@gBh@mBl@m@Fq@Am@Lk@^s@h@k@p@Wt@??Sr@??c@AiAu@??aG{D??Oh@??qA{@??YfA",
+      "precision": 6,
+      "length": 50
+     },
+     "startTime": "2026-11-11T09:23:00Z",
+     "endTime": "2026-11-11T09:27:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:23:00Z",
+     "intermediateStops": []
+    }
+   ]
+  },
+  {
+   "duration": 1380,
+   "startTime": "2026-11-11T09:05:00Z",
+   "endTime": "2026-11-11T09:28:00Z",
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 60,
+     "distance": 31.0,
+     "from": {
+      "name": "START",
+      "lat": 44.4355,
+      "lon": 26.1025,
+      "departure": "2026-11-11T09:05:00Z"
+     },
+     "to": {
+      "name": "Universitate",
+      "lat": 44.43563,
+      "lon": 26.10208,
+      "track": "1",
+      "arrival": "2026-11-11T09:06:00Z"
+     },
+     "legGeometry": {
+      "points": "mncwsAofdxp@DR??N|@??v@lERjA|BlA??w@`E",
+      "precision": 6,
+      "length": 10
+     },
+     "startTime": "2026-11-11T09:05:00Z",
+     "endTime": "2026-11-11T09:06:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:05:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "SUBWAY",
+     "duration": 300,
+     "from": {
+      "name": "Universitate",
+      "lat": 44.43563,
+      "lon": 26.10208,
+      "track": "1",
+      "departure": "2026-11-11T09:06:00Z"
+     },
+     "to": {
+      "name": "Piața Victoriei",
+      "lat": 44.45371,
+      "lon": 26.08627,
+      "track": "1",
+      "arrival": "2026-11-11T09:11:00Z"
+     },
+     "legGeometry": {
+      "points": "{icwsA_scxp@gOoPguAfh@ohCnbAkxAbj@c}CnlA{gCzaAogAb`@_IfEsIvLsIjRc|AnuDwpBj_FsoAz{CkRn_@{T~\\{^vGg^zE_I_D",
+      "precision": 6,
+      "length": 19
+     },
+     "routeShortName": "M2",
+     "displayName": "M2",
+     "headsign": "Pipera",
+     "startTime": "2026-11-11T09:06:00Z",
+     "endTime": "2026-11-11T09:11:00Z",
+     "intermediateStops": [
+      {
+       "name": "Piața Romană"
+      }
+     ],
+     "routeColor": "495676",
+     "agencyName": "METROREX SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:06:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 17.0,
+     "from": {
+      "name": "Piața Victoriei",
+      "lat": 44.45371,
+      "lon": 26.08627,
+      "track": "1",
+      "departure": "2026-11-11T09:11:00Z",
+      "arrival": "2026-11-11T09:11:00Z"
+     },
+     "to": {
+      "name": "Piata Victoriei",
+      "lat": 44.45386499999999,
+      "lon": 26.08617,
+      "arrival": "2026-11-11T09:13:00Z"
+     },
+     "legGeometry": {
+      "points": "{sfxsAsxdwp@sHC",
+      "precision": 6,
+      "length": 2
+     },
+     "startTime": "2026-11-11T09:11:00Z",
+     "endTime": "2026-11-11T09:13:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:11:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "BUS",
+     "duration": 600,
+     "from": {
+      "name": "Piata Victoriei",
+      "lat": 44.45386499999999,
+      "lon": 26.08617,
+      "departure": "2026-11-11T09:14:00Z"
+     },
+     "to": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "arrival": "2026-11-11T09:24:00Z"
+     },
+     "legGeometry": {
+      "points": "q}fxsAspdwp@I?wwKwBsuC{J_jAsD_jAg@oF?cLg@wLsD{EoFsDoFoFoAoF{@cGvBsDnFcB~Hg@vGRrIvBvLjCzJnAjMSbQkC~\\oFnx@oKrhBoUbvDoA~Mg@bLwBrIwB~H_DzE_DrDoAzEkCnFwBrDwBjCsDvBsDnAk{GbnCsdIf`DHB",
+      "precision": 6,
+      "length": 41
+     },
+     "routeShortName": "205",
+     "displayName": "205",
+     "headsign": "M Straulesti",
+     "startTime": "2026-11-11T09:14:00Z",
+     "endTime": "2026-11-11T09:24:00Z",
+     "intermediateStops": [
+      {
+       "name": "Arhitect Ion Mincu"
+      },
+      {
+       "name": "Piata Charles de Gaulle"
+      },
+      {
+       "name": "Arcul de Triumf"
+      },
+      {
+       "name": "Muzeul Satului"
+      }
+     ],
+     "routeColor": "1d71b8",
+     "agencyName": "STB SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:14:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 240,
+     "distance": 216.0,
+     "from": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "departure": "2026-11-11T09:24:00Z",
+      "arrival": "2026-11-11T09:24:00Z"
+     },
+     "to": {
+      "name": "END",
+      "lat": 44.4785,
+      "lon": 26.072,
+      "arrival": "2026-11-11T09:28:00Z"
+     },
+     "legGeometry": {
+      "points": "scuysAe|jvp@hDlT\\I??fDs@??|@fK??Fl@??kOxB{B^yA^??gArAaAjA??wBzBw@fF??]jB??a@M??q@Wi@b@s@d@wAr@gBh@mBl@m@Fq@Am@Lk@^s@h@k@p@Wt@??Sr@??c@AiAu@??aG{D??Oh@??qA{@??YfA",
+      "precision": 6,
+      "length": 50
+     },
+     "startTime": "2026-11-11T09:24:00Z",
+     "endTime": "2026-11-11T09:28:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:24:00Z",
+     "intermediateStops": []
+    }
+   ]
+  },
+  {
+   "duration": 1620,
+   "startTime": "2026-11-11T09:14:00Z",
+   "endTime": "2026-11-11T09:41:00Z",
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 60,
+     "distance": 31.0,
+     "from": {
+      "name": "START",
+      "lat": 44.4355,
+      "lon": 26.1025,
+      "departure": "2026-11-11T09:14:00Z"
+     },
+     "to": {
+      "name": "Universitate",
+      "lat": 44.43563,
+      "lon": 26.10208,
+      "track": "1",
+      "arrival": "2026-11-11T09:15:00Z"
+     },
+     "legGeometry": {
+      "points": "mncwsAofdxp@DR??N|@??v@lERjA|BlA??w@`E",
+      "precision": 6,
+      "length": 10
+     },
+     "startTime": "2026-11-11T09:14:00Z",
+     "endTime": "2026-11-11T09:15:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:14:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "SUBWAY",
+     "duration": 300,
+     "from": {
+      "name": "Universitate",
+      "lat": 44.43563,
+      "lon": 26.10208,
+      "track": "1",
+      "departure": "2026-11-11T09:15:00Z"
+     },
+     "to": {
+      "name": "Piața Victoriei",
+      "lat": 44.45371,
+      "lon": 26.08627,
+      "track": "1",
+      "arrival": "2026-11-11T09:20:00Z"
+     },
+     "legGeometry": {
+      "points": "{icwsA_scxp@gOoPguAfh@ohCnbAkxAbj@c}CnlA{gCzaAogAb`@_IfEsIvLsIjRc|AnuDwpBj_FsoAz{CkRn_@{T~\\{^vGg^zE_I_D",
+      "precision": 6,
+      "length": 19
+     },
+     "routeShortName": "M2",
+     "displayName": "M2",
+     "headsign": "Pipera",
+     "startTime": "2026-11-11T09:15:00Z",
+     "endTime": "2026-11-11T09:20:00Z",
+     "intermediateStops": [
+      {
+       "name": "Piața Romană"
+      }
+     ],
+     "routeColor": "495676",
+     "agencyName": "METROREX SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:15:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 120,
+     "distance": 17.0,
+     "from": {
+      "name": "Piața Victoriei",
+      "lat": 44.45371,
+      "lon": 26.08627,
+      "track": "1",
+      "departure": "2026-11-11T09:20:00Z",
+      "arrival": "2026-11-11T09:20:00Z"
+     },
+     "to": {
+      "name": "Piata Victoriei",
+      "lat": 44.45386499999999,
+      "lon": 26.08617,
+      "arrival": "2026-11-11T09:22:00Z"
+     },
+     "legGeometry": {
+      "points": "{sfxsAsxdwp@sHC",
+      "precision": 6,
+      "length": 2
+     },
+     "startTime": "2026-11-11T09:20:00Z",
+     "endTime": "2026-11-11T09:22:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:20:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "BUS",
+     "duration": 600,
+     "from": {
+      "name": "Piata Victoriei",
+      "lat": 44.45386499999999,
+      "lon": 26.08617,
+      "departure": "2026-11-11T09:27:00Z"
+     },
+     "to": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "arrival": "2026-11-11T09:37:00Z"
+     },
+     "legGeometry": {
+      "points": "q}fxsAspdwp@I?wwKwBsuC{J_jAsD_jAg@oF?cLg@wLsD{EoFsDoFoFoAoF{@cGvBsDnFcB~Hg@vGRrIvBvLjCzJnAjMSbQkC~\\oFnx@oKrhBoUbvDoA~Mg@bLwBrIwB~H_DzE_DrDoAzEkCnFwBrDwBjCsDvBsDnAk{GbnCsdIf`DHB",
+      "precision": 6,
+      "length": 41
+     },
+     "routeShortName": "203",
+     "displayName": "203",
+     "headsign": "Cartier Greenfield",
+     "startTime": "2026-11-11T09:27:00Z",
+     "endTime": "2026-11-11T09:37:00Z",
+     "intermediateStops": [
+      {
+       "name": "Arhitect Ion Mincu"
+      },
+      {
+       "name": "Piata Charles de Gaulle"
+      },
+      {
+       "name": "Arcul de Triumf"
+      },
+      {
+       "name": "Muzeul Satului"
+      }
+     ],
+     "routeColor": "1d71b8",
+     "agencyName": "STB SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:27:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 240,
+     "distance": 216.0,
+     "from": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "departure": "2026-11-11T09:37:00Z",
+      "arrival": "2026-11-11T09:37:00Z"
+     },
+     "to": {
+      "name": "END",
+      "lat": 44.4785,
+      "lon": 26.072,
+      "arrival": "2026-11-11T09:41:00Z"
+     },
+     "legGeometry": {
+      "points": "scuysAe|jvp@hDlT\\I??fDs@??|@fK??Fl@??kOxB{B^yA^??gArAaAjA??wBzBw@fF??]jB??a@M??q@Wi@b@s@d@wAr@gBh@mBl@m@Fq@Am@Lk@^s@h@k@p@Wt@??Sr@??c@AiAu@??aG{D??Oh@??qA{@??YfA",
+      "precision": 6,
+      "length": 50
+     },
+     "startTime": "2026-11-11T09:37:00Z",
+     "endTime": "2026-11-11T09:41:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:37:00Z",
+     "intermediateStops": []
+    }
+   ]
+  },
+  {
+   "duration": 1560,
+   "startTime": "2026-11-11T09:16:00Z",
+   "endTime": "2026-11-11T09:42:00Z",
+   "legs": [
+    {
+     "mode": "WALK",
+     "duration": 180,
+     "distance": 149.0,
+     "from": {
+      "name": "START",
+      "lat": 44.4355,
+      "lon": 26.1025,
+      "departure": "2026-11-11T09:16:00Z"
+     },
+     "to": {
+      "name": "Universitate",
+      "lat": 44.434372,
+      "lon": 26.103134,
+      "arrival": "2026-11-11T09:19:00Z"
+     },
+     "legGeometry": {
+      "points": "sfcwsAw~dxp@zFiCzA|@??fBiJ??Da@??pAd@NBR@v@ALBJLFPLJN@xHgA??~B~Ad@K??bJuBbZqH",
+      "precision": 6,
+      "length": 24
+     },
+     "startTime": "2026-11-11T09:16:00Z",
+     "endTime": "2026-11-11T09:19:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:16:00Z",
+     "intermediateStops": []
+    },
+    {
+     "mode": "BUS",
+     "duration": 1140,
+     "from": {
+      "name": "Universitate",
+      "lat": 44.434372,
+      "lon": 26.103134,
+      "departure": "2026-11-11T09:19:00Z"
+     },
+     "to": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "arrival": "2026-11-11T09:38:00Z"
+     },
+     "legGeometry": {
+      "points": "g{`wsA{texp@BKgYfJkf@~H{E?gEbB_NrNoyBreAsxDj}A{dGn~BgObGgEnA{dBzr@ccAzbCc`@zaAgm@nvAo}@n~Bos@fnBcVnd@cVvj@gOv[wGbL{EbBccA~Mc_Hg@cwAScG{@oF{@kHRwQvBg`I_ScLwBoK_DgE_IoFgEgJcBgEz@gEfEsDbG{@bLRrIvB~HnFrSRrNoAnP{m@ngKwGfTwLbVsDzJ_DbGwGzEcsHbxCsnDnvA{nB~u@gJrD{EnAHB",
+      "precision": 6,
+      "length": 57
+     },
+     "routeShortName": "100",
+     "displayName": "100",
+     "headsign": "Aeroport Henri Coanda",
+     "startTime": "2026-11-11T09:19:00Z",
+     "endTime": "2026-11-11T09:38:00Z",
+     "intermediateStops": [
+      {
+       "name": "Piata Romana"
+      },
+      {
+       "name": "Piata Victoriei"
+      }
+     ],
+     "routeColor": "1d71b8",
+     "agencyName": "STB SA",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:19:00Z"
+    },
+    {
+     "mode": "WALK",
+     "duration": 240,
+     "distance": 216.0,
+     "from": {
+      "name": "Piata Presei",
+      "lat": 44.477585,
+      "lon": 26.073008,
+      "departure": "2026-11-11T09:38:00Z",
+      "arrival": "2026-11-11T09:38:00Z"
+     },
+     "to": {
+      "name": "END",
+      "lat": 44.4785,
+      "lon": 26.072,
+      "arrival": "2026-11-11T09:42:00Z"
+     },
+     "legGeometry": {
+      "points": "scuysAe|jvp@hDlT\\I??fDs@??|@fK??Fl@??kOxB{B^yA^??gArAaAjA??wBzBw@fF??]jB??a@M??q@Wi@b@s@d@wAr@gBh@mBl@m@Fq@Am@Lk@^s@h@k@p@Wt@??Sr@??c@AiAu@??aG{D??Oh@??qA{@??YfA",
+      "precision": 6,
+      "length": 50
+     },
+     "startTime": "2026-11-11T09:38:00Z",
+     "endTime": "2026-11-11T09:42:00Z",
+     "realTime": false,
+     "scheduledStartTime": "2026-11-11T09:38:00Z",
+     "intermediateStops": []
+    }
+   ]
+  }
+ ]
+}

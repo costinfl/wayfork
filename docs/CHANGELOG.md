@@ -6,6 +6,17 @@
 
 ## Session history
 
+- **v2.11.0** — Step-by-step (improvements Phase 3).
+  - `RideInfo` on micro-steps from `/plan` legs, plus START/END renaming.
+  - `fetchTransitPlans` (≤ 3, distinct) and `rideSummary`; a chooser for
+    the 🚆 Transit button.
+  - `domain/directions.ts`: OSRM steps → instructions, `mapsLink`.
+  - `StepChip` expands to ride detail, on-demand directions and "Open in
+    Maps"; timeline "↗ Maps"; no "0km" on short walks.
+  - Tests: 433 → 444. Playwright-checked with the recorded `/plan` and OSRM
+    fixtures: a chooser with 3 itineraries, add one, ride panel, 11-step
+    directions.
+
 - **v2.10.0** — Search and tap-to-add (improvements Phase 2).
   - Photon `searchPhoton`/`reversePlace` in `geocode.ts`, with recorded
     fixtures; `SlotForm` searches POIs (city search as the fallback).
