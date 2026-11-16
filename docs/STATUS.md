@@ -285,8 +285,8 @@ Ideas after v2.12.0: only Discover had them.
   - **Live departures** for the next ride: `fetchDepartures(boardStopId)`
     every 60 s, filtered to the ride's line, with delay and cancellation.
   - The panel is portalled to the body (the sheet's transform would trap
-    `fixed`). Needs a **real-phone test** (permissions, GPS, background
-    behaviour).
+    `fixed`). Real-phone test passed (the user, two mobile browsers,
+    2026-11-16).
 
 **v2.12.0 — ride times, photos, destination ideas.**
 - **Ride times** in the boarding stop's zone: `RideInfo.tz` and
@@ -371,7 +371,7 @@ retired: deploy.yml publishes the deploy branch only.
 The user (2026-11-10) checked the v2.13 features: the page looks good but is
 a bit crowded on mobile, and the usability problems remain. They are
 collecting all of them for one large iteration; wait for their list. Go mode
-was not mentioned as tested on a phone, so ask.
+was confirmed working on the user's phone in two browsers (2026-11-16).
 
 ## Open items
 - Admin panel: re-test live after the v1.0.1 CORS fix (magic-link sign-in
